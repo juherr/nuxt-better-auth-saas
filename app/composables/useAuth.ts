@@ -8,7 +8,7 @@ import { stripeClient } from '@better-auth/stripe/client'
 import { adminClient, inferAdditionalFields, organizationClient } from 'better-auth/client/plugins'
 import { createAuthClient } from 'better-auth/vue'
 import { ac, admin, member, owner } from '~~/shared/utils/permissions'
-import { authClientTransport, configuredOrigin, FORWARDED_REQUEST_HEADERS } from '~/utils/authClientTransport'
+import { authClientTransport, configuredOrigin, SSR_REQUEST_HEADERS } from '~/utils/authClientTransport'
 import { applySsrCookie, ssrCookiePort } from '~/utils/ssrCookies'
 
 export function useAuth() {
@@ -21,7 +21,7 @@ export function useAuth() {
       isServer: import.meta.server,
       origin: url.origin,
       configuredOrigin: import.meta.server ? configuredOrigin(runtimeConfig.public.baseURL as string) : undefined,
-      requestHeaders: import.meta.server ? useRequestHeaders([...FORWARDED_REQUEST_HEADERS]) : undefined,
+      requestHeaders: import.meta.server ? useRequestHeaders([...SSR_REQUEST_HEADERS]) : undefined,
       localFetch: requestEvent?.fetch,
       cookies: ssrCookiePort(requestEvent)
     }),

@@ -36,6 +36,15 @@ export interface AuthClientTransport {
  */
 export const FORWARDED_REQUEST_HEADERS = ['cookie', 'origin', 'referer'] as const
 
+/**
+ * Inbound headers read during SSR but never handed over: `sec-fetch-site` tells a typed URL or
+ * a bookmark (`none`) or a same-origin navigation from a cross-site one.
+ */
+export const SSR_REQUEST_HEADERS = [...FORWARDED_REQUEST_HEADERS, 'sec-fetch-site'] as const
+
+/** `Sec-Fetch-Site` values of a navigation that no other site started. */
+const OWN_FETCH_SITES = new Set(['none', 'same-origin'])
+
 /** Path of the only call that may carry the configured origin (see `authClientTransport`). */
 export const SET_ACTIVE_PATH = '/api/auth/organization/set-active'
 
@@ -67,8 +76,10 @@ function forwardedHeaders(requestHeaders: Record<string, string | undefined> | u
  *
  * A request without Origin and Referer (typed URL, bookmark) would get the set-active of the
  * organization middleware refused by better-auth's origin check: that POST alone gets the
- * configured origin. Every other call keeps the visitor's headers, so an inbound Origin or
- * Referer is still checked, and a cross-site one still refused.
+ * configured origin, and only when `Sec-Fetch-Site` is `none` or `same-origin`: a missing
+ * Referer is forgeable (`Referrer-Policy: no-referrer` on a linking page), a cross-site
+ * navigation or one without that header stays refused. Every other call keeps the visitor's
+ * headers, so an inbound Origin or Referer is still checked, and a cross-site one still refused.
  */
 export function authClientTransport(input: AuthClientTransportInput): AuthClientTransport {
   if (!input.isServer)
@@ -78,6 +89,7 @@ export function authClientTransport(input: AuthClientTransportInput): AuthClient
   const injectOrigin = !!input.configuredOrigin
     && !input.requestHeaders?.origin
     && !input.requestHeaders?.referer
+    && OWN_FETCH_SITES.has(input.requestHeaders?.['sec-fetch-site'] ?? '')
   return {
     baseURL: input.origin,
     fetchOptions: {

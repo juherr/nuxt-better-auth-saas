@@ -262,15 +262,46 @@ describe('authClientTransport', () => {
         return { client, headersOf }
       }
 
-      const withoutOriginOrReferer = { host: 'canary-host.invalid', cookie: inboundHeaders.cookie }
+      // A typed URL or a bookmark: the browser says so with `Sec-Fetch-Site: none`.
+      const withoutOriginOrReferer = { 'host': 'canary-host.invalid', 'cookie': inboundHeaders.cookie, 'sec-fetch-site': 'none' }
+
+      const setActive = (client: ReturnType<typeof createAuthClient>) =>
+        client.$fetch('/organization/set-active', { method: 'POST', body: { organizationId: 'org-2' } })
 
       it('sends the configured origin with a set-active that has neither Origin nor Referer', async () => {
         const { client, headersOf } = configuredClient(withoutOriginOrReferer)
 
-        await client.$fetch('/organization/set-active', { method: 'POST', body: { organizationId: 'org-2' } })
+        await setActive(client)
 
         expect(headersOf(0).origin).toBe(CONFIGURED_ORIGIN)
         expect(headersOf(0)).not.toHaveProperty('referer')
+        expect(headersOf(0)).not.toHaveProperty('sec-fetch-site')
+      })
+
+      it('sends the configured origin when the navigation is same-origin', async () => {
+        const { client, headersOf } = configuredClient({ ...withoutOriginOrReferer, 'sec-fetch-site': 'same-origin' })
+
+        await setActive(client)
+
+        expect(headersOf(0).origin).toBe(CONFIGURED_ORIGIN)
+      })
+
+      // A missing Referer is forgeable (`Referrer-Policy: no-referrer` on the linking page).
+      it.each(['cross-site', 'same-site'])('sends no origin when the navigation is %s', async (site) => {
+        const { client, headersOf } = configuredClient({ ...withoutOriginOrReferer, 'sec-fetch-site': site })
+
+        await setActive(client)
+
+        expect(headersOf(0)).not.toHaveProperty('origin')
+      })
+
+      it('sends no origin when the request has no Sec-Fetch-Site', async () => {
+        const { 'sec-fetch-site': _, ...withoutFetchSite } = withoutOriginOrReferer
+        const { client, headersOf } = configuredClient(withoutFetchSite)
+
+        await setActive(client)
+
+        expect(headersOf(0)).not.toHaveProperty('origin')
       })
 
       it('sends no origin with any other POST', async () => {
