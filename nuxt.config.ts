@@ -163,4 +163,4 @@ export default defineNuxtConfig({
       transpile: ['zod']
     }
   }
-}) as any
+})
