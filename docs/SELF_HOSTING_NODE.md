@@ -61,8 +61,8 @@ npx nuxt db mark-as-migrated 0000_<name>
 
 ## 2. Sessions and KV
 
-The app does not use Redis directly: `NUXT_REDIS_URL` (`runtimeConfig.redisUrl`) is not read by
-any code. Better Auth keeps its sessions in NuxtHub KV (`hub:kv`, used as `secondaryStorage`), and
+`NUXT_REDIS_URL` (`runtimeConfig.redisUrl`) is not read by any code. Only the upload rate limiter
+talks to Redis directly (see below). Better Auth keeps its sessions in NuxtHub KV (`hub:kv`, used as `secondaryStorage`), and
 NuxtHub chooses the KV driver **when the app is built**:
 
 | Build environment | KV driver |
@@ -78,6 +78,27 @@ With the default `fs-lite` driver, `.data/kv` is resolved from the **working dir
 server process**. It holds the sessions: keep it writable and persistent (a volume, in a
 container); losing it signs every user out. Run a single instance with it; for
 several instances behind a load balancer, build with `REDIS_URL` so that they share sessions.
+
+### Upload rate limit
+
+When `uploadRateLimit` is configured, each user may upload at most `maxUploadsPerWindow` files per
+**fixed window** of `windowSizeMinutes`. Windows start at multiples of the window size; the counter
+of a window expires when the window ends, and later uploads in the same window never push that
+expiry back. If the backend fails, uploads are refused (fail closed).
+
+How strictly the limit holds depends on the backend:
+
+| Backend | Guarantee |
+|---------|-----------|
+| Redis (`REDIS_URL`, or a `rediss://` `KV_URL`, in the **run** environment) | Atomic across all instances (one Lua script per upload) |
+| `fs-lite` or any other non-Redis KV | Exact on a single instance only (per-process lock); several instances can each accept up to the limit |
+| Cloudflare KV | Best effort: the store is eventually consistent, so concurrent requests can exceed the limit |
+
+The limiter reads `REDIS_URL` / `KV_URL` from the environment **at run time**, while NuxtHub bakes
+the KV URL into the build. Set `REDIS_URL` in the run environment too, not only for the build;
+without it the limiter falls back to the per-process lock. With an Upstash REST configuration
+(`KV_REST_API_*` or `UPSTASH_REDIS_REST_*`), the limiter is not atomic across instances unless
+`REDIS_URL` is also set.
 
 ---
 
