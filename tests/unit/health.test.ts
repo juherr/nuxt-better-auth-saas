@@ -1,17 +1,12 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubNitroGlobals } from './support/nitroGlobals'
 
 const drivers = vi.hoisted(() => ({ isDatabaseConfigured: vi.fn(() => true) }))
 const db = vi.hoisted(() => ({ execute: vi.fn(async () => ({ rows: [{ '?column?': 1 }] })) }))
 const getDB = vi.hoisted(() => vi.fn(() => db))
 
 vi.mock('~~/server/utils/drivers', () => drivers)
-vi.mock('~~/server/utils/db', () => ({ getDB, useDB: vi.fn(async () => db) }))
-
-// Nitro auto-imports, unavailable outside Nuxt.
-vi.stubGlobal('defineEventHandler', (handler: unknown) => handler)
-vi.stubGlobal('setResponseStatus', (event: { status?: number }, code: number) => {
-  event.status = code
-})
+vi.mock('~~/server/utils/db', () => ({ getDB }))
 
 const CANARY = 'connect ECONNREFUSED postgres://canary-user:canary-password@db-canary:5432/app'
 
@@ -24,12 +19,21 @@ const callHealth = async () => {
 }
 
 describe('the health endpoint (GET /api/health)', () => {
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+  beforeAll(stubNitroGlobals)
+
   beforeEach(() => {
     drivers.isDatabaseConfigured.mockReturnValue(true)
     db.execute.mockClear()
     db.execute.mockResolvedValue({ rows: [{ '?column?': 1 }] })
     getDB.mockClear()
-    vi.spyOn(console, 'error').mockImplementation(() => {})
+    consoleError.mockClear()
+  })
+
+  afterAll(() => {
+    vi.unstubAllGlobals()
+    consoleError.mockRestore()
   })
 
   it('answers ok after querying the database when one is configured', async () => {

@@ -11,7 +11,8 @@ export interface HttpErrorInput {
  * `defineNitroPlugin` return their argument. `readBody` returns `event.body`,
  * `getQuery` returns `event.query` and `getRouterParam` reads `event.params`.
  * `getRequestHeader` reads `event.headers`, `setResponseHeader` writes
- * `event.responseHeaders` and `getResponseStatus` reads `event.node.res.statusCode`.
+ * `event.responseHeaders`, `getResponseStatus` reads `event.node.res.statusCode`
+ * and `setResponseStatus` writes `event.status`.
  */
 export function stubNitroGlobals() {
   vi.stubGlobal('defineEventHandler', (handler: unknown) => handler)
@@ -26,6 +27,9 @@ export function stubNitroGlobals() {
   })
   vi.stubGlobal('getResponseStatus', (event: { node?: { res?: { statusCode?: number } } }) =>
     event?.node?.res?.statusCode ?? 200)
+  vi.stubGlobal('setResponseStatus', (event: { status?: number }, code: number) => {
+    event.status = code
+  })
   vi.stubGlobal('createError', (input: HttpErrorInput) =>
     Object.assign(new Error(input.statusMessage), input))
 }
