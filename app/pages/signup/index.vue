@@ -34,15 +34,12 @@ const redirectTo = computed(() => {
   return localePath(redirect || '/')
 })
 
-const schema = z.object({
+const schema = refinePasswordsMatch(z.object({
   name: z.string().min(5, t('signUp.form.name.error', { min: 5 })),
   email: z.email(t('signUp.form.email.error')),
   password: z.string().min(8, t('signUp.form.password.error', { min: 8 })),
   confirmPassword: z.string()
-}).refine(data => data.password === data.confirmPassword, {
-  message: t('signUp.form.confirmPassword.error'),
-  path: ['confirmPassword']
-})
+}), t('signUp.form.confirmPassword.error'))
 
 type Schema = zodOutput<typeof schema>
 
