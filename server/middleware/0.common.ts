@@ -44,12 +44,14 @@ export default defineEventHandler((event) => {
   const start = performance.now()
   const requestId = resolveRequestId(getRequestHeader(event, 'x-request-id'))
   setResponseHeader(event, 'x-request-id', requestId)
+  const req = event.node?.req
+  const res = event.node?.res
   // Nuxt renders error pages through a `/__nuxt_error` sub-request that
   // forwards the request headers and copies its response headers back
   // (@nuxt/nitro-server runtime/handlers/error.js): forwarding the resolved
   // id keeps one id for the request, its sub-request and the response.
-  if (event.node?.req?.headers) {
-    event.node.req.headers['x-request-id'] = requestId
+  if (req?.headers) {
+    req.headers['x-request-id'] = requestId
   }
 
   // Captured now: h3 rewrites the path as the request goes through its layers.
@@ -58,11 +60,10 @@ export default defineEventHandler((event) => {
   if (isNuxtErrorPageSubrequest({
     path,
     nuxtErrorHeader: getRequestHeader(event, 'x-nuxt-error'),
-    internal: !!event.node?.req && '__unenv__' in event.node.req
+    internal: !!req && '__unenv__' in req
   })) {
     return
   }
-  const res = event.node?.res
   let written = false
   const writeOnce = (status: number) => {
     if (written) {
@@ -81,10 +82,11 @@ export default defineEventHandler((event) => {
     write[level](line)
   }
 
-  event.context.writeAccessLog = () => writeOnce(getResponseStatus(event))
+  const writeFromResponse = () => writeOnce(getResponseStatus(event))
+  event.context.writeAccessLog = writeFromResponse
   if (typeof res?.on !== 'function') {
     return
   }
-  res.on('finish', () => writeOnce(getResponseStatus(event)))
+  res.on('finish', writeFromResponse)
   res.on('close', () => writeOnce(res.writableFinished ? getResponseStatus(event) : CLIENT_CLOSED_REQUEST))
 })
