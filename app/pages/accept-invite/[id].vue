@@ -99,6 +99,7 @@ definePageMeta({
           <p>{{ error }}</p>
           <UButton
             to="/"
+            :locale="false"
             class="mt-4"
             variant="outline"
           >

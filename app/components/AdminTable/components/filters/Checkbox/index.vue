@@ -14,7 +14,7 @@ const emit = defineEmits<{
 }>()
 const { t } = useI18n()
 
-const filter = defineModel<string[]>('filter', { default: [] })
+const filter = defineModel<string[]>('filter', { default: () => [] })
 
 const route = useRoute()
 const router = useRouter()

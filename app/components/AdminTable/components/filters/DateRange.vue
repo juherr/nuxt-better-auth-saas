@@ -7,10 +7,10 @@ const { name, filterName } = defineProps<{
   filterName: string
 }>()
 
-const dateRange = defineModel<DateRange>('dateRange', { default: {
+const dateRange = defineModel<DateRange>('dateRange', { default: () => ({
   start: undefined,
   end: undefined
-} })
+}) })
 
 const clearDateRange = () => {
   dateRange.value = {

@@ -25,9 +25,11 @@ const state = reactive({
 
 const schema = z.object({
   password: z.string().min(8, t('resetPassword.errors.minLength', { min: 8 })),
-  confirmPassword: z.string().min(8, t('resetPassword.errors.minLength', { min: 8 })).refine(val => val === state.password, {
-    message: t('resetPassword.errors.passwordMismatch')
-  })
+  confirmPassword: refineMatchesPassword(
+    z.string().min(8, t('resetPassword.errors.minLength', { min: 8 })),
+    () => state.password,
+    t('resetPassword.errors.passwordMismatch')
+  )
 })
 
 type Schema = zodOutput<typeof schema>

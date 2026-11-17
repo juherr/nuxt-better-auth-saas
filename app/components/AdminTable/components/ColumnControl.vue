@@ -3,7 +3,7 @@ const { columns } = defineProps<{
   columns: AdminTableColumn<T>[]
 }>()
 
-const selectedColumns = defineModel<string[]>('selectedColumns', { default: [] })
+const selectedColumns = defineModel<string[]>('selectedColumns', { default: () => [] })
 
 const columnOptions = computed(() => columns.filter(column => column.accessorKey))
 

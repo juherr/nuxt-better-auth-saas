@@ -1,14 +1,17 @@
 import type { Buffer } from 'node:buffer'
 import type { DetectedType } from './contentSniffer'
-import type { StorageProvider } from './types'
+import type { FileManagerConfig, StorageProvider } from './types'
 import { and, desc, eq } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
 import { file as fileTable } from '~~/server/db/schema'
 import { logAuditEvent } from '~~/server/utils/auditLogger'
 import { buildStorageName, sanitizeDisplayName } from './fileNames'
 
-export const useFileManagerConfig = () => {
-  const config = useRuntimeConfig().fileManager
+export const useFileManagerConfig = (): FileManagerConfig => {
+  // The generated server runtime config type infers `provider: string` and
+  // drops the optional keys, so narrow it to the shape that
+  // generateRuntimeConfig() checks with `satisfies FileManagerConfig`.
+  const config = useRuntimeConfig().fileManager as FileManagerConfig | undefined
   if (!config) {
     throw createError({
       statusCode: 500,
