@@ -3,7 +3,10 @@
   "extends": "./.nuxt/tsconfig.json",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "jsxImportSource": "react"
+    "jsxImportSource": "react",
+    // scripts/*.ts run under plain Node type stripping, which needs the
+    // `.ts` extension on relative imports.
+    "allowImportingTsExtensions": true
   },
   "include": [
     ".nuxt/**/*.d.ts",
