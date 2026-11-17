@@ -109,7 +109,7 @@ describe('creating an API key', () => {
 
     it('checks the membership of the exact organization the metadata names', async () => {
       const options = await authOptions()
-      const { ctx, findOne } = createRequest({ metadata: { organizationId: ' org-1 ' } })
+      const { ctx, findOne } = createRequest({ metadata: { organizationId: 'org-1' } })
 
       await options.hooks.before(ctx)
 
@@ -150,6 +150,8 @@ describe('creating an API key', () => {
         createRequest({ metadata: { organizationId: 'org-1' }, role: 'owner,admin' }),
         createRequest({ metadata: undefined }),
         createRequest({ metadata: { organizationId: '  ' } }),
+        createRequest({ metadata: { organizationId: ' org-1' } }),
+        createRequest({ metadata: { organizationId: 'org-1 ' } }),
         createRequest({ metadata: { label: 'org-1' } })
       ].map(({ ctx }) => options.hooks.before(ctx).catch((e: unknown) => e)))
 
@@ -165,12 +167,21 @@ describe('creating an API key', () => {
 
     it('links the created key to the organization it was created for', async () => {
       const options = await authOptions()
-      const { ctx } = createRequest({ metadata: { organizationId: ' org-1 ' }, returned: created })
+      const { ctx } = createRequest({ metadata: { organizationId: 'org-1' }, returned: created })
 
       await options.hooks.after(ctx)
 
       expect(insert).toHaveBeenCalledTimes(1)
       expect(insertValues).toHaveBeenCalledWith({ apiKeyId: 'key-1', organizationId: 'org-1' })
+    })
+
+    it('links nothing when the organization id in the metadata is not exact', async () => {
+      const options = await authOptions()
+      const { ctx } = createRequest({ metadata: { organizationId: ' org-1 ' }, returned: created })
+
+      await options.hooks.after(ctx)
+
+      expect(insert).not.toHaveBeenCalled()
     })
 
     it('links nothing when the creation failed', async () => {

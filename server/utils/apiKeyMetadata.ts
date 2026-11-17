@@ -16,19 +16,38 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * there is no fuzzy fallback.
  */
 export function parseLegacyOrganizationId(metadata: unknown): string | null {
+  const raw = readOrganizationIdField(metadata)
+  if (typeof raw !== 'string')
+    return null
+  const organizationId = raw.trim()
+  return organizationId === '' ? null : organizationId
+}
+
+/**
+ * Reads the organization id an API key creation request names, decoding
+ * the metadata as `parseLegacyOrganizationId` does but without trimming:
+ * the key keeps the metadata as sent, so the organization checked and
+ * linked must be exactly the one stored. An id that is not a non-empty
+ * string equal to its trimmed value yields null.
+ */
+export function parseRequestedOrganizationId(metadata: unknown): string | null {
+  const raw = readOrganizationIdField(metadata)
+  if (typeof raw !== 'string' || raw === '' || raw !== raw.trim())
+    return null
+  return raw
+}
+
+function readOrganizationIdField(metadata: unknown): unknown {
   let value = metadata
   for (let decodes = 0; typeof value === 'string' && decodes < MAX_JSON_DECODES; decodes++) {
     try {
       value = JSON.parse(value)
     }
     catch {
-      return null
+      return undefined
     }
   }
-  if (!isRecord(value) || typeof value.organizationId !== 'string')
-    return null
-  const organizationId = value.organizationId.trim()
-  return organizationId === '' ? null : organizationId
+  return isRecord(value) ? value.organizationId : undefined
 }
 
 export type ApiKeyBackfillOutcome

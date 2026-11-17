@@ -8,7 +8,7 @@ import { and, eq } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
 import * as schema from '~~/server/db/schema'
 import { ac, admin, member, owner } from '~~/shared/utils/permissions'
-import { createdApiKeyId, isApiKeyManagerRole, parseLegacyOrganizationId } from './apiKeyMetadata'
+import { createdApiKeyId, isApiKeyManagerRole, parseRequestedOrganizationId } from './apiKeyMetadata'
 import { deleteOrganizationApiKeys } from './apiKeyOrganization'
 import { logAuditEvent } from './auditLogger'
 import { getDB } from './db'
@@ -104,7 +104,8 @@ async function refuseForeignSubscriptionUpgrade(ctx: AuthMiddlewareContext) {
  * An API key belongs to the organization its metadata names, so only an
  * owner or admin of that organization may create it. Runs before the
  * endpoint validates its body. Anonymous callers get 401; a missing
- * organization, a non-member and a member with another role all get the
+ * organization, an id with surrounding whitespace (the key would store
+ * it as sent), a non-member and a member with another role all get the
  * same 403. Server-side calls without a session are refused as well.
  */
 async function requireApiKeyCreationRights(ctx: AuthMiddlewareContext) {
@@ -113,7 +114,7 @@ async function requireApiKeyCreationRights(ctx: AuthMiddlewareContext) {
     throw new APIError('UNAUTHORIZED')
   }
   const forbidden = () => new APIError('FORBIDDEN', { message: 'You cannot create API keys for this organization' })
-  const organizationId = parseLegacyOrganizationId(ctx.body?.metadata)
+  const organizationId = parseRequestedOrganizationId(ctx.body?.metadata)
   if (!organizationId) {
     throw forbidden()
   }
@@ -139,7 +140,7 @@ async function requireApiKeyCreationRights(ctx: AuthMiddlewareContext) {
  */
 async function linkCreatedApiKey(ctx: AuthMiddlewareContext) {
   const apiKeyId = createdApiKeyId(ctx.context.returned)
-  const organizationId = parseLegacyOrganizationId(ctx.body?.metadata)
+  const organizationId = parseRequestedOrganizationId(ctx.body?.metadata)
   if (!apiKeyId || !organizationId) {
     return
   }

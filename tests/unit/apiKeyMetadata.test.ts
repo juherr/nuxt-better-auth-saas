@@ -1,6 +1,6 @@
 import { APIError } from 'better-auth/api'
 import { describe, expect, it } from 'vitest'
-import { createdApiKeyId, decideApiKeyBackfill, isApiKeyManagerRole, parseLegacyOrganizationId } from '~~/server/utils/apiKeyMetadata'
+import { createdApiKeyId, decideApiKeyBackfill, isApiKeyManagerRole, parseLegacyOrganizationId, parseRequestedOrganizationId } from '~~/server/utils/apiKeyMetadata'
 
 describe('parseLegacyOrganizationId', () => {
   it.each([
@@ -34,6 +34,31 @@ describe('parseLegacyOrganizationId', () => {
     ['a triple-encoded JSON string', JSON.stringify(JSON.stringify(JSON.stringify({ organizationId: 'org-1' })))]
   ])('returns null for %s', (_label, metadata) => {
     expect(parseLegacyOrganizationId(metadata)).toBeNull()
+  })
+})
+
+describe('parseRequestedOrganizationId', () => {
+  it.each([
+    ['an already parsed object', { organizationId: 'org-1' }, 'org-1'],
+    ['a JSON object string', JSON.stringify({ organizationId: 'org-1' }), 'org-1'],
+    ['a double-encoded JSON string', JSON.stringify(JSON.stringify({ organizationId: 'org-12' })), 'org-12']
+  ])('reads the organization id from %s', (_label, metadata, expected) => {
+    expect(parseRequestedOrganizationId(metadata)).toBe(expected)
+  })
+
+  it.each([
+    ['a leading space', { organizationId: ' org-1' }],
+    ['a trailing space', { organizationId: 'org-1 ' }],
+    ['a trailing newline', { organizationId: 'org-1\n' }],
+    ['surrounding spaces in a JSON string', JSON.stringify({ organizationId: ' org-1 ' })],
+    ['an empty organizationId', { organizationId: '' }],
+    ['a whitespace organizationId', { organizationId: '   ' }],
+    ['a numeric organizationId', { organizationId: 1 }],
+    ['no organizationId', { label: 'org-1' }],
+    ['no metadata', undefined],
+    ['a non-JSON string', 'not json']
+  ])('refuses an organization id with %s, which would not match the stored metadata', (_label, metadata) => {
+    expect(parseRequestedOrganizationId(metadata)).toBeNull()
   })
 })
 
