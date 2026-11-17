@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   accessLogLevel,
   formatAccessLog,
+  isNuxtErrorPageSubrequest,
   parseLogFormat,
   parseLogLevel,
   resolveRequestId,
@@ -222,5 +223,28 @@ describe('resolveRequestId', () => {
 
     expect(id).not.toBe(header)
     expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
+  })
+})
+
+describe('isNuxtErrorPageSubrequest', () => {
+  const subrequest = { path: '/__nuxt_error?statusCode=404&url=%2Fmissing', nuxtErrorHeader: 'true', internal: true }
+
+  it('recognises the internal sub-request Nuxt makes to render an error page', () => {
+    expect(isNuxtErrorPageSubrequest(subrequest)).toBe(true)
+  })
+
+  it('recognises it under an app base URL', () => {
+    expect(isNuxtErrorPageSubrequest({ ...subrequest, path: '/base/__nuxt_error?statusCode=500' })).toBe(true)
+  })
+
+  it.each([
+    ['another path', { path: '/dashboard' }],
+    ['a path that only starts like it', { path: '/__nuxt_error_page' }],
+    ['the marker in the query only', { path: '/dashboard?next=/__nuxt_error' }],
+    ['no x-nuxt-error header', { nuxtErrorHeader: undefined }],
+    ['an empty x-nuxt-error header', { nuxtErrorHeader: '' }],
+    ['a request from the network', { internal: false }]
+  ])('does not skip a request with %s', (_label, override) => {
+    expect(isNuxtErrorPageSubrequest({ ...subrequest, ...override })).toBe(false)
   })
 })

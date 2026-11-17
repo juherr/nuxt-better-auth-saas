@@ -19,7 +19,7 @@ interface FakeEvent {
   headers: Record<string, string>
   context: Record<string, unknown>
   responseHeaders?: Record<string, string>
-  node?: { req: { headers: Record<string, string> }, res: FakeResponse }
+  node?: { req: { headers: Record<string, string>, __unenv__?: unknown }, res: FakeResponse }
 }
 
 // Like node-mock-http's response on cloudflare-module: no socket, and nothing
@@ -27,6 +27,13 @@ interface FakeEvent {
 function fakeEvent(path: string, headers: Record<string, string> = {}): FakeEvent {
   const res = Object.assign(new EventEmitter(), { statusCode: 200, writableFinished: false, socket: null })
   return { method: 'GET', path, headers, context: {}, node: { req: { headers: { ...headers } }, res } }
+}
+
+/** A request made in-process through Nitro's `localFetch`: node-mock-http sets `req.__unenv__`. */
+function internalEvent(path: string, headers: Record<string, string> = {}): FakeEvent {
+  const event = fakeEvent(path, headers)
+  event.node!.req.__unenv__ = {}
+  return event
 }
 
 async function runMiddleware(event: FakeEvent) {
@@ -152,6 +159,36 @@ describe('the access log middleware', () => {
     expect(warn).toHaveBeenCalledTimes(1)
     expect(String(warn.mock.calls[0]?.[0])).toContain('GET /slow-report 499')
     expect(log).not.toHaveBeenCalled()
+  })
+
+  it('logs an HTML error page once, for the request and not for its error page sub-request', async () => {
+    const request = fakeEvent('/missing', { 'x-request-id': 'req-404' })
+    const errorPage = internalEvent('/__nuxt_error?statusCode=404&url=%2Fmissing', {
+      'x-request-id': 'req-404',
+      'x-nuxt-error': 'true'
+    })
+
+    await runMiddleware(request)
+    await runMiddleware(errorPage)
+    finish(errorPage, 404)
+    await afterResponse(errorPage, 404)
+    finish(request, 404)
+
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(String(warn.mock.calls[0]?.[0])).toContain('GET /missing 404')
+    expect(errorPage.responseHeaders?.['x-request-id']).toBe('req-404')
+  })
+
+  it.each([
+    ['a forged x-nuxt-error header on another path', () => fakeEvent('/dashboard', { 'x-nuxt-error': 'true' })],
+    ['an error page request from the network', () => fakeEvent('/__nuxt_error', { 'x-nuxt-error': 'true' })]
+  ])('still logs %s', async (_label, makeEvent) => {
+    const event = makeEvent()
+
+    await runMiddleware(event)
+    finish(event, 200)
+
+    expect(log).toHaveBeenCalledTimes(1)
   })
 
   it('echoes a valid inbound request id and logs it', async () => {

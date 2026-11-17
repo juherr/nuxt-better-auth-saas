@@ -2,6 +2,7 @@ import type { LogLevel } from '~~/server/utils/accessLog'
 import {
   accessLogLevel,
   formatAccessLog,
+  isNuxtErrorPageSubrequest,
   parseLogFormat,
   parseLogLevel,
   resolveRequestId,
@@ -21,6 +22,8 @@ const CLIENT_CLOSED_REQUEST = 499
 
 /**
  * Access log: one line per request, plus an `x-request-id` response header.
+ * The sub-request Nuxt makes to render an HTML error page is not logged: the
+ * request that failed already is (see `isNuxtErrorPageSubrequest`).
  * See server/utils/accessLog.ts for what a line contains; headers and bodies
  * are never logged.
  *
@@ -51,6 +54,14 @@ export default defineEventHandler((event) => {
 
   // Captured now: h3 rewrites the path as the request goes through its layers.
   const { method, path } = event
+  // The error page sub-request shares the request id; the failed request's own line covers it.
+  if (isNuxtErrorPageSubrequest({
+    path,
+    nuxtErrorHeader: getRequestHeader(event, 'x-nuxt-error'),
+    internal: !!event.node?.req && '__unenv__' in event.node.req
+  })) {
+    return
+  }
   const res = event.node?.res
   let written = false
   const writeOnce = (status: number) => {

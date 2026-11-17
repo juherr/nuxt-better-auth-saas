@@ -88,6 +88,12 @@ function redactSecretSegments(path: string): string {
   )
 }
 
+/** Cuts a URL at the first raw `?` or `#`. */
+function cutQuery(url: string): string {
+  const cut = url.search(/[?#]/)
+  return cut === -1 ? url : url.slice(0, cut)
+}
+
 /**
  * Returns the path of a request URL without its query string or fragment,
  * with the secret segments of `SECRET_PATH_ROUTES` replaced by a placeholder.
@@ -99,9 +105,7 @@ function redactSecretSegments(path: string): string {
  * URL keeps only its pathname.
  */
 export function sanitizeLogPath(url: string): string {
-  const cut = url.search(/[?#]/)
-  const withoutQuery = cut === -1 ? url : url.slice(0, cut)
-  const path = redactSecretSegments(withoutQuery.replace(ABSOLUTE_URL, ''))
+  const path = redactSecretSegments(cutQuery(url).replace(ABSOLUTE_URL, ''))
   // Percent-encoded as UTF-8 bytes, like the rest of the path: `%0A`, `%C2%85`, `%E2%80%A8`.
   const escaped = path.replace(UNSAFE_CHARS, encodeURIComponent)
   return escaped.startsWith('/') ? escaped : `/${escaped}`
@@ -124,6 +128,32 @@ export function formatAccessLog(entry: AccessLogEntry, format: LogFormat): strin
     })
   }
   return `[${timestamp}] ${level.toUpperCase()} ${entry.method} ${path} ${entry.status} ${entry.durationMs}ms request_id=${entry.requestId}`
+}
+
+export interface NuxtErrorPageRequest {
+  /** Request path, query included. */
+  path: string
+  /** Value of the `x-nuxt-error` request header. */
+  nuxtErrorHeader: string | undefined
+  /** Whether the request was made in-process (node-mock-http sets `req.__unenv__`). */
+  internal: boolean
+}
+
+const NUXT_ERROR_PAGE_PATH = /\/__nuxt_error$/
+
+/**
+ * Whether a request is the sub-request Nuxt's error handler makes to render
+ * an HTML error page (@nuxt/nitro-server 4.2.1 runtime/handlers/error.js: an
+ * in-process `localFetch` of `<baseURL>/__nuxt_error` with `x-nuxt-error`).
+ * Its line would duplicate the one of the request that failed.
+ *
+ * All three markers are required, so a client cannot drop its own line by
+ * sending `x-nuxt-error`, nor hide a request to `/__nuxt_error`. On presets
+ * where every request is in-process (`cloudflare-module`), a request to
+ * `/__nuxt_error` with that header remains unlogged.
+ */
+export function isNuxtErrorPageSubrequest({ path, nuxtErrorHeader, internal }: NuxtErrorPageRequest): boolean {
+  return internal && !!nuxtErrorHeader && NUXT_ERROR_PAGE_PATH.test(cutQuery(path))
 }
 
 const SAFE_REQUEST_ID = /^[\w.:-]{1,128}$/
