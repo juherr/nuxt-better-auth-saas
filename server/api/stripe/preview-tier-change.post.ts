@@ -324,11 +324,11 @@ export default defineEventHandler(async (event) => {
       paymentMethod,
       message
     }
-  } catch (error: any) {
-    console.error('[preview-tier-change] Stripe error:', error)
+  } catch (error) {
+    console.error('[stripe/preview-tier-change]', error)
     throw createError({
       statusCode: 500,
-      statusMessage: error.message || 'Failed to preview plan change'
+      statusMessage: 'Failed to preview plan change'
     })
   }
 })

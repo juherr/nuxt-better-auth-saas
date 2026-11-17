@@ -13,11 +13,11 @@ export default defineEventHandler(async (event) => {
       success: true,
       subscription
     }
-  } catch (error: any) {
-    console.error('Stripe cancel error:', error)
+  } catch (error) {
+    console.error('[stripe/cancel]', error)
     throw createError({
       statusCode: 500,
-      statusMessage: error.message || 'Failed to cancel subscription'
+      statusMessage: 'Failed to cancel subscription'
     })
   }
 })
