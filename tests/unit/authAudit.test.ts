@@ -12,6 +12,11 @@ describe('resolveAuditTarget', () => {
       .toEqual({ targetType: 'email', targetId: 'a@example.com' })
   })
 
+  it('targets the email of an anonymous password reset request', () => {
+    expect(resolveAuditTarget({ path: '/request-password-reset', hasSession: false, email: 'a@example.com' }))
+      .toEqual({ targetType: 'email', targetId: 'a@example.com' })
+  })
+
   it('has no target for other anonymous requests', () => {
     expect(resolveAuditTarget({ path: '/get-session', hasSession: false }))
       .toEqual({ targetType: undefined, targetId: undefined })
@@ -19,7 +24,7 @@ describe('resolveAuditTarget', () => {
 })
 
 describe('the audited success paths', () => {
-  it.each(['/sign-in/email', '/sign-up/email', '/reset-password'])('logs a successful %s', (path) => {
+  it.each(['/sign-in/email', '/sign-up/email', '/request-password-reset', '/reset-password'])('logs a successful %s', (path) => {
     expect(AUDITED_SUCCESS_PATHS).toContain(path)
   })
 })

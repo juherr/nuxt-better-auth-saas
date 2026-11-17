@@ -165,7 +165,7 @@ export function useAuth() {
     refreshActiveOrg,
     signIn: client.signIn,
     signUp: client.signUp,
-    forgetPassword: client.forgetPassword,
+    requestPasswordReset: client.requestPasswordReset,
     resetPassword: client.resetPassword,
     sendVerificationEmail: client.sendVerificationEmail,
     errorCodes: client.$ERROR_CODES,

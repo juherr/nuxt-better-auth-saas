@@ -1,10 +1,10 @@
 // Audit log helpers for the better-auth hooks.after middleware.
 
 // Paths whose request body carries the email the action targets.
-const EMAIL_TARGET_PATHS = ['/sign-in/email', '/sign-up/email', 'forget-password']
+const EMAIL_TARGET_PATHS = ['/sign-in/email', '/sign-up/email', '/request-password-reset']
 
 // Paths logged on success; failures are logged for every path.
-export const AUDITED_SUCCESS_PATHS = ['/sign-in/email', '/sign-up/email', '/forget-password', '/reset-password']
+export const AUDITED_SUCCESS_PATHS = ['/sign-in/email', '/sign-up/email', '/request-password-reset', '/reset-password']
 
 interface AuditRequest {
   path: string
