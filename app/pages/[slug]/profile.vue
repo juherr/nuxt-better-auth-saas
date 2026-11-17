@@ -41,7 +41,7 @@ const avatarInitials = computed(() => {
 })
 
 // Connected accounts
-const accounts = ref<Array<{ providerId: string, accountId: string, createdAt: Date }>>([])
+const accounts = ref<Array<{ id: string, providerId: string, accountId: string, createdAt: Date }>>([])
 
 // Check if user has a password (credential account)
 const hasPassword = computed(() => {
@@ -221,7 +221,11 @@ async function unlinkAccount(providerId: string) {
 
   unlinkingAccount.value = providerId
   try {
-    await client.unlinkAccount({ providerId })
+    // /unlink-account takes the Better Auth account id, not the provider id.
+    const account = accounts.value.find(a => a.providerId === providerId)
+    if (!account)
+      throw new Error(`No ${providerId} account is linked`)
+    await client.unlinkAccount({ accountId: account.id })
     await fetchAccounts()
     toast.add({ title: `${providerId} account unlinked`, color: 'success' })
   } catch (e: any) {
