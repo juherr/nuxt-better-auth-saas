@@ -51,9 +51,10 @@ export function shouldLog(entryLevel: LogLevel, configuredLevel: LogLevel): bool
 }
 
 const ABSOLUTE_URL = /^[a-z][a-z\d+.-]*:\/\/[^/?#]*/i
-// Control characters, space and DEL: escaped so a path cannot split or forge a line.
+// C0 controls, space, DEL, C1 controls (NEL among them) and the Unicode line
+// and paragraph separators: escaped so a path cannot split or forge a line.
 // eslint-disable-next-line no-control-regex
-const UNSAFE_CHARS = /[\x00-\x1F\x20\x7F]/g
+const UNSAFE_CHARS = /[\x00-\x20\x7F-\x9F\u2028\u2029]/g
 
 /**
  * Routes that carry a secret in the path itself: a value whose possession
@@ -101,8 +102,8 @@ export function sanitizeLogPath(url: string): string {
   const cut = url.search(/[?#]/)
   const withoutQuery = cut === -1 ? url : url.slice(0, cut)
   const path = redactSecretSegments(withoutQuery.replace(ABSOLUTE_URL, ''))
-  const escaped = path.replace(UNSAFE_CHARS, char =>
-    `%${char.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')}`)
+  // Percent-encoded as UTF-8 bytes, like the rest of the path: `%0A`, `%C2%85`, `%E2%80%A8`.
+  const escaped = path.replace(UNSAFE_CHARS, encodeURIComponent)
   return escaped.startsWith('/') ? escaped : `/${escaped}`
 }
 

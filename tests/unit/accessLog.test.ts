@@ -57,6 +57,29 @@ describe('sanitizeLogPath', () => {
   it('escapes control characters so a path cannot forge a log line', () => {
     expect(sanitizeLogPath('/a\r\nGET /admin 200')).toBe('/a%0D%0AGET%20/admin%20200')
   })
+
+  it('escapes DEL', () => {
+    expect(sanitizeLogPath('/a\x7Fb')).toBe('/a%7Fb')
+  })
+
+  it.each([
+    ['U+0080', '\x80', '%C2%80'],
+    ['NEL (U+0085)', '\x85', '%C2%85'],
+    ['U+009F', '\x9F', '%C2%9F']
+  ])('escapes the C1 control character %s as its UTF-8 bytes', (_name, char, escaped) => {
+    expect(sanitizeLogPath(`/a${char}GET /admin`)).toBe(`/a${escaped}GET%20/admin`)
+  })
+
+  it.each([
+    ['LINE SEPARATOR (U+2028)', '\u2028', '%E2%80%A8'],
+    ['PARAGRAPH SEPARATOR (U+2029)', '\u2029', '%E2%80%A9']
+  ])('escapes the Unicode %s as its UTF-8 bytes', (_name, char, escaped) => {
+    expect(sanitizeLogPath(`/a${char}GET /admin`)).toBe(`/a${escaped}GET%20/admin`)
+  })
+
+  it('leaves other non-ASCII characters as received', () => {
+    expect(sanitizeLogPath('/caf\u00E9')).toBe('/caf\u00E9')
+  })
 })
 
 describe('sanitizeLogPath: secret path segments', () => {
