@@ -15,7 +15,9 @@
       "signInSuccess": "Sign in Success",
       "errors": {
         "invalidEmail": "Invalid email address",
-        "passwordLength": "Password must be at least {min} characters"
+        "passwordLength": "Password must be at least {min} characters",
+        "accountNotLinked": "An account with this email already exists and could not be linked. Sign in with your email and password and verify your email, then try again.",
+        "socialSignInFailed": "Social sign-in failed. Please try again."
       },
       "emailNotVerified": "Email Not Verified",
       "emailNotVerifiedDesc": "Please verify your email address to continue.",
@@ -40,7 +42,9 @@
       "signInSuccess": "登录成功",
       "errors": {
         "invalidEmail": "无效的邮箱地址",
-        "passwordLength": "密码长度至少为{min}个字符"
+        "passwordLength": "密码长度至少为{min}个字符",
+        "accountNotLinked": "该邮箱已有账户，无法关联。请使用邮箱和密码登录并验证邮箱后重试。",
+        "socialSignInFailed": "社交登录失败，请重试。"
       },
       "emailNotVerified": "邮箱未验证",
       "emailNotVerifiedDesc": "请验证您的邮箱地址以继续。",
@@ -68,7 +72,9 @@
       "signInSuccess": "ログインに成功しました",
       "errors": {
         "invalidEmail": "無効なメールアドレス",
-        "passwordLength": "パスワードは{min}文字以上である必要があります"
+        "passwordLength": "パスワードは{min}文字以上である必要があります",
+        "accountNotLinked": "このメールアドレスのアカウントは既に存在するため、連携できませんでした。メールアドレスとパスワードでサインインしてメールアドレスを確認してから、もう一度お試しください。",
+        "socialSignInFailed": "ソーシャルサインインに失敗しました。もう一度お試しください。"
       },
       "emailNotVerified": "メールアドレス未確認",
       "emailNotVerifiedDesc": "続行するにはメールアドレスを確認してください。",
@@ -96,7 +102,9 @@
       "signInSuccess": "Connexion réussie",
       "errors": {
         "invalidEmail": "Adresse e-mail invalide",
-        "passwordLength": "Le mot de passe doit contenir au moins {min} caractères"
+        "passwordLength": "Le mot de passe doit contenir au moins {min} caractères",
+        "accountNotLinked": "Un compte existe déjà avec cet e-mail et n'a pas pu être associé. Connectez-vous avec votre e-mail et votre mot de passe, vérifiez votre e-mail, puis réessayez.",
+        "socialSignInFailed": "La connexion via un réseau social a échoué. Veuillez réessayer."
       },
       "emailNotVerified": "Email non vérifié",
       "emailNotVerifiedDesc": "Veuillez vérifier votre adresse e-mail pour continuer.",

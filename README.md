@@ -139,6 +139,14 @@ past due…) can no longer be deleted: the Stripe plugin refuses with
 page keeps the subscription active until the end of the period, so deletion only works after that.
 The check calls Stripe, so a Stripe outage also blocks deleting an organization that has a customer.
 
+Google and GitHub sign-in no longer link to an existing email/password account whose email is not
+verified (`account.accountLinking.requireLocalEmailVerified`, default `true`). The OAuth callback
+sends the user back to the sign-in page with `?error=account_not_linked`, which explains it: the
+user signs in with their password and verifies their email first. Setting the option to `false`
+restores the old behaviour and lets whoever registered an unverified account at someone else's
+address receive that person's OAuth sign-in; better-auth deprecates the option and plans to make the
+check unconditional.
+
 ### Environment Variables
 
 **Important:** Set `NUXT_APP_URL` to your production URL for Better Auth to work correctly.
