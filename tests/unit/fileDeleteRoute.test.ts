@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { callRoute, stubNitroGlobals } from './support/nitroGlobals'
+import { callRoute, stubNitroGlobals, stubRequestContext, TEST_AGENT, TEST_IP } from './support/nitroGlobals'
 
 const getFile = vi.hoisted(() => vi.fn())
 const deleteFile = vi.hoisted(() => vi.fn())
@@ -19,8 +19,7 @@ vi.mock('~~/server/services/file/storage/factory', () => ({
 beforeAll(() => {
   stubNitroGlobals()
   vi.stubGlobal('requireAuth', requireAuth)
-  vi.stubGlobal('getRequestIP', () => '203.0.113.1')
-  vi.stubGlobal('getHeader', () => 'test-agent')
+  stubRequestContext()
 })
 afterAll(() => {
   vi.unstubAllGlobals()
@@ -40,7 +39,7 @@ describe('deleting a file', () => {
   it('lets the owner delete the file and records who did it', async () => {
     await expect(remove()).resolves.toMatchObject({ success: true })
 
-    expect(deleteFile).toHaveBeenCalledWith('f1', OWNER.id, '203.0.113.1', 'test-agent')
+    expect(deleteFile).toHaveBeenCalledWith('f1', OWNER.id, TEST_IP, TEST_AGENT)
   })
 
   it('lets an admin delete another user\'s file and records the admin', async () => {
@@ -48,7 +47,7 @@ describe('deleting a file', () => {
 
     await expect(remove()).resolves.toMatchObject({ success: true })
 
-    expect(deleteFile).toHaveBeenCalledWith('f1', 'admin', '203.0.113.1', 'test-agent')
+    expect(deleteFile).toHaveBeenCalledWith('f1', 'admin', TEST_IP, TEST_AGENT)
   })
 
   it.each([

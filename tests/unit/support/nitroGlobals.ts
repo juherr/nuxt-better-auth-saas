@@ -37,6 +37,18 @@ export function stubNitroGlobals() {
   vi.stubGlobal('createError', nitroCreateError)
 }
 
+export const TEST_IP = '203.0.113.1'
+export const TEST_AGENT = 'test-agent'
+
+/**
+ * Opt-in stand-ins for the request metadata routes record: `getRequestIP`
+ * answers `TEST_IP` and `getHeader` answers `TEST_AGENT`.
+ */
+export function stubRequestContext() {
+  vi.stubGlobal('getRequestIP', () => TEST_IP)
+  vi.stubGlobal('getHeader', () => TEST_AGENT)
+}
+
 /**
  * Calls a route module's default handler with an event carrying `body`,
  * `query`, `params` and `headers` (keys in lower case).
