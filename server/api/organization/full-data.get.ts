@@ -159,10 +159,14 @@ export default defineEventHandler(async (event) => {
       }
     }
   } catch (error: any) {
-    console.error('Error fetching full organization data:', error)
+    // HTTP errors raised above carry their own status and safe message.
+    if (error?.statusCode) {
+      throw error
+    }
+    console.error('[organization/full-data]', error)
     throw createError({
-      statusCode: error.statusCode || 500,
-      message: error.message || 'Failed to fetch organization data'
+      statusCode: 500,
+      statusMessage: 'Failed to fetch organization data'
     })
   }
 })

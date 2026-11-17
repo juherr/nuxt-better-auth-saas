@@ -86,4 +86,22 @@ describe('the organization full-data endpoint', () => {
     await expect(callFullData()).rejects.toMatchObject({ statusCode: 404 })
     expect(findSubscriptions).not.toHaveBeenCalled()
   })
+
+  it('passes its own HTTP errors through unchanged', async () => {
+    findOrganization.mockResolvedValue(undefined)
+
+    await expect(callFullData()).rejects.toMatchObject({ statusCode: 404, message: 'Organization not found' })
+  })
+
+  it('answers a generic 500 when an unexpected error occurs, and logs the details server-side', async () => {
+    const failure = new Error('sentinel: relation "organization" does not exist at db-internal:5432')
+    findOrganization.mockRejectedValue(failure)
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const error = await callFullData().catch((e: Error) => e) as Error
+
+    expect(error).toMatchObject({ statusCode: 500, statusMessage: 'Failed to fetch organization data' })
+    expect(JSON.stringify({ ...error, message: error.message })).not.toContain('sentinel')
+    expect(consoleError).toHaveBeenCalledWith('[organization/full-data]', failure)
+  })
 })
