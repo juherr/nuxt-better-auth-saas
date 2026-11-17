@@ -31,7 +31,17 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (targetOrg) {
     if (targetOrg.id !== activeOrgId) {
       // Organization mismatch, set active organization
-      await organization.setActive({ organizationId: targetOrg.id })
+      const { error } = await organization.setActive({ organizationId: targetOrg.id })
+      if (error) {
+        // The session stays on its organization: leave the requested one, never mark it active.
+        // Redirect to the active org, else any other one: the first may be the requested org.
+        console.error('[middleware/organization] setActive failed', error)
+        const fallbackOrg = orgs.value.find((o: any) => o.id === activeOrgId)
+          ?? orgs.value.find((o: any) => o.id !== targetOrg.id)
+        if (fallbackOrg)
+          return navigateTo(useLocalePath()(`/${fallbackOrg.slug}/dashboard`))
+        return
+      }
       await fetchSession()
 
       // Update activeOrg ref immediately to update UI
