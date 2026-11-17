@@ -1,39 +1,43 @@
-import type { SsrCookieEvent } from '~~/app/utils/ssrCookies'
 import { describe, expect, it } from 'vitest'
-import { captureSetCookies, ssrCookieHeader, ssrCookieHeaders, ssrCookiePort } from '~~/app/utils/ssrCookies'
+import { applySsrCookie, captureSetCookies, ssrCookieHeader, ssrCookieHeaders, ssrCookiePort } from '~~/app/utils/ssrCookies'
+import { fakeEvent, responseWith } from './support/ssrCookieEvent'
 
 const FUTURE = 'Wed, 21 Oct 2037 07:28:00 GMT'
 const PAST = 'Thu, 01 Jan 1970 00:00:00 GMT'
 
-function fakeEvent(cookie?: string) {
-  const responseHeaders: Record<string, string | string[] | number | undefined> = {}
-  const event: SsrCookieEvent = {
-    node: {
-      req: { headers: cookie === undefined ? {} : { cookie } },
-      res: {
-        getHeader: name => responseHeaders[name.toLowerCase()],
-        setHeader: (name, value) => {
-          responseHeaders[name.toLowerCase()] = value
-        }
-      }
-    }
-  }
-  const setCookies = () => {
-    const value = responseHeaders['set-cookie']
-    return value === undefined ? [] : ([] as unknown[]).concat(value)
-  }
-  return { event, setCookies }
-}
-
-function responseWith(...setCookies: string[]) {
-  const headers = new Headers()
-  for (const value of setCookies)
-    headers.append('set-cookie', value)
-  return new Response(null, { status: 200, headers })
-}
-
 describe('ssrCookies', () => {
+  describe('applySsrCookie', () => {
+    it('sets the merged cookie on the outgoing headers', () => {
+      const { event } = fakeEvent('theme=dark; better-auth.session_data=org-1')
+      captureSetCookies(event, responseWith('better-auth.session_data=org-2; Path=/'))
+      const headers = new Headers({ cookie: 'theme=dark; better-auth.session_data=org-1' })
+
+      applySsrCookie(event, headers)
+
+      expect(headers.get('cookie')).toBe('theme=dark; better-auth.session_data=org-2')
+    })
+
+    it('removes the cookie header when every cookie was deleted', () => {
+      const { event } = fakeEvent('a=1')
+      captureSetCookies(event, responseWith('a=; Max-Age=0'))
+      const headers = new Headers({ cookie: 'a=1' })
+
+      applySsrCookie(event, headers)
+
+      expect(headers.has('cookie')).toBe(false)
+    })
+  })
+
   describe('captureSetCookies', () => {
+    it('forwards a Set-Cookie line without "=" to the browser but keeps it out of the jar', () => {
+      const { event, setCookies } = fakeEvent('a=1')
+
+      captureSetCookies(event, responseWith('malformed; Path=/'))
+
+      expect(setCookies()).toEqual(['malformed; Path=/'])
+      expect(ssrCookieHeader(event)).toBe('a=1')
+    })
+
     it('splits two cookies joined in one header despite the comma of an Expires date', () => {
       const { event, setCookies } = fakeEvent()
 

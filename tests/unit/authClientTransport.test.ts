@@ -1,6 +1,8 @@
 import { createAuthClient } from 'better-auth/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authClientTransport } from '~~/app/utils/authClientTransport'
+import { ssrCookiePort } from '~~/app/utils/ssrCookies'
+import { fakeEvent } from './support/ssrCookieEvent'
 
 const HOSTILE_ORIGIN = 'http://canary-host.invalid:8443'
 
@@ -160,16 +162,52 @@ describe('authClientTransport', () => {
         } }
       }
 
-      it('sends the cookie captured from set-active on the next call', async () => {
-        const { localFetch, cookies, client } = portedClient()
+      describe('backed by the SSR cookie jar', () => {
+        const INBOUND_COOKIE = 'theme=dark; better-auth.session_data=org-1'
 
-        await client.$fetch('/organization/set-active', { method: 'POST', body: { organizationId: 'org-2' } })
-        await client.$fetch('/get-session')
+        const jarClient = (setActive: () => Response) => {
+          const { event, setCookies } = fakeEvent(INBOUND_COOKIE)
+          const localFetch = vi.fn(async (path: string, _init?: RequestInit) =>
+            path.endsWith('/set-active') ? setActive() : okResponse())
+          const client = createAuthClient(authClientTransport({
+            isServer: true,
+            origin: HOSTILE_ORIGIN,
+            requestHeaders: { ...inboundHeaders, cookie: INBOUND_COOKIE },
+            localFetch,
+            cookies: ssrCookiePort(event)
+          }))
+          const cookieOf = (call: number) => (localFetch.mock.calls[call]![1]?.headers as Record<string, string>).cookie
+          return { client, cookieOf, setCookies }
+        }
 
-        const capturedSetCookies = cookies.capture.mock.calls.map(([response]) => response.headers.get('set-cookie'))
-        expect(capturedSetCookies).toContain(SET_ACTIVE_COOKIE)
-        const nextHeaders = localFetch.mock.calls[1]![1]?.headers as Record<string, string>
-        expect(nextHeaders.cookie).toBe('better-auth.session_data=org-2')
+        const switchToOrg2 = (client: ReturnType<typeof createAuthClient>) =>
+          client.$fetch('/organization/set-active', { method: 'POST', body: { organizationId: 'org-2' } })
+
+        it('sends the cookie set by set-active on the next call, unrelated inbound cookies kept', async () => {
+          const { client, cookieOf, setCookies } = jarClient(() => new Response(JSON.stringify({ ok: true }), {
+            status: 200,
+            headers: { 'content-type': 'application/json', 'set-cookie': SET_ACTIVE_COOKIE }
+          }))
+
+          await switchToOrg2(client)
+          await client.$fetch('/get-session')
+
+          expect(cookieOf(1)).toBe('theme=dark; better-auth.session_data=org-2')
+          expect(setCookies()).toEqual([SET_ACTIVE_COOKIE])
+        })
+
+        it('leaves the next cookie unchanged when set-active is refused without a Set-Cookie', async () => {
+          const { client, cookieOf, setCookies } = jarClient(() => new Response(JSON.stringify({ message: 'Forbidden' }), {
+            status: 403,
+            headers: { 'content-type': 'application/json' }
+          }))
+
+          await switchToOrg2(client)
+          await client.$fetch('/get-session')
+
+          expect(cookieOf(1)).toBe(INBOUND_COOKIE)
+          expect(setCookies()).toEqual([])
+        })
       })
 
       it('reads the cookie from the port on every call, not once at construction', async () => {

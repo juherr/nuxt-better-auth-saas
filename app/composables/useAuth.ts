@@ -9,7 +9,7 @@ import { adminClient, inferAdditionalFields, organizationClient } from 'better-a
 import { createAuthClient } from 'better-auth/vue'
 import { ac, admin, member, owner } from '~~/shared/utils/permissions'
 import { authClientTransport, FORWARDED_REQUEST_HEADERS } from '~/utils/authClientTransport'
-import { ssrCookieHeader, ssrCookiePort } from '~/utils/ssrCookies'
+import { applySsrCookie, ssrCookiePort } from '~/utils/ssrCookies'
 
 export function useAuth() {
   const url = useRequestURL()
@@ -83,13 +83,7 @@ export function useAuth() {
       key: 'auth-session',
       retry: 0,
       onRequest: event
-        ? ({ options }) => {
-            const cookie = ssrCookieHeader(event)
-            if (cookie)
-              options.headers.set('cookie', cookie)
-            else
-              options.headers.delete('cookie')
-          }
+        ? ({ options }) => applySsrCookie(event, options.headers)
         : undefined
     })
 

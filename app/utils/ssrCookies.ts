@@ -7,6 +7,11 @@
  * and the calls that follow in the same render must send the new value instead of the inbound
  * one. The jar is keyed on the request event, so it never outlives the request.
  *
+ * Only responses that pass through the auth client transport are captured. The `Set-Cookie` of
+ * `useFetch('/api/auth/get-session')` in `fetchSession`, and of the `$fetch` calls of the
+ * dashboard layout and the onboarding page, are not: those calls read the jar but never feed it
+ * (behaviour that predates the jar).
+ *
  * Nothing here imports `h3` at run time: this file also ships in the client bundle, and the app
  * does not resolve `h3` itself.
  */
@@ -46,6 +51,10 @@ function jarOf(event: SsrCookieEvent): Jar {
  * Splits a `Set-Cookie` value that may hold several cookies joined with ", ", without breaking
  * on the comma of an `Expires` date. Copied from h3 1.15 `splitCookiesString`, which Nitro
  * applies on the same path, because the app cannot import `h3` at run time.
+ *
+ * On the node-server path, Node 26 `Headers.getSetCookie()` already returns one entry per
+ * cookie, so the split changes nothing there. It is a net for a value that arrives joined: a
+ * runtime without `getSetCookie()`, or a handler that wrote `a=1, b=2` into a single header.
  */
 export function splitSetCookieString(cookiesString: string): string[] {
   const cookiesStrings: string[] = []
@@ -196,6 +205,18 @@ export function ssrCookieHeader(event: SsrCookieEvent): string | undefined {
       parts.push(`${name}=${value}`)
   }
   return parts.length ? parts.join('; ') : undefined
+}
+
+/**
+ * Puts the merged cookie on the headers of an outgoing SSR request, or removes the `cookie`
+ * header when nothing is left. `fetchSession` calls it from its `onRequest` hook.
+ */
+export function applySsrCookie(event: SsrCookieEvent, headers: Headers): void {
+  const cookie = ssrCookieHeader(event)
+  if (cookie)
+    headers.set('cookie', cookie)
+  else
+    headers.delete('cookie')
 }
 
 /**
