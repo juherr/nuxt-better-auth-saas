@@ -69,7 +69,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm test:unit
+      - run: pnpm test:ci
 
   build-no-secrets:
     runs-on: ubuntu-latest

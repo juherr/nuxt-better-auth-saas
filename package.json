@@ -10,6 +10,7 @@
     "dev": "nuxt dev",
     "test": "vitest run --silent=false",
     "test:unit": "vitest run --project unit",
+    "test:ci": "vitest run --project unit --project nuxt",
     "coverage": "vitest run --coverage",
     "generate": "nuxt generate",
     "preview": "nuxt preview",

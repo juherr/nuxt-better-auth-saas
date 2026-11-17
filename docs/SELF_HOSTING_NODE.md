@@ -295,6 +295,6 @@ values only (no repository secret):
 |-----|----------------|
 | `lint` | `pnpm lint --max-warnings=0` |
 | `typecheck` | `pnpm typecheck`, non-blocking until the existing type errors are fixed |
-| `unit` | `pnpm test:unit` |
+| `unit` | `pnpm test:ci`: unit tests (`tests/unit`) and component tests in the Nuxt runtime (`tests/components`); the e2e suite (`tests/e2e`) runs locally with `pnpm test` |
 | `build-no-secrets` | `NUXT_NITRO_PRESET=node-server pnpm build` without a database, Stripe or Resend |
 | `smoke-node` | Against `postgres:16` and `redis:7` services: `pnpm db:generate`, `pnpm build` (which applies the migrations), starts `.output/server/index.mjs`, waits for `GET /api/health`, seeds a user with `create-admin.ts`, then expects `POST /api/auth/sign-in/email` to answer `200` with a `better-auth.session_token` cookie. The server log is uploaded as an artifact when the job fails. |
