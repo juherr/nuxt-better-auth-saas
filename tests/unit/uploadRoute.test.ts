@@ -39,6 +39,9 @@ afterAll(() => {
 })
 
 const PNG = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0x0D])
+const JPEG = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0, 0x10])
+const HTML = Buffer.from('<!DOCTYPE html><script>1</script>')
+const SVG = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"></svg>')
 const MAX_FILE_SIZE = 1024
 const MULTIPART = { 'content-type': 'multipart/form-data; boundary=x' }
 
@@ -132,6 +135,31 @@ describe('the upload endpoint', () => {
       readMultipartFormData.mockResolvedValue([part(Buffer.alloc(MAX_FILE_SIZE + 1), 'image/png')])
 
       await expect(upload()).rejects.toMatchObject({ statusCode: 413 })
+      expect(uploadFile).not.toHaveBeenCalled()
+    })
+
+    it('stores the type detected from the bytes', async () => {
+      await upload()
+
+      expect(uploadFile.mock.calls[0]![2]).toBe('image/png')
+    })
+
+    it.each([
+      ['jpeg bytes', JPEG],
+      ['html bytes', HTML],
+      ['svg bytes', SVG]
+    ])('refuses %s declared as a png with 415', async (_label, data) => {
+      readMultipartFormData.mockResolvedValue([part(data, 'image/png')])
+
+      await expect(upload()).rejects.toMatchObject({ statusCode: 415 })
+      expect(uploadFile).not.toHaveBeenCalled()
+    })
+
+    it('refuses svg with 415 even when it is configured as allowed', async () => {
+      fileConfig.value = { ...fileConfig.value, allowedMimeTypes: ['image/svg+xml', 'image/png'] }
+      readMultipartFormData.mockResolvedValue([part(SVG, 'image/svg+xml', 'logo.svg')])
+
+      await expect(upload()).rejects.toMatchObject({ statusCode: 415 })
       expect(uploadFile).not.toHaveBeenCalled()
     })
 

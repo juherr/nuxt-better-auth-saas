@@ -1,4 +1,5 @@
 import { readMultipartFormData } from 'h3'
+import { checkUploadContent } from '~~/server/services/file/contentSniffer'
 import { FileService, useFileManagerConfig } from '~~/server/services/file/fileService'
 import { RateLimitUnavailableError, UploadRateLimiter } from '~~/server/services/file/rateLimiter'
 import { createStorageProvider } from '~~/server/services/file/storage/factory'
@@ -82,7 +83,6 @@ export default defineEventHandler(async (event) => {
 
   const fileData = validFiles[0]!
 
-  const mimeType = fileData.type || 'application/octet-stream'
   const fileSize = fileData.data.length
 
   // Validate file size
@@ -93,11 +93,12 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Validate MIME type
-  if (!allowedMimeTypes.includes(mimeType.toLowerCase())) {
+  // The declared type is client input: the bytes decide.
+  const content = checkUploadContent(fileData.type, fileData.data, allowedMimeTypes)
+  if (!content.ok) {
     throw createError({
       statusCode: 415,
-      statusMessage: `File type '${mimeType}' is not allowed.`
+      statusMessage: 'File type is not allowed or does not match its content.'
     })
   }
 
@@ -105,7 +106,7 @@ export default defineEventHandler(async (event) => {
     const file = await fileService.uploadFile(
       fileData.data,
       fileData.filename!,
-      mimeType,
+      content.type.mimeType,
       user.id,
       getRequestIP(event),
       getHeader(event, 'user-agent')
