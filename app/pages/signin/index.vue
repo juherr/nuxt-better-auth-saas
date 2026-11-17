@@ -59,7 +59,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     callbackURL: redirectTo.value
   })
   if (error) {
-    if (error.code === auth.errorCodes.EMAIL_NOT_VERIFIED) {
+    if (error.code === auth.errorCodes.EMAIL_NOT_VERIFIED.code) {
       unverifiedEmail = event.data.email
       isEmailVerifyModalOpen.value = true
       loading.value = false
