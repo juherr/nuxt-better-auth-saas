@@ -99,7 +99,7 @@ describe('creating an API key', () => {
   ])
 
   describe('before the key is created', () => {
-    it.each(['owner', 'admin'])('lets the organization %s create a key for it', async (role) => {
+    it.each(['owner', 'admin', 'owner,admin', 'member, admin'])('lets a member holding "%s" in the organization create a key for it', async (role) => {
       const options = await authOptions()
       const { ctx } = createRequest({ metadata: { organizationId: 'org-1' }, role })
 
@@ -146,7 +146,7 @@ describe('creating an API key', () => {
       const refusals = await Promise.all([
         createRequest({ metadata: { organizationId: 'org-1' }, role: 'member' }),
         createRequest({ metadata: { organizationId: 'org-1' }, role: null }),
-        createRequest({ metadata: { organizationId: 'org-1' }, role: 'owner,admin' }),
+        createRequest({ metadata: { organizationId: 'org-1' }, role: 'Owner,Admin' }),
         createRequest({ metadata: undefined }),
         createRequest({ metadata: { organizationId: '  ' } }),
         createRequest({ metadata: { organizationId: ' org-1' } }),

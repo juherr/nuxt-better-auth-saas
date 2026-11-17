@@ -53,13 +53,17 @@ function readOrganizationIdField(metadata: unknown): unknown {
 
 /**
  * Organization roles that may create, list and revoke the organization's
- * API keys. The stored role must match exactly: a role list or another
- * casing does not count.
+ * API keys. A role list such as `member,admin` counts when it holds one
+ * of them; another casing (`Admin`) does not.
  */
 export const API_KEY_MANAGER_ROLES = ['owner', 'admin'] as const
 
 export function isApiKeyManagerRole(role: string | null | undefined): boolean {
-  return typeof role === 'string' && (API_KEY_MANAGER_ROLES as readonly string[]).includes(role)
+  // Same parse as hasOrgRole in shared/utils/permissions.ts, which this
+  // module cannot import (see the top of the file); a test keeps them equal.
+  if (typeof role !== 'string')
+    return false
+  return role.split(',').some(entry => (API_KEY_MANAGER_ROLES as readonly string[]).includes(entry.trim()))
 }
 
 /**

@@ -68,7 +68,12 @@ describe('parseRequestedOrganizationId', () => {
 })
 
 describe('isApiKeyManagerRole', () => {
-  it.each(['owner', 'admin'])('lets the exact role %s manage API keys', (role) => {
+  it.each([
+    ['the role', 'owner'],
+    ['the role', 'admin'],
+    ['a role list holding', 'owner,admin'],
+    ['a spaced role list holding', 'member, admin']
+  ])('lets %s "%s" manage API keys', (_label, role) => {
     expect(isApiKeyManagerRole(role)).toBe(true)
   })
 
@@ -76,8 +81,9 @@ describe('isApiKeyManagerRole', () => {
     ['an ordinary member', 'member'],
     ['no membership', null],
     ['no role', undefined],
-    ['a role list', 'owner,admin'],
-    ['a differently cased role', 'Admin']
+    ['an empty role list', ',,'],
+    ['a differently cased role', 'Admin'],
+    ['a role list of differently cased roles', 'Owner,Admin']
   ])('refuses %s', (_label, role) => {
     expect(isApiKeyManagerRole(role)).toBe(false)
   })

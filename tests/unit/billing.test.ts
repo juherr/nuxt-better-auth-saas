@@ -57,6 +57,31 @@ describe('requireOrganizationRole', () => {
     await expect(requireOrganizationRole(event, 'org-a')).resolves.toMatchObject({ member: { role } })
   })
 
+  it.each(['owner,admin', 'admin, owner'])('lets a member holding the role list "%s" through an owner-only route', async (role) => {
+    findMember.mockResolvedValue({ userId: 'u1', organizationId: 'org-a', role })
+    const { requireOrganizationRole } = await loadBilling()
+
+    await expect(requireOrganizationRole(event, 'org-a', ['owner'])).resolves.toMatchObject({ member: { role } })
+  })
+
+  it.each(['admin,member', 'Owner', 'Owner,admin'])('refuses a member holding "%s" on an owner-only route with 403', async (role) => {
+    findMember.mockResolvedValue({ userId: 'u1', organizationId: 'org-a', role })
+    const { requireOrganizationRole } = await loadBilling()
+
+    await expect(requireOrganizationRole(event, 'org-a', ['owner']))
+      .rejects
+      .toMatchObject({ statusCode: 403, statusMessage: 'Forbidden' })
+  })
+
+  it('lets a member holding the role list "admin,member" through a route open to every role', async () => {
+    findMember.mockResolvedValue({ userId: 'u1', organizationId: 'org-a', role: 'admin,member' })
+    const { requireOrganizationRole } = await loadBilling()
+
+    await expect(requireOrganizationRole(event, 'org-a', ['owner', 'admin', 'member']))
+      .resolves
+      .toMatchObject({ member: { role: 'admin,member' } })
+  })
+
   it('refuses a non-member with 403 when no role is required', async () => {
     findMember.mockResolvedValue(undefined)
     const { requireOrganizationRole } = await loadBilling()

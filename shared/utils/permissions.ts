@@ -158,55 +158,73 @@ export const PERMISSIONS = {
 // ============================================
 
 /**
- * Check if a role has a specific permission
+ * Reads a member's stored organization role into its roles. better-auth
+ * keeps several roles in one comma-separated value (`owner,admin`):
+ * entries are trimmed and empty ones dropped. Casing is kept, so `Owner`
+ * matches no role.
+ */
+export function parseOrgRoles(role: string | null | undefined): string[] {
+  if (!role)
+    return []
+  return role.split(',').map(entry => entry.trim()).filter(entry => entry !== '')
+}
+
+/**
+ * Whether a member's stored role, a single role or a role list, holds at
+ * least one of `roles`. Casing must match.
+ */
+export function hasOrgRole(role: string | null | undefined, roles: readonly string[]): boolean {
+  return parseOrgRoles(role).some(entry => roles.includes(entry))
+}
+
+/**
+ * Check if a role, or one role of a role list, has a specific permission
  */
 export function hasPermission(
-  userRole: OrgRole | null | undefined,
+  userRole: string | null | undefined,
   permission: keyof typeof PERMISSIONS
 ): boolean {
-  if (!userRole)
-    return false
-  return (PERMISSIONS[permission] as readonly OrgRole[]).includes(userRole)
+  return hasOrgRole(userRole, PERMISSIONS[permission])
 }
 
 /**
  * Check if user can manage members (invite, remove, change roles)
  */
-export function canManageMembers(role: OrgRole | null | undefined): boolean {
+export function canManageMembers(role: string | null | undefined): boolean {
   return hasPermission(role, 'INVITE_MEMBERS')
 }
 
 /**
  * Check if user can manage billing
  */
-export function canManageBilling(role: OrgRole | null | undefined): boolean {
+export function canManageBilling(role: string | null | undefined): boolean {
   return hasPermission(role, 'MANAGE_BILLING')
 }
 
 /**
  * Check if user can update organization settings
  */
-export function canUpdateOrgSettings(role: OrgRole | null | undefined): boolean {
+export function canUpdateOrgSettings(role: string | null | undefined): boolean {
   return hasPermission(role, 'UPDATE_ORG_SETTINGS')
 }
 
 /**
  * Check if user can delete organization
  */
-export function canDeleteOrganization(role: OrgRole | null | undefined): boolean {
+export function canDeleteOrganization(role: string | null | undefined): boolean {
   return hasPermission(role, 'DELETE_ORGANIZATION')
 }
 
 /**
  * Check if user is owner
  */
-export function isOwner(role: OrgRole | null | undefined): boolean {
-  return role === 'owner'
+export function isOwner(role: string | null | undefined): boolean {
+  return hasOrgRole(role, ['owner'])
 }
 
 /**
  * Check if user is admin or owner
  */
-export function isAdminOrOwner(role: OrgRole | null | undefined): boolean {
-  return role === 'owner' || role === 'admin'
+export function isAdminOrOwner(role: string | null | undefined): boolean {
+  return hasOrgRole(role, ['owner', 'admin'])
 }
