@@ -18,7 +18,7 @@ import { getDB } from './db'
 import { getResendClient } from './drivers'
 import { renderDeleteAccount, renderResetPassword, renderTeamInvite, renderVerifyEmail } from './email'
 import { runtimeConfig } from './runtimeConfig'
-import { checkoutSeatsOverride, createStripeClient, isStripeConfigured, setupStripe } from './stripe'
+import { checkoutSeatsOverride, createStripeClient, isStripeConfigured, resolveUpgradeReferenceId, setupStripe } from './stripe'
 
 console.log(`Base URL is ${runtimeConfig.public.baseURL}`)
 console.log('Schema keys:', Object.keys(schema))
@@ -74,23 +74,18 @@ export function isSubscriptionOwnedByReference(rows: readonly { referenceId: str
  * The billing plugin's upgrade endpoint authorizes the reference it acts
  * for, but loads a subscription named in the body by its id alone. Before
  * the endpoint runs, check that the subscription it will load belongs to
- * that reference, matching rows exactly as the plugin does, and answer the
- * same generic 404 otherwise. Requests that name no subscription and
- * anonymous requests are left to the endpoint.
+ * `referenceId`, the reference the upgrade settles on, matching rows
+ * exactly as the plugin does, and answer the same generic 404 otherwise.
+ * Requests that name no subscription are left to the endpoint.
  */
-async function refuseForeignSubscriptionUpgrade(ctx: AuthMiddlewareContext) {
+async function refuseForeignSubscriptionUpgrade(ctx: AuthMiddlewareContext, referenceId: string) {
   const subscriptionId = ctx.body?.subscriptionId
   if (!subscriptionId) {
-    return
-  }
-  const session = await getSessionFromCtx(ctx)
-  if (!session) {
     return
   }
   if (typeof subscriptionId !== 'string') {
     throw new APIError('NOT_FOUND')
   }
-  const referenceId = ctx.body.referenceId || session.user.id
   const rows = await ctx.context.adapter.findMany<{ referenceId: string }>({
     model: 'subscription',
     where: [
@@ -514,12 +509,18 @@ export const createBetterAuth = () => betterAuth({
     before: createAuthMiddleware(async (ctx) => {
       refuseDisabledEndpoint(ctx.path)
       if (ctx.path === '/subscription/upgrade') {
-        await refuseForeignSubscriptionUpgrade(ctx)
+        // Anonymous requests are left to the endpoint's own 401.
+        const session = await getSessionFromCtx(ctx)
+        if (!session) {
+          return undefined
+        }
+        await refuseForeignSubscriptionUpgrade(ctx, resolveUpgradeReferenceId(ctx, session))
+        return checkoutSeatsOverride(ctx, session)
       }
       if (ctx.path === '/api-key/create') {
         await requireApiKeyCreationRights(ctx)
       }
-      return checkoutSeatsOverride(ctx)
+      return undefined
     }),
     after: createAuthMiddleware(async (ctx) => {
       const ipAddress = ctx.getHeader('x-forwarded-for')

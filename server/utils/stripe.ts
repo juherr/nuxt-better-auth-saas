@@ -1,5 +1,6 @@
 import type { Subscription } from '@better-auth/stripe'
 import { stripe } from '@better-auth/stripe'
+import { createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
 import { and, eq } from 'drizzle-orm'
 import Stripe from 'stripe'
 import { member as memberTable, organization as organizationTable } from '~~/server/db/schema'
@@ -234,23 +235,67 @@ export const resolveCheckoutSeats = async (organizationId: string) => {
   return count > 0 ? count : 1
 }
 
-/**
- * Better Auth `hooks.before` handler that sets the seats of an organization
- * checkout on the server, so the client cannot choose them.
- *
- * @better-auth/stripe 1.7 builds the plan line item quantity from
- * `ctx.body.seats` and drops `line_items` returned by
- * `getCheckoutSessionParams` (dist/index.mjs, upgradeSubscription).
- * A before hook returning `{ context: { body } }` replaces the request body
- * (better-auth dist/api/dispatch.mjs, runBeforeHooks).
- */
-export const checkoutSeatsOverride = async (ctx: { path?: string, body?: any }) => {
-  const body = ctx.body
-  if (ctx.path !== '/subscription/upgrade' || body?.customerType !== 'organization' || !body.referenceId)
-    return undefined
-  const seats = await resolveCheckoutSeats(body.referenceId)
-  return { context: { body: { ...body, seats } } }
+interface UpgradeSession {
+  user: { id: string }
+  session: Record<string, any>
 }
+
+/**
+ * The reference an upgrade acts for, resolved as @better-auth/stripe's
+ * referenceMiddleware does: `referenceId` from the body, then the query,
+ * then the session's active organization (dist/index.mjs,
+ * referenceMiddleware), else the user.
+ */
+export const resolveUpgradeReferenceId = (
+  ctx: { body?: any, query?: any },
+  session: UpgradeSession
+): string => ctx.body?.referenceId
+  || ctx.query?.referenceId
+  || session.session.activeOrganizationId
+  || session.user.id
+
+/**
+ * Settles who an upgrade bills and for how many seats, on the server.
+ *
+ * The reference is `resolveUpgradeReferenceId`'s. Anything but
+ * the user's own id is billed as an organization: the body then carries
+ * `customerType: 'organization'`, so the plugin's organization branch runs
+ * `authorizeReference` on that reference. Client seats are never kept:
+ * members plus pending invitations for an organization, one for a user
+ * (the base quantity; the plugin bills `ctx.body.seats || 1`). The merge
+ * of a before hook skips undefined values (defu), so a key cannot be
+ * dropped, only replaced.
+ */
+export const checkoutSeatsOverride = async (
+  ctx: { body?: any, query?: any },
+  session: UpgradeSession
+) => {
+  const body = ctx.body ?? {}
+  const referenceId = resolveUpgradeReferenceId(ctx, session)
+  if (referenceId === session.user.id)
+    return { context: { body: { ...body, customerType: 'user', seats: 1 } } }
+  const seats = await resolveCheckoutSeats(referenceId)
+  return { context: { body: { ...body, customerType: 'organization', referenceId, seats } } }
+}
+
+/**
+ * Better Auth `hooks.before` middleware applying `checkoutSeatsOverride`
+ * to `/subscription/upgrade`. A before hook returning `{ context: { body } }`
+ * is merged over the request (better-auth dist/api/dispatch.mjs,
+ * runBeforeHooks). The session is not on the context yet at this point;
+ * without one the hook steps aside and the plugin answers 401.
+ * auth.ts's before hook runs the same steps on that path, with the
+ * foreign-subscription check in between, since one before hook carries
+ * every check; the dispatch tests run the override through this one.
+ */
+export const checkoutSeatsHook = createAuthMiddleware(async (ctx) => {
+  if (ctx.path !== '/subscription/upgrade')
+    return undefined
+  const session = await getSessionFromCtx(ctx)
+  if (!session)
+    return undefined
+  return checkoutSeatsOverride(ctx, session)
+})
 
 export const setupStripe = () => stripe({
   stripeClient: createStripeClient(),
