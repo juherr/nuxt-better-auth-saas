@@ -10,7 +10,7 @@ export default withNuxt(
     // antfu 10 turns the pnpm rules on whenever a pnpm-workspace.yaml
     // exists (5.4 defaulted to false). Their autofix adds install
     // settings (trustPolicy, shellEmulator, ...) to pnpm-workspace.yaml,
-    // which would change how installs behave: keep them off.
+    // which would change how installs behave: keep them off (#48).
     pnpm: false,
     rules: {
       'style/comma-dangle': ['warn', 'never'],
@@ -24,7 +24,7 @@ export default withNuxt(
       // Enabled by antfu 10. Its autofix splits every ternary and
       // single-item array over several lines: ~1,300 changed lines in
       // 80 files, many of them under server/api/stripe/ where open PRs
-      // work. Off until those land; adopting it is a follow-up.
+      // work. Off until those land; adopting it is tracked in #47.
       'antfu/reasonable-newline': 'off',
       'node/prefer-global/process': 'off',
       'eqeqeq': 'off',
