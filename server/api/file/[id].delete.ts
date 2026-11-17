@@ -31,7 +31,12 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const deleted = await fileService.deleteFile(fileId)
+  const deleted = await fileService.deleteFile(
+    fileId,
+    user.id,
+    getRequestIP(event),
+    getHeader(event, 'user-agent')
+  )
 
   return {
     success: deleted,

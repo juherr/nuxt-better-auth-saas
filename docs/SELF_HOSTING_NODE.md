@@ -79,6 +79,40 @@ server process**. It holds the sessions: keep it writable and persistent (a volu
 container); losing it signs every user out. Run a single instance with it; for
 several instances behind a load balancer, build with `REDIS_URL` so that they share sessions.
 
+### Uploads
+
+Uploads only serve avatars today, so the defaults are narrow:
+
+| Setting | Default | Runtime variable |
+|---------|---------|------------------|
+| `maxFileSize` | 5 MB (5242880 bytes) | `NUXT_FILE_MANAGER_MAX_FILE_SIZE` (bytes) |
+| `allowedMimeTypes` | `image/png, image/jpeg, image/webp, image/gif` | `NUXT_FILE_MANAGER_ALLOWED_MIME_TYPES` (comma-separated) |
+
+- A request without a numeric `Content-Length`, or sent chunked, gets `411`; a declared length
+  above the limit gets `413`, before the body is read.
+- The type is detected from the file's leading bytes and must match the declared type. SVG, HTML,
+  XML, scripts and executables are always refused, even when listed. `application/pdf` is the only
+  detected type outside the default list; add it to the list to accept PDFs.
+- Files are stored as `yyyy-MM-dd/<uuidv7>.<extension>`, the extension coming from the detected
+  type. The client's filename is only kept as display metadata.
+
+Every stored file is served with its detected type. PNG, JPEG, WebP and GIF are served
+`inline`; anything else gets `Content-Disposition: attachment`.
+
+- **Local storage** (`NUXT_APP_STORAGE=local`): the app serves the upload directory under
+  `NUXT_LOCAL_PUBLIC_PATH` (`/uploads` by default) itself, reading the files at request time, with
+  `X-Content-Type-Options: nosniff` on every response. A file whose extension is not a detected
+  type, such as one stored before these rules, is served as `application/octet-stream`, as an
+  attachment. The public path is fixed at build time.
+- **S3 / R2**: each object is stored with its `Content-Type` and `Content-Disposition`, which the
+  bucket returns as is. A bucket cannot store `X-Content-Type-Options`: add it in front of the
+  bucket's public URL (a CDN response header rule, for instance).
+
+Serve user content from a separate origin when you can: a dedicated domain for the bucket's public
+URL (`NUXT_CF_R2_PUBLIC_URL`, `NUXT_FILE_MANAGER_STORAGE_S3_PUBLIC_URL`), or a CDN in front of it.
+A file served from the app's own origin shares its cookies and its origin; the headers above
+are the only protection left there.
+
 ### Upload rate limit
 
 When `uploadRateLimit` is configured, each user may upload at most `maxUploadsPerWindow` files per
