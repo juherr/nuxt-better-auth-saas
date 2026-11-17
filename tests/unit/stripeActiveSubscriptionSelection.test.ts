@@ -30,6 +30,23 @@ vi.mock('~~/server/utils/stripeEmails', () => ({ sendSubscriptionUpdatedEmail: v
 
 beforeAll(stubNitroGlobals)
 
+/**
+ * Both preview routes: a trialing subscription is priced locally and returns
+ * before the invoice preview, while its payment method (`pm_<subscription
+ * id>`) is read on both paths.
+ */
+const previewAdapter: Pick<SelectionRouteAdapter, 'downstream' | 'selectedId'> = {
+  downstream: () => ({
+    invoices: { createPreview: vi.fn(async () => ({ lines: { data: [] } })) },
+    paymentMethods: { retrieve: vi.fn(async () => ({ card: null })) }
+  }),
+  selectedId: (stripe) => {
+    const preview = (stripe.invoices!.createPreview as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]
+    const paymentMethod: string | undefined = (stripe.paymentMethods!.retrieve as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]
+    return preview?.subscription ?? paymentMethod?.replace(/^pm_/, '')
+  }
+}
+
 const routes: Record<string, SelectionRouteAdapter> = {
   'change-plan': {
     load: () => import('~~/server/api/stripe/change-plan.post'),
@@ -44,33 +61,13 @@ const routes: Record<string, SelectionRouteAdapter> = {
     load: () => import('~~/server/api/stripe/preview-tier-change.post'),
     // An unknown current price counts as pro, so business is an upgrade.
     body: { organizationId: 'org-a', newTierKey: 'business', newInterval: 'month' },
-    downstream: () => ({
-      invoices: { createPreview: vi.fn(async () => ({ lines: { data: [] } })) },
-      paymentMethods: { retrieve: vi.fn(async () => ({ card: null })) }
-    }),
-    // A trialing subscription returns before the invoice preview; its
-    // payment method (`pm_<subscription id>`) is read on both paths.
-    selectedId: (stripe) => {
-      const preview = (stripe.invoices!.createPreview as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]
-      const paymentMethod: string | undefined = (stripe.paymentMethods!.retrieve as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]
-      return preview?.subscription ?? paymentMethod?.replace(/^pm_/, '')
-    }
+    ...previewAdapter
   },
   'preview-seat-change': {
     load: () => import('~~/server/api/stripe/preview-seat-change.post'),
     // An explicit interval keeps the trial path off the subscription's plan.
     body: { organizationId: 'org-a', seats: 2, newInterval: 'month' },
-    downstream: () => ({
-      invoices: { createPreview: vi.fn(async () => ({ lines: { data: [] } })) },
-      paymentMethods: { retrieve: vi.fn(async () => ({ card: null })) }
-    }),
-    // Same as preview-tier-change: a trialing subscription is priced
-    // locally, so only its payment method (`pm_<subscription id>`) is read.
-    selectedId: (stripe) => {
-      const preview = (stripe.invoices!.createPreview as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]
-      const paymentMethod: string | undefined = (stripe.paymentMethods!.retrieve as ReturnType<typeof vi.fn>).mock.calls[0]?.[0]
-      return preview?.subscription ?? paymentMethod?.replace(/^pm_/, '')
-    }
+    ...previewAdapter
   },
   'update-seats': {
     load: () => import('~~/server/api/stripe/update-seats.post'),
