@@ -7,17 +7,19 @@ import { stripeClient } from '@better-auth/stripe/client'
 import { adminClient, apiKeyClient, inferAdditionalFields, organizationClient } from 'better-auth/client/plugins'
 import { createAuthClient } from 'better-auth/vue'
 import { ac, admin, member, owner } from '~~/shared/utils/permissions'
+import { authClientTransport } from '~/utils/authClientTransport'
 
 export function useAuth() {
   const url = useRequestURL()
-  const headers = import.meta.server ? useRequestHeaders() : undefined
   const runtimeConfig = useRuntimeConfig()
   const payment = runtimeConfig.public.payment as 'stripe'
   const client = createAuthClient({
-    baseURL: url.origin,
-    fetchOptions: {
-      headers
-    },
+    ...authClientTransport({
+      isServer: import.meta.server,
+      origin: url.origin,
+      requestHeaders: import.meta.server ? useRequestHeaders(['cookie']) : undefined,
+      localFetch: import.meta.server ? useRequestEvent()?.fetch : undefined
+    }),
     plugins: [
       inferAdditionalFields({
         user: {
