@@ -298,10 +298,13 @@ export const createBetterAuth = () => betterAuth({
         // api_key.reference_id has no foreign key to user (@better-auth/api-key
         // schema), so the keys of a deleted user would otherwise stay listed.
         // Every key here references a user: the plugin keeps the default
-        // `references: 'user'`. Outside a transaction, which is how
-        // internalAdapter.deleteUser runs, better-auth calls this right after
-        // the user row is deleted (core/context/transaction.mjs).
-        after: async (user) => {
+        // `references: 'user'`. internalAdapter.deleteUser runs outside a
+        // transaction: a throwing before hook stops it before the user row
+        // and the cached sessions are deleted, where a throwing after hook
+        // would leave the user deleted and its cached sessions alive
+        // (db/with-hooks.mjs, db/internal-adapter.mjs). Returning false
+        // would cancel the deletion, so return nothing.
+        before: async (user) => {
           await getDB()
             .delete(schema.apiKey)
             .where(eq(schema.apiKey.referenceId, user.id))

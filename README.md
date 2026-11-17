@@ -125,7 +125,7 @@ Then apply it (`npx nuxt db migrate`, or `pnpm build`). The same migration also 
 `user.stripe_customer_id` and the `subscription` columns `cancel_at`, `canceled_at`, `ended_at`,
 `billing_interval` and `stripe_schedule_id`. API keys no longer have a foreign key to `user`: the
 database no longer cascades the deletion of a user to their keys, so the app deletes them in a
-`databaseHooks.user.delete.after` hook (`server/utils/auth.ts`).
+`databaseHooks.user.delete.before` hook (`server/utils/auth.ts`).
 
 Single-use verification values are now written to the database as well as the KV store, and consumed
 from the database. Password reset and account deletion links issued before the deploy become

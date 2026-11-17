@@ -72,12 +72,21 @@ describe('the user delete hook', () => {
   // api_key.reference_id has no foreign key to user since better-auth 1.5,
   // so nothing in the database removes the keys of a deleted user.
   it('deletes the API keys the deleted user owns', async () => {
-    await options.databaseHooks.user.delete?.after?.({ id: 'user-1' })
+    const result = await options.databaseHooks.user.delete?.before?.({ id: 'user-1' })
 
     expect(db.delete).toHaveBeenCalledWith(schema.apiKey)
     expect(db.where).toHaveBeenCalledTimes(1)
     const [[where]] = db.where.mock.calls as unknown as [[SQL]]
     const condition = new PgDialect().sqlToQuery(where)
     expect(condition).toMatchObject({ sql: '"api_key"."reference_id" = $1', params: ['user-1'] })
+    // better-auth cancels the deletion when a before hook returns false.
+    expect(result).not.toBe(false)
+  })
+
+  // Delete paths run outside a transaction: a failing after hook would leave
+  // the user deleted with its cached sessions alive, a failing before hook
+  // aborts the deletion with nothing modified.
+  it('cleans up before the user row is deleted, not after', () => {
+    expect(options.databaseHooks.user.delete?.after).toBeUndefined()
   })
 })
