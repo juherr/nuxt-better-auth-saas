@@ -4,10 +4,19 @@
 // relative imports carry their `.ts` extension and Nuxt aliases are not
 // available). Idempotent: keys that are already linked are left as they are.
 // Never reads nor prints the key material.
+//
+// Keys left without an organization cannot be listed nor revoked by anyone.
+// By default the script prints the ids of those that remain enabled; with
+// --disable-unlinked it disables them after linking.
 import type { ApiKeyBackfillOutcome } from '../server/utils/apiKeyMetadata.ts'
 import process from 'node:process'
 import pg from 'pg'
-import { decideApiKeyBackfill, parseLegacyOrganizationId } from '../server/utils/apiKeyMetadata.ts'
+import {
+  decideApiKeyBackfill,
+  describeUnlinkedApiKeys,
+  parseApiKeyBackfillArgs,
+  parseLegacyOrganizationId
+} from '../server/utils/apiKeyMetadata.ts'
 
 interface LegacyApiKeyRow {
   id: string
@@ -16,11 +25,26 @@ interface LegacyApiKeyRow {
   linked: boolean
 }
 
+interface ApiKeyIdRow {
+  id: string
+}
+
+// Keys with no organization link that the API key plugin still accepts:
+// it refuses only `enabled === false`, so a NULL counts as enabled.
+const ENABLED_UNLINKED_KEY = `enabled IS NOT FALSE
+  AND NOT EXISTS (SELECT 1 FROM api_key_organization l WHERE l.api_key_id = "apiKey".id)`
+
 interface OrganizationMembershipRow {
   role: string | null
 }
 
 async function main(): Promise<number> {
+  const args = parseApiKeyBackfillArgs(process.argv.slice(2))
+  if ('error' in args) {
+    console.error(`${args.error}. Usage: pnpm db:backfill-api-keys [--disable-unlinked]`)
+    return 1
+  }
+
   const connectionString = process.env.DATABASE_URL
   if (!connectionString) {
     console.error('DATABASE_URL is not set: point it at the Postgres database to backfill.')
@@ -81,6 +105,17 @@ async function main(): Promise<number> {
       + ` skipped-unknown-org=${counts['skipped-unknown-org']}`
       + ` skipped-not-manager=${counts['skipped-not-manager']}`
     )
+
+    if (args.disableUnlinked) {
+      const disabled = await client.query(`UPDATE "apiKey" SET enabled = false WHERE ${ENABLED_UNLINKED_KEY}`)
+      console.log(describeUnlinkedApiKeys({ disableUnlinked: true, disabledCount: disabled.rowCount ?? 0 }))
+    }
+    else {
+      const { rows } = await client.query<ApiKeyIdRow>(
+        `SELECT id FROM "apiKey" WHERE ${ENABLED_UNLINKED_KEY} ORDER BY id`
+      )
+      console.log(describeUnlinkedApiKeys({ disableUnlinked: false, enabledUnlinkedIds: rows.map(row => row.id) }))
+    }
     return 0
   }
   finally {

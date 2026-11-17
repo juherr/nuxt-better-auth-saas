@@ -1,6 +1,14 @@
 import { APIError } from 'better-auth/api'
 import { describe, expect, it } from 'vitest'
-import { createdApiKeyId, decideApiKeyBackfill, isApiKeyManagerRole, parseLegacyOrganizationId, parseRequestedOrganizationId } from '~~/server/utils/apiKeyMetadata'
+import {
+  createdApiKeyId,
+  decideApiKeyBackfill,
+  describeUnlinkedApiKeys,
+  isApiKeyManagerRole,
+  parseApiKeyBackfillArgs,
+  parseLegacyOrganizationId,
+  parseRequestedOrganizationId
+} from '~~/server/utils/apiKeyMetadata'
 
 describe('parseLegacyOrganizationId', () => {
   it.each([
@@ -94,6 +102,41 @@ describe('decideApiKeyBackfill', () => {
     ['holding a differently cased role', 'Owner']
   ])('skips a key whose owner is %s', (_label, ownerRole) => {
     expect(decideApiKeyBackfill({ ...linkable, ownerRole })).toBe('skipped-not-manager')
+  })
+})
+
+describe('parseApiKeyBackfillArgs', () => {
+  it('only reports unlinked keys by default', () => {
+    expect(parseApiKeyBackfillArgs([])).toEqual({ disableUnlinked: false })
+  })
+
+  it('disables unlinked keys when asked to', () => {
+    expect(parseApiKeyBackfillArgs(['--disable-unlinked'])).toEqual({ disableUnlinked: true })
+  })
+
+  it.each([
+    ['a misspelled flag', '--disable-unlink'],
+    ['a flag with a value', '--disable-unlinked=true'],
+    ['another argument', '--dry-run']
+  ])('refuses %s instead of running without it', (_label, arg) => {
+    expect(parseApiKeyBackfillArgs([arg])).toEqual({ error: `Unknown argument: ${arg}` })
+  })
+})
+
+describe('describeUnlinkedApiKeys', () => {
+  it('reports how many unlinked keys were disabled', () => {
+    expect(describeUnlinkedApiKeys({ disableUnlinked: true, disabledCount: 3 }))
+      .toBe('disabled-unlinked=3')
+  })
+
+  it('lists the ids of the unlinked keys that remain enabled', () => {
+    expect(describeUnlinkedApiKeys({ disableUnlinked: false, enabledUnlinkedIds: ['key-1', 'key-2'] }))
+      .toBe('enabled-unlinked=2 ids=key-1,key-2 (rerun with --disable-unlinked to disable them)')
+  })
+
+  it('reports that no unlinked key remains enabled', () => {
+    expect(describeUnlinkedApiKeys({ disableUnlinked: false, enabledUnlinkedIds: [] }))
+      .toBe('enabled-unlinked=0')
   })
 })
 
