@@ -12,6 +12,7 @@ import { ac, admin, member, owner } from '~~/shared/utils/permissions'
 import { createdApiKeyId, isApiKeyManagerRole, parseRequestedOrganizationId } from './apiKeyMetadata'
 import { deleteOrganizationApiKeys } from './apiKeyOrganization'
 import { logAuditEvent } from './auditLogger'
+import { AUDITED_SUCCESS_PATHS, resolveAuditTarget } from './authAudit'
 import { getDB } from './db'
 import { cacheClient, getResendClient } from './drivers'
 import { renderDeleteAccount, renderResetPassword, renderTeamInvite, renderVerifyEmail } from './email'
@@ -523,15 +524,12 @@ export const createBetterAuth = () => betterAuth({
         || ctx.getHeader('remoteAddress') || undefined
       const userAgent = ctx.getHeader('user-agent') || undefined
 
-      let targetType
-      let targetId
-      if (ctx.context.session || ctx.context.newSession) {
-        targetType = 'user'
-        targetId = ctx.context.session?.user.id || ctx.context.newSession?.user.id
-      } else if (['/sign-in/email', '/sign-up/email', 'forget-password'].includes(ctx.path)) {
-        targetType = 'email'
-        targetId = ctx.body.email || ''
-      }
+      const { targetType, targetId } = resolveAuditTarget({
+        path: ctx.path,
+        hasSession: !!(ctx.context.session || ctx.context.newSession),
+        sessionUserId: ctx.context.session?.user.id || ctx.context.newSession?.user.id,
+        email: ctx.body?.email
+      })
       const returned = ctx.context.returned
       if (returned && returned instanceof APIError) {
         const userId = ctx.context.newSession?.user.id
@@ -561,7 +559,7 @@ export const createBetterAuth = () => betterAuth({
           })
         }
       } else {
-        if (['/sign-in/email', '/sign-up/email', '/forget-password', '/reset-password'].includes(ctx.path)) {
+        if (AUDITED_SUCCESS_PATHS.includes(ctx.path)) {
           let userId: string | undefined
           if (['/sign-in/email', '/sign-up/email'].includes(ctx.path)) {
             userId = ctx.context.newSession?.user.id
