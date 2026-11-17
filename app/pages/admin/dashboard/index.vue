@@ -70,7 +70,12 @@ const areaChartOption = computed(() => ({
     left: '3%',
     right: '8%',
     bottom: '3%',
-    containLabel: true
+    // ECharts 5 default; ECharts 6 moved it to 65
+    top: 60,
+    // The replacement the ECharts 6 typings give for the deprecated
+    // `containLabel: true`
+    outerBoundsMode: 'same',
+    outerBoundsContain: 'axisLabel'
   },
   xAxis: {
     type: 'category',
@@ -180,7 +185,9 @@ const barChartOption = computed(() => ({
     left: '3%',
     right: '4%',
     bottom: '3%',
-    containLabel: true
+    top: 60,
+    outerBoundsMode: 'same',
+    outerBoundsContain: 'axisLabel'
   },
   yAxis: {
     type: 'category',

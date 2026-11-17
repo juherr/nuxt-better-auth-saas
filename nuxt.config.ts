@@ -44,10 +44,7 @@ export default defineNuxtConfig({
       { code: 'ja', language: 'ja-JP', name: '日本語' },
       { code: 'fr', language: 'fr-FR', name: 'Français' }
     ],
-    defaultLocale: 'en',
-    bundle: {
-      optimizeTranslationDirective: false
-    }
+    defaultLocale: 'en'
   },
   echarts: {
     renderer: ['svg'],
@@ -81,6 +78,11 @@ export default defineNuxtConfig({
   ogImage: {
     enabled: false
   },
+  // @nuxtjs/seo 6 bundles nuxt-ai-ready and nuxt-skew-protection; keep them
+  // off until they are adopted on purpose
+  // https://nuxtseo.com/docs/nuxt-seo/migration-guide/v5-to-v6
+  aiReady: false,
+  skewProtection: false,
   icon: {
     serverBundle: false,
     clientBundle: {
@@ -110,7 +112,6 @@ export default defineNuxtConfig({
   runtimeConfig: generateRuntimeConfig(effectiveNitroPreset),
   app: {
     head: {
-      charset: 'utf-8',
       viewport: 'width=device-width, initial-scale=1, maximum-scale=5.0, minimum-scale=1.0',
       link: [
         { rel: 'icon', type: 'image/png', href: '/favicons/favicon-96x96.png', sizes: '96x96' },
@@ -161,4 +162,4 @@ export default defineNuxtConfig({
       transpile: ['zod']
     }
   }
-}) as any
+})

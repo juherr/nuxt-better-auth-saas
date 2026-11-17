@@ -2,7 +2,7 @@
  * React Email Templates
  *
  * Usage in server handlers:
- * import { render } from '@react-email/render'
+ * import { render } from 'react-email'
  * import { VerifyEmail } from '~/emails'
  *
  * const html = await render(VerifyEmail({ name: 'Joe', url: '...' }))
