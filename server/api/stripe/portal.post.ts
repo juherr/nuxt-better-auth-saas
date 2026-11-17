@@ -1,6 +1,6 @@
-import { and, eq } from 'drizzle-orm'
-import { member as memberTable, organization as organizationTable } from '~~/server/db/schema'
-import { getAuthSession } from '~~/server/utils/auth'
+import { eq } from 'drizzle-orm'
+import { organization as organizationTable } from '~~/server/db/schema'
+import { requireOrganizationRole } from '~~/server/utils/billing'
 import { useDB } from '~~/server/utils/db'
 import { runtimeConfig } from '~~/server/utils/runtimeConfig'
 import { createStripeClient } from '~~/server/utils/stripe'
@@ -25,14 +25,6 @@ function sameOriginUrl(value: unknown, baseURL: string): string | undefined {
 }
 
 export default defineEventHandler(async (event) => {
-  const session = await getAuthSession(event)
-  if (!session) {
-    throw createError({
-      statusCode: 401,
-      statusMessage: 'Unauthorized'
-    })
-  }
-
   const body = await readBody(event)
   const { organizationId, returnUrl } = body
 
@@ -45,20 +37,7 @@ export default defineEventHandler(async (event) => {
 
   const db = await useDB()
 
-  // Verify that the user belongs to this organization
-  const membership = await db.query.member.findFirst({
-    where: and(
-      eq(memberTable.organizationId, organizationId),
-      eq(memberTable.userId, session.user.id)
-    )
-  })
-
-  if (!membership) {
-    throw createError({
-      statusCode: 403,
-      statusMessage: 'Forbidden'
-    })
-  }
+  await requireOrganizationRole(event, organizationId, ['owner', 'admin', 'member'])
 
   const org = await db.query.organization.findFirst({
     where: eq(organizationTable.id, organizationId)
