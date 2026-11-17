@@ -4,7 +4,7 @@
 const EMAIL_TARGET_PATHS = ['/sign-in/email', '/sign-up/email', '/request-password-reset']
 
 // Paths logged on success; failures are logged for every path.
-export const AUDITED_SUCCESS_PATHS = ['/sign-in/email', '/sign-up/email', '/request-password-reset', '/reset-password']
+export const AUDITED_SUCCESS_PATHS = [...EMAIL_TARGET_PATHS, '/reset-password']
 
 interface AuditRequest {
   path: string

@@ -162,6 +162,19 @@ export const addPaymentLog = async (action: string, subscription: any) => {
   })
 }
 
+/**
+ * Seats an organization is billed for: its members plus its pending
+ * invitations. Callers apply their own floor.
+ */
+export const countBillableSeats = (organization: {
+  members: unknown[]
+  invitations: { status: string }[]
+}) => {
+  const members = organization.members.length
+  const pendingInvitations = organization.invitations.filter(i => i.status === 'pending').length
+  return { total: members + pendingInvitations, members, pendingInvitations }
+}
+
 export const syncSubscriptionQuantity = async (organizationId: string) => {
   const db = await useDB()
   const org = await db.query.organization.findFirst({
@@ -191,9 +204,7 @@ export const syncSubscriptionQuantity = async (organizationId: string) => {
   const currentQuantity = subscription.items.data[0].quantity
 
   // Calculate new quantity
-  const memberCount = org.members.length
-  const inviteCount = org.invitations.filter(i => i.status === 'pending').length
-  const newQuantity = memberCount + inviteCount
+  const newQuantity = countBillableSeats(org).total
 
   if (currentQuantity !== newQuantity && newQuantity > 0) {
     await client.subscriptions.update(subscription.id, {
@@ -229,9 +240,7 @@ export const resolveCheckoutSeats = async (organizationId: string) => {
   })
   if (!organization)
     return 1
-  const memberCount = organization.members.length
-  const inviteCount = organization.invitations.filter(i => i.status === 'pending').length
-  const count = memberCount + inviteCount
+  const { total: count, members: memberCount, pendingInvitations: inviteCount } = countBillableSeats(organization)
   console.log('[Stripe] Calculated Quantity:', count, 'Members:', memberCount, 'Invites:', inviteCount, 'Org:', organizationId)
   return count > 0 ? count : 1
 }

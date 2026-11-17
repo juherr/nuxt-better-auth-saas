@@ -107,6 +107,24 @@ describe('the server-side checkout seats', () => {
   })
 })
 
+describe('the billable seat count', () => {
+  it('is zero without members or invitations', async () => {
+    const { countBillableSeats } = await import('~~/server/utils/stripe')
+    expect(countBillableSeats({ members: [], invitations: [] })).toEqual({ total: 0, members: 0, pendingInvitations: 0 })
+  })
+
+  it('ignores invitations that are not pending', async () => {
+    const { countBillableSeats } = await import('~~/server/utils/stripe')
+    const seats = countBillableSeats({ members: [], invitations: [{ status: 'accepted' }, { status: 'canceled' }] })
+    expect(seats).toEqual({ total: 0, members: 0, pendingInvitations: 0 })
+  })
+
+  it('sums members and pending invitations', async () => {
+    const { countBillableSeats } = await import('~~/server/utils/stripe')
+    expect(countBillableSeats(orgWithSeats)).toEqual({ total: 4, members: 2, pendingInvitations: 2 })
+  })
+})
+
 const origin = 'https://saas.example.test'
 const secret = 'canary-secret-canary-secret-canary-secret'
 

@@ -104,14 +104,14 @@ export default defineEventHandler(async (event) => {
   if (isScheduledDowngrade) {
     // Retrieve the full subscription to get current_period_end
     const fullSubscription = await stripe.subscriptions.retrieve(subscription.id)
+    let periodEndTimestamp = getStripeSubscriptionPeriodEndSeconds(fullSubscription)
 
     console.log('[preview-tier-change] Full subscription keys:', Object.keys(fullSubscription))
     console.log('[preview-tier-change] billing_cycle_anchor:', (fullSubscription as any).billing_cycle_anchor)
-    console.log('[preview-tier-change] current_period_end:', getStripeSubscriptionPeriodEndSeconds(fullSubscription))
+    console.log('[preview-tier-change] current_period_end:', periodEndTimestamp)
     console.log('[preview-tier-change] current_period_start:', (fullSubscription as any).current_period_start)
 
     // Try billing_cycle_anchor if current_period_end doesn't exist
-    let periodEndTimestamp = getStripeSubscriptionPeriodEndSeconds(fullSubscription)
     if (!periodEndTimestamp) {
       // Calculate next period from billing_cycle_anchor
       const anchor = (fullSubscription as any).billing_cycle_anchor
