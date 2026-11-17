@@ -32,7 +32,7 @@ jobs:
   typecheck:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Non-blocking until the existing type errors are fixed (see #8).
+    # Non-blocking until the existing type errors are fixed (see #11).
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
