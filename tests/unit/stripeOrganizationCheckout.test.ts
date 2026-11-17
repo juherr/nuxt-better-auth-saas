@@ -122,3 +122,54 @@ describe('the server-side checkout seats', () => {
     expect(findOrganization).not.toHaveBeenCalled()
   })
 })
+
+// Runs the hook through better-auth's real dispatch, with a stand-in for the
+// stripe upgrade endpoint that echoes the body it receives.
+describe('the checkout seats hook in a better-auth instance', () => {
+  async function upgradeBodySeenByEndpoint(withHook: boolean) {
+    const { betterAuth } = await import('better-auth')
+    const { memoryAdapter } = await import('better-auth/adapters/memory')
+    const { createAuthEndpoint, createAuthMiddleware } = await import('better-auth/api')
+    const { z } = await import('zod')
+    const { checkoutSeatsOverride } = await import('~~/server/utils/stripe')
+    const auth = betterAuth({
+      secret: 'canary-secret-canary-secret-canary-secret',
+      baseURL: 'https://saas.example.test',
+      database: memoryAdapter({}),
+      ...(withHook ? { hooks: { before: createAuthMiddleware(async ctx => checkoutSeatsOverride(ctx)) } } : {}),
+      plugins: [{
+        id: 'upgrade-echo',
+        endpoints: {
+          upgradeEcho: createAuthEndpoint('/subscription/upgrade', {
+            method: 'POST',
+            body: z.object({
+              plan: z.string(),
+              customerType: z.string().optional(),
+              referenceId: z.string().optional(),
+              seats: z.number().optional()
+            })
+          }, async ctx => ctx.json(ctx.body))
+        }
+      }]
+    })
+    const response = await auth.handler(new Request('https://saas.example.test/api/auth/subscription/upgrade', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'origin': 'https://saas.example.test' },
+      body: JSON.stringify({ plan: 'pro-monthly', customerType: 'organization', referenceId: 'org-1', seats: 1 })
+    }))
+    expect(response.status).toBe(200)
+    return response.json()
+  }
+
+  beforeEach(() => {
+    findOrganization.mockReset().mockResolvedValue(orgWithSeats)
+  })
+
+  it('hands the server seat count to the upgrade endpoint', async () => {
+    expect(await upgradeBodySeenByEndpoint(true)).toMatchObject({ seats: 4 })
+  })
+
+  it('would pass the client seats through without the hook', async () => {
+    expect(await upgradeBodySeenByEndpoint(false)).toMatchObject({ seats: 1 })
+  })
+})

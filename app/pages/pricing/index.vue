@@ -6,8 +6,7 @@ definePageMeta({
   layout: false
 })
 const { t } = useI18n()
-const { loggedIn, subscription, payment, useActiveOrganization } = useAuth()
-const activeOrg = useActiveOrganization()
+const { loggedIn, session, subscription, payment } = useAuth()
 const localePath = useLocalePath()
 const runtimeConfig = useRuntimeConfig()
 const billingPeriod = ref('monthly')
@@ -51,9 +50,10 @@ const plans = [
           successUrl: localePath('/'),
           cancelUrl: localePath('/pricing')
         }
-        // Bill the active organization, as the base did through
+        // Bill the session's active organization, as the base did through
         // getCheckoutSessionParams; without one, keep a user subscription.
-        const organizationId = activeOrg.value?.data?.id
+        // The organization client plugin adds this field; the session type lacks it.
+        const organizationId = (session.value as { activeOrganizationId?: string | null } | null)?.activeOrganizationId
         const result = await subscription.upgrade(organizationId
           ? buildOrganizationUpgrade({ ...request, organizationId })
           : request)
