@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import { organization as organizationTable, subscription as subscriptionTable } from '~~/server/db/schema'
-import { requireAuthSession, requireOrganizationRole } from '~~/server/utils/billing'
+import { requireAuthSession, requireOrganizationRole, selectActiveSubscription } from '~~/server/utils/billing'
 import { useDB } from '~~/server/utils/db'
 import { createStripeClient } from '~~/server/utils/stripe'
 import { sendSubscriptionUpdatedEmail } from '~~/server/utils/stripeEmails'
@@ -40,22 +40,7 @@ export default defineEventHandler(async (event) => {
   const stripe = createStripeClient()
 
   // Find active or trialing subscription
-  const subscriptions = await stripe.subscriptions.list({
-    customer: org.stripeCustomerId,
-    limit: 10, // Fetch a few to be safe
-    status: 'all'
-  })
-
-  const subscription = subscriptions.data.find(sub =>
-    sub.status === 'active' || sub.status === 'trialing'
-  )
-
-  if (!subscription) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'No active subscription found'
-    })
-  }
+  const subscription = await selectActiveSubscription(stripe, db, org)
 
   // Determine new price ID if interval changes
   let newPriceId
