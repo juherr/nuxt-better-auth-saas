@@ -6,6 +6,7 @@ import type { PlanInterval } from '~~/shared/utils/plans'
  *
  * Usage: <MembersInviteForm :can-manage="canManageMembers" :is-pro="isPro" />
  */
+import { hasOrgRole } from '~~/shared/utils/permissions'
 import { getPlanPricing, getTierForInterval } from '~~/shared/utils/plans'
 
 const { canManage, isPro } = defineProps<{
@@ -40,7 +41,7 @@ const isOwner = computed(() => {
   if (!activeOrg.value?.data?.members || !user.value?.id)
     return false
   const member = activeOrg.value.data.members.find((m: any) => m.userId === user.value?.id)
-  return member?.role === 'owner'
+  return hasOrgRole(member?.role, ['owner'])
 })
 
 const roles = [

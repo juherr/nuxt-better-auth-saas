@@ -1,6 +1,7 @@
 <i18n src="./DangerZone.i18n.json"></i18n>
 
 <script setup lang="ts">
+import { isOwner } from '~~/shared/utils/permissions'
 /**
  * Danger Zone section for leaving or deleting organization
  *
@@ -24,11 +25,11 @@ const currentUserRole = computed(() => {
 
 const canLeaveTeam = computed(() => {
   // Owners cannot leave (must delete or transfer), others can
-  return currentUserRole.value !== 'owner'
+  return !isOwner(currentUserRole.value)
 })
 
 const canDeleteTeam = computed(() => {
-  return currentUserRole.value === 'owner'
+  return isOwner(currentUserRole.value)
 })
 
 async function leaveTeam() {
