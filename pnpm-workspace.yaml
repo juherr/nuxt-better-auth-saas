@@ -1,0 +1,24 @@
+# pnpm settings. Since pnpm 11, the `pnpm` field of package.json is no
+# longer read and .npmrc only carries auth and registry settings.
+# https://github.com/pnpm/pnpm/releases/tag/v11.0.0
+
+# Dependencies whose install scripts may run. pnpm fails the install
+# on any dependency with a build script that is not listed here.
+# - esbuild, workerd: the script sets up the platform binary that Vite
+#   and `wrangler dev` start.
+# - Prisma packages: pulled in by better-auth's adapters; the app uses
+#   Drizzle, so neither client generation nor engine download is needed.
+# - sharp, unrs-resolver: prebuilt binaries come from optional
+#   dependencies (@img/sharp-*, @unrs/resolver-binding-*); the scripts
+#   only check for them.
+# - vue-demi: the published files already target Vue 3; the script
+#   would only switch them to Vue 2.
+allowBuilds:
+  '@prisma/client': false
+  '@prisma/engines': false
+  esbuild: true
+  prisma: false
+  sharp: false
+  unrs-resolver: false
+  vue-demi: false
+  workerd: true
