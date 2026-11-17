@@ -5,7 +5,7 @@ outside Cloudflare Workers. For Workers, see [NUXTHUB_SELF_HOSTED.md](NUXTHUB_SE
 
 You need:
 
-- Node.js 22 and pnpm
+- Node.js 26 or later (`.nvmrc`) and pnpm (the version pinned in `packageManager` of `package.json`)
 - a PostgreSQL database
 - a writable, persistent directory for sessions (see [Sessions and KV](#2-sessions-and-kv)), or a Redis server
 
@@ -279,7 +279,7 @@ the `admin` role. It reads `DATABASE_URL` (or `NUXT_DATABASE_URL`), `NUXT_ADMIN_
 `NUXT_ADMIN_PASSWORD`, from the environment or `.env`. Run it once the migrations are applied:
 
 ```bash
-node create-admin.ts        # Node.js 22.18 or later runs TypeScript directly
+node create-admin.ts        # Node.js 26 runs TypeScript directly
 ```
 
 Running it again for an existing email only sets the role and the verified flag.
@@ -295,6 +295,6 @@ values only (no repository secret):
 |-----|----------------|
 | `lint` | `pnpm lint --max-warnings=0` |
 | `typecheck` | `pnpm typecheck`, non-blocking until the existing type errors are fixed |
-| `unit` | `pnpm test:unit` |
+| `unit` | `pnpm test:ci`: unit tests (`tests/unit`) and component tests in the Nuxt runtime (`tests/components`); the e2e suite (`tests/e2e`) runs locally with `pnpm test` |
 | `build-no-secrets` | `NUXT_NITRO_PRESET=node-server pnpm build` without a database, Stripe or Resend |
 | `smoke-node` | Against `postgres:16` and `redis:7` services: `pnpm db:generate`, `pnpm build` (which applies the migrations), starts `.output/server/index.mjs`, waits for `GET /api/health`, seeds a user with `create-admin.ts`, then expects `POST /api/auth/sign-in/email` to answer `200` with a `better-auth.session_token` cookie. The server log is uploaded as an artifact when the job fails. |
