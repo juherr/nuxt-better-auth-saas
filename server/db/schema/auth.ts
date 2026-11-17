@@ -1,5 +1,6 @@
 import { relations } from 'drizzle-orm'
 import {
+  bigint,
   boolean,
   index,
   integer,
@@ -23,6 +24,7 @@ export const user = pgTable('user', {
   banned: boolean('banned').default(false),
   banReason: text('ban_reason'),
   banExpires: timestamp('ban_expires'),
+  stripeCustomerId: text('stripe_customer_id'),
   lastActiveOrganizationId: text('last_active_organization_id'),
   referralCode: text('referral_code')
 })
@@ -74,8 +76,8 @@ export const organization = pgTable('organization', {
   logo: text('logo'),
   createdAt: timestamp('created_at').notNull(),
   metadata: text('metadata'),
-  stripeCustomerId: text('stripe_customer_id'),
-  referralCode: text('referral_code')
+  referralCode: text('referral_code'),
+  stripeCustomerId: text('stripe_customer_id')
 })
 
 export const member = pgTable(
@@ -119,74 +121,70 @@ export const invitation = pgTable(
   ]
 )
 
+export const apiKey = pgTable(
+  'api_key',
+  {
+    id: text('id').primaryKey(),
+    configId: text('config_id').default('default').notNull(),
+    name: text('name'),
+    start: text('start'),
+    referenceId: text('reference_id').notNull(),
+    prefix: text('prefix'),
+    key: text('key').notNull(),
+    refillInterval: integer('refill_interval'),
+    refillAmount: integer('refill_amount'),
+    lastRefillAt: timestamp('last_refill_at'),
+    enabled: boolean('enabled').default(true),
+    rateLimitEnabled: boolean('rate_limit_enabled').default(true),
+    rateLimitTimeWindow: integer('rate_limit_time_window').default(86400000),
+    rateLimitMax: integer('rate_limit_max').default(10),
+    requestCount: integer('request_count').default(0),
+    remaining: integer('remaining'),
+    lastRequest: timestamp('last_request'),
+    expiresAt: timestamp('expires_at'),
+    createdAt: timestamp('created_at').notNull(),
+    updatedAt: timestamp('updated_at').notNull(),
+    permissions: text('permissions'),
+    metadata: text('metadata')
+  },
+  table => [
+    index('apiKey_configId_idx').on(table.configId),
+    index('apiKey_referenceId_idx').on(table.referenceId),
+    index('apiKey_key_idx').on(table.key)
+  ]
+)
+
 export const subscription = pgTable('subscription', {
   id: text('id').primaryKey(),
   plan: text('plan').notNull(),
   referenceId: text('reference_id').notNull(),
   stripeCustomerId: text('stripe_customer_id'),
   stripeSubscriptionId: text('stripe_subscription_id'),
-  status: text('status').default('incomplete'),
+  status: text('status').default('incomplete').notNull(),
   periodStart: timestamp('period_start'),
   periodEnd: timestamp('period_end'),
   trialStart: timestamp('trial_start'),
   trialEnd: timestamp('trial_end'),
   cancelAtPeriodEnd: boolean('cancel_at_period_end').default(false),
-  seats: integer('seats')
+  cancelAt: timestamp('cancel_at'),
+  canceledAt: timestamp('canceled_at'),
+  endedAt: timestamp('ended_at'),
+  seats: integer('seats'),
+  billingInterval: text('billing_interval'),
+  stripeScheduleId: text('stripe_schedule_id')
 })
 
-export const session = pgTable('session', {
+export const rateLimit = pgTable('rate_limit', {
   id: text('id').primaryKey(),
-  expiresAt: timestamp('expires_at').notNull(),
-  token: text('token').notNull().unique(),
-  createdAt: timestamp('created_at').notNull(),
-  updatedAt: timestamp('updated_at').notNull(),
-  ipAddress: text('ip_address'),
-  userAgent: text('user_agent'),
-  userId: text('user_id')
-    .notNull()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  activeOrganizationId: text('active_organization_id'),
-  impersonatedBy: text('impersonated_by')
-})
-
-export const apiKey = pgTable('apiKey', {
-  id: text('id').primaryKey(),
-  name: text('name'),
-  start: text('start'),
-  prefix: text('prefix'),
-  key: text('key').notNull(),
-  userId: text('user_id')
-    .notNull()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  refillInterval: integer('refill_interval'),
-  refillAmount: integer('refill_amount'),
-  lastRefillAt: timestamp('last_refill_at'),
-  enabled: boolean('enabled'),
-  rateLimitEnabled: boolean('rate_limit_enabled'),
-  rateLimitTimeWindow: integer('rate_limit_time_window'),
-  rateLimitMax: integer('rate_limit_max'),
-  requestCount: integer('request_count'),
-  remaining: integer('remaining'),
-  lastRequest: timestamp('last_request'),
-  expiresAt: timestamp('expires_at'),
-  createdAt: timestamp('created_at').notNull(),
-  updatedAt: timestamp('updated_at').notNull(),
-  permissions: text('permissions'),
-  metadata: text('metadata')
+  key: text('key').notNull().unique(),
+  count: integer('count').notNull(),
+  lastRequest: bigint('last_request', { mode: 'number' }).notNull()
 })
 
 export const userRelations = relations(user, ({ many }) => ({
   accounts: many(account),
   members: many(member),
-  invitations: many(invitation),
-  sessions: many(session)
-}))
-
-export const sessionRelations = relations(session, ({ one }) => ({
-  user: one(user, {
-    fields: [session.userId],
-    references: [user.id]
-  })
+  invitations: many(invitation)
 }))
 
 export const accountRelations = relations(account, ({ one }) => ({
@@ -198,8 +196,7 @@ export const accountRelations = relations(account, ({ one }) => ({
 
 export const organizationRelations = relations(organization, ({ many }) => ({
   members: many(member),
-  invitations: many(invitation),
-  apiKeys: many(apiKey)
+  invitations: many(invitation)
 }))
 
 export const memberRelations = relations(member, ({ one }) => ({

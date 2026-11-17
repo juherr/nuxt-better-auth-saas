@@ -13,6 +13,7 @@ import { createdApiKeyId, isApiKeyManagerRole, parseRequestedOrganizationId } fr
 import { deleteOrganizationApiKeys } from './apiKeyOrganization'
 import { logAuditEvent } from './auditLogger'
 import { AUDITED_SUCCESS_PATHS, resolveAuditTarget } from './authAudit'
+import { organizationAdditionalFields } from './authSchemaFields'
 import { authStorageOptions } from './authStorage'
 import { getDB } from './db'
 import { getResendClient } from './drivers'
@@ -602,6 +603,11 @@ export const createBetterAuth = () => betterAuth({
         // cascade would otherwise leave its keys enabled and unrevocable.
         beforeDeleteOrganization: async ({ organization }) => {
           await deleteOrganizationApiKeys(getDB(), organization.id)
+        }
+      },
+      schema: {
+        organization: {
+          additionalFields: organizationAdditionalFields
         }
       },
       async sendInvitationEmail({ email, inviter, organization, invitation }) {

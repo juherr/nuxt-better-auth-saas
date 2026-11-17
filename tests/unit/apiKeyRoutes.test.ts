@@ -146,7 +146,7 @@ describe('organization API key routes', () => {
 
       const [query] = selectQueries
       expect(query!.join?.kind).toBe('inner')
-      expect(renderSql(query!.join!.on).sql).toBe('"api_key_organization"."api_key_id" = "apiKey"."id"')
+      expect(renderSql(query!.join!.on).sql).toBe('"api_key_organization"."api_key_id" = "api_key"."id"')
       expect(renderSql(query!.where).sql).not.toMatch(/metadata|like/i)
     })
   })
@@ -175,7 +175,7 @@ describe('organization API key routes', () => {
 
       await expect(deleteKey('key-1')).resolves.toEqual({ success: true })
       expect(deleteFrom).toHaveBeenCalledTimes(1)
-      expect(renderSql(deleteWhere.mock.calls[0]![0])).toMatchObject({ sql: '"apiKey"."id" = $1', params: ['key-1'] })
+      expect(renderSql(deleteWhere.mock.calls[0]![0])).toMatchObject({ sql: '"api_key"."id" = $1', params: ['key-1'] })
     })
 
     it.each([

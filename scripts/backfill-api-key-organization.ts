@@ -20,7 +20,7 @@ import { parseLegacyOrganizationId } from '../server/utils/apiKeyMetadata.ts'
 
 interface LegacyApiKeyRow {
   id: string
-  user_id: string
+  reference_id: string
   metadata: string | null
   linked: boolean
 }
@@ -32,7 +32,7 @@ interface ApiKeyIdRow {
 // Keys with no organization link that the API key plugin still accepts:
 // it refuses only `enabled === false`, so a NULL counts as enabled.
 const ENABLED_UNLINKED_KEY = `enabled IS NOT FALSE
-  AND NOT EXISTS (SELECT 1 FROM api_key_organization l WHERE l.api_key_id = "apiKey".id)`
+  AND NOT EXISTS (SELECT 1 FROM api_key_organization l WHERE l.api_key_id = api_key.id)`
 
 interface OrganizationMembershipRow {
   role: string | null
@@ -63,8 +63,8 @@ async function main(): Promise<number> {
     }
 
     const { rows: keys } = await client.query<LegacyApiKeyRow>(
-      `SELECT k.id, k.user_id, k.metadata, (l.api_key_id IS NOT NULL) AS linked
-       FROM "apiKey" k
+      `SELECT k.id, k.reference_id, k.metadata, (l.api_key_id IS NOT NULL) AS linked
+       FROM api_key k
        LEFT JOIN api_key_organization l ON l.api_key_id = k.id`
     )
 
@@ -78,7 +78,7 @@ async function main(): Promise<number> {
            FROM organization o
            LEFT JOIN member m ON m.organization_id = o.id AND m.user_id = $2
            WHERE o.id = $1`,
-          [organizationId, key.user_id]
+          [organizationId, key.reference_id]
         )
         organizationExists = rows.length > 0
         ownerRole = rows[0]?.role ?? null
@@ -107,12 +107,12 @@ async function main(): Promise<number> {
     )
 
     if (args.disableUnlinked) {
-      const disabled = await client.query(`UPDATE "apiKey" SET enabled = false WHERE ${ENABLED_UNLINKED_KEY}`)
+      const disabled = await client.query(`UPDATE api_key SET enabled = false WHERE ${ENABLED_UNLINKED_KEY}`)
       console.log(describeUnlinkedApiKeys({ disableUnlinked: true, disabledCount: disabled.rowCount ?? 0 }))
     }
     else {
       const { rows } = await client.query<ApiKeyIdRow>(
-        `SELECT id FROM "apiKey" WHERE ${ENABLED_UNLINKED_KEY} ORDER BY id`
+        `SELECT id FROM api_key WHERE ${ENABLED_UNLINKED_KEY} ORDER BY id`
       )
       console.log(describeUnlinkedApiKeys({ disableUnlinked: false, enabledUnlinkedIds: rows.map(row => row.id) }))
     }

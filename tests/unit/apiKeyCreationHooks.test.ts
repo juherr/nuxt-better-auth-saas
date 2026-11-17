@@ -255,7 +255,7 @@ describe('creating an API key', () => {
 
       // Modules are reset between tests, so compare the table by its name.
       expect(deleteFrom).toHaveBeenCalledTimes(1)
-      expect(getTableName(deleteFrom.mock.calls[0]![0] as Table)).toBe('apiKey')
+      expect(getTableName(deleteFrom.mock.calls[0]![0] as Table)).toBe('api_key')
       expect(renderSql(deleteWhere.mock.calls[0]![0]).params).toEqual(['org-1'])
     })
   })
