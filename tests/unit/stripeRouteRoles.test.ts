@@ -69,6 +69,7 @@ const subscriptionActions: Record<string, Route> = {
   resume: { load: () => import('~~/server/api/stripe/resume.post') }
 }
 const syncCustomerName = () => import('~~/server/api/stripe/sync-customer-name.post')
+const allRoutes = Object.entries({ ...ownerOnly, ...anyMember, ...subscriptionActions, 'sync-customer-name': { load: syncCustomerName } })
 
 const call = (route: Route) => callRoute(route.load, route.body, route.query)
 
@@ -89,7 +90,7 @@ describe('billing routes', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
 
-  describe.each(Object.entries({ ...ownerOnly, ...anyMember, ...subscriptionActions, 'sync-customer-name': { load: syncCustomerName } }))('%s', (_name, route) => {
+  describe.each(allRoutes)('%s', (_name, route) => {
     it('refuses an anonymous request without a body or query with 401, before reading it', async () => {
       getAuthSession.mockResolvedValue(null)
 
@@ -98,9 +99,7 @@ describe('billing routes', () => {
       expect(createStripeClient).not.toHaveBeenCalled()
       expect(syncStripeCustomerName).not.toHaveBeenCalled()
     })
-  })
 
-  describe.each(Object.entries({ ...ownerOnly, ...anyMember, ...subscriptionActions, 'sync-customer-name': { load: syncCustomerName } }))('%s', (_name, route) => {
     it('answers a signed-in request without a body or query with 400', async () => {
       await expect(callRoute(route.load, undefined)).rejects.toMatchObject({ statusCode: 400 })
       expect(createStripeClient).not.toHaveBeenCalled()
