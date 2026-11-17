@@ -10,7 +10,7 @@ const toast = useToast()
 
 const { data: invitations } = await useAsyncData('user-invitations', async () => {
   return await $fetch('/api/auth/user/invitations', {
-    headers: useRequestHeaders(['cookie'])
+    headers: useSsrCookieHeaders()
   })
 })
 
@@ -29,7 +29,7 @@ const checkSlug = useDebounceFn(async (slug: string) => {
   try {
     const { available } = await $fetch('/api/organization/check-slug', {
       query: { slug },
-      headers: useRequestHeaders(['cookie'])
+      headers: useSsrCookieHeaders()
     })
     if (!available) {
       slugError.value = 'Slug is already taken'

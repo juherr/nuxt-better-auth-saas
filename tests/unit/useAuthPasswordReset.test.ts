@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 
 // The unit project resolves `~~` only: map useAuth's `~/utils` import.
 vi.mock('~/utils/authClientTransport', () => import('~~/app/utils/authClientTransport'))
+vi.mock('~/utils/ssrCookies', () => import('~~/app/utils/ssrCookies'))
 
 // useAuth relies on Nuxt auto-imports: stand them in as globals.
 beforeEach(() => {

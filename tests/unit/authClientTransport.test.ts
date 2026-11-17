@@ -129,6 +129,83 @@ describe('authClientTransport', () => {
       expect(transport.fetchOptions.headers).toEqual({ cookie: inboundHeaders.cookie })
     })
 
+    describe('with a cookie port', () => {
+      const SET_ACTIVE_COOKIE = 'better-auth.session_data=org-2; Path=/; HttpOnly'
+
+      const portedClient = () => {
+        let cookie = inboundHeaders.cookie
+        const cookies = {
+          header: vi.fn(() => cookie as string | undefined),
+          capture: vi.fn((response: Response) => {
+            const setCookie = response.headers.get('set-cookie')
+            if (setCookie)
+              cookie = setCookie.split(';')[0]!
+          })
+        }
+        const localFetch = vi.fn(async (path: string, _init?: RequestInit) => path.endsWith('/set-active')
+          ? new Response(JSON.stringify({ ok: true }), {
+              status: 200,
+              headers: { 'content-type': 'application/json', 'set-cookie': SET_ACTIVE_COOKIE }
+            })
+          : okResponse())
+        const transport = authClientTransport({
+          isServer: true,
+          origin: HOSTILE_ORIGIN,
+          requestHeaders: inboundHeaders,
+          localFetch,
+          cookies
+        })
+        return { localFetch, cookies, client: createAuthClient(transport), setCookie: (value: string | undefined) => {
+          cookie = value as string
+        } }
+      }
+
+      it('sends the cookie captured from set-active on the next call', async () => {
+        const { localFetch, cookies, client } = portedClient()
+
+        await client.$fetch('/organization/set-active', { method: 'POST', body: { organizationId: 'org-2' } })
+        await client.$fetch('/get-session')
+
+        const capturedSetCookies = cookies.capture.mock.calls.map(([response]) => response.headers.get('set-cookie'))
+        expect(capturedSetCookies).toContain(SET_ACTIVE_COOKIE)
+        const nextHeaders = localFetch.mock.calls[1]![1]?.headers as Record<string, string>
+        expect(nextHeaders.cookie).toBe('better-auth.session_data=org-2')
+      })
+
+      it('reads the cookie from the port on every call, not once at construction', async () => {
+        const { localFetch, client, setCookie } = portedClient()
+
+        await client.$fetch('/get-session')
+        setCookie('better-auth.session_token=rotated')
+        await client.$fetch('/get-session')
+
+        expect((localFetch.mock.calls[0]![1]?.headers as Record<string, string>).cookie).toBe(inboundHeaders.cookie)
+        expect((localFetch.mock.calls[1]![1]?.headers as Record<string, string>).cookie).toBe('better-auth.session_token=rotated')
+      })
+
+      // h3's `event.fetch` re-injects the inbound cookie unless the call carries a `cookie` key:
+      // an empty one is what keeps a deleted cookie from coming back.
+      it('sends an empty cookie key when every cookie was deleted', async () => {
+        const { localFetch, client, setCookie } = portedClient()
+
+        setCookie(undefined)
+        await client.$fetch('/get-session')
+
+        expect(localFetch.mock.calls[0]![1]?.headers).toHaveProperty('cookie', '')
+      })
+
+      it('still hands the inbound origin and referer over', async () => {
+        const { localFetch, client } = portedClient()
+
+        await client.$fetch('/organization/set-active', { method: 'POST', body: { organizationId: 'org-2' } })
+
+        expect(localFetch.mock.calls[0]![1]?.headers).toMatchObject({
+          origin: inboundHeaders.origin,
+          referer: inboundHeaders.referer
+        })
+      })
+    })
+
     it('fails instead of reaching the network when no local fetch is available', async () => {
       const client = createAuthClient(authClientTransport({
         isServer: true,

@@ -40,7 +40,7 @@ const { data: layoutOrgData, refresh: _refreshLayoutOrg } = await useAsyncData(
 
     // Otherwise (server side OR client navigation), fetch fresh data
     return await $fetch('/api/organization/full-data', {
-      headers: useRequestHeaders(['cookie'])
+      headers: useSsrCookieHeaders()
     }).catch((e) => {
       console.error('[Dashboard] Failed to fetch full data:', e)
       return null
@@ -142,7 +142,7 @@ const _selectedInterval = ref<'month' | 'year'>('month')
 
 const fetchOwnedCount = async () => {
   try {
-    const { count } = await $fetch('/api/organization/get-owned-count', { headers: useRequestHeaders(['cookie']) })
+    const { count } = await $fetch('/api/organization/get-owned-count', { headers: useSsrCookieHeaders() })
     ownedTeamsCount.value = count
   } catch (e) {
     console.error('Failed to fetch owned teams count', e)
@@ -181,7 +181,7 @@ const checkSlug = useDebounceFn(async (slug: string) => {
   try {
     const { available } = await $fetch('/api/organization/check-slug', {
       query: { slug },
-      headers: useRequestHeaders(['cookie'])
+      headers: useSsrCookieHeaders()
     })
     if (!available) {
       slugError.value = 'Slug is already taken'
