@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -64,6 +64,32 @@ describe('locating a local upload to serve', () => {
     ['a malformed encoding', '%E0%A4%A']
   ])('finds nothing for %s', async (_label, path) => {
     expect(await locateLocalUpload(uploadDir, path)).toBeUndefined()
+  })
+
+  describe('through symbolic links', () => {
+    beforeEach(async () => {
+      await symlink(join(root, 'uploads-other', 'kept.png'), join(uploadDir, 'linked-out.png'))
+      await symlink(join(root, 'uploads-other'), join(uploadDir, 'linked-dir'))
+      await symlink(join(uploadDir, '2026-03-02', 'abc.png'), join(uploadDir, 'linked-in.png'))
+    })
+
+    it.each([
+      ['a link to a file outside the upload directory', 'linked-out.png'],
+      ['a file under a linked directory outside it', 'linked-dir/kept.png']
+    ])('finds nothing for %s', async (_label, path) => {
+      expect(await locateLocalUpload(uploadDir, path)).toBeUndefined()
+    })
+
+    it('serves a link that stays inside the upload directory', async () => {
+      expect(await locateLocalUpload(uploadDir, 'linked-in.png')).toMatchObject({ size: 9 })
+    })
+
+    it('serves files when the upload directory itself is reached through a link', async () => {
+      const linkedDir = join(root, 'uploads-link')
+      await symlink(uploadDir, linkedDir)
+
+      expect(await locateLocalUpload(linkedDir, '2026-03-02/abc.png')).toMatchObject({ size: 9 })
+    })
   })
 })
 

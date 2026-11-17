@@ -1,6 +1,6 @@
 import { promises as fs } from 'node:fs'
 import { servingHeaders, typeOfStorageName } from './servingHeaders'
-import { resolveInside } from './storage/local'
+import { resolveRealInside } from './storage/local'
 
 export interface LocalUpload {
   filePath: string
@@ -20,7 +20,7 @@ const decode = (path: string) => {
 /**
  * File under `uploadDir` for the URL-encoded `requestPath`, with the headers
  * to serve it with. `undefined` for anything that is not a regular file
- * inside `uploadDir`.
+ * inside `uploadDir`, symbolic links included.
  */
 export const locateLocalUpload = async (uploadDir: string, requestPath: string): Promise<LocalUpload | undefined> => {
   const path = decode(requestPath)
@@ -29,7 +29,7 @@ export const locateLocalUpload = async (uploadDir: string, requestPath: string):
   }
   let filePath: string
   try {
-    filePath = resolveInside(uploadDir, path)
+    filePath = await resolveRealInside(uploadDir, path)
   } catch {
     return undefined
   }
