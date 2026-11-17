@@ -5,7 +5,7 @@ outside Cloudflare Workers. For Workers, see [NUXTHUB_SELF_HOSTED.md](NUXTHUB_SE
 
 You need:
 
-- Node.js 22 and pnpm
+- Node.js 26 or later (`.nvmrc`) and pnpm (the version pinned in `packageManager` of `package.json`)
 - a PostgreSQL database
 - a writable, persistent directory for sessions (see [Sessions and KV](#2-sessions-and-kv)), or a Redis server
 
@@ -279,7 +279,7 @@ the `admin` role. It reads `DATABASE_URL` (or `NUXT_DATABASE_URL`), `NUXT_ADMIN_
 `NUXT_ADMIN_PASSWORD`, from the environment or `.env`. Run it once the migrations are applied:
 
 ```bash
-node create-admin.ts        # Node.js 22.18 or later runs TypeScript directly
+node create-admin.ts        # Node.js 26 runs TypeScript directly
 ```
 
 Running it again for an existing email only sets the role and the verified flag.
