@@ -285,15 +285,15 @@ async function handleUpgrade() {
       planId = `${planId}-no-trial`
     }
 
-    const { error } = await client.subscription.upgrade({
+    const { error } = await client.subscription.upgrade(buildOrganizationUpgrade({
       plan: planId,
-      referenceId: activeOrg.value.data.id,
+      organizationId: activeOrg.value.data.id,
       metadata: {
         quantity: quantity > 0 ? quantity : 1
       },
       successUrl: `${window.location.origin}/${activeOrg.value.data.slug}/members?success=true${inviteEmail.value ? `&pendingInviteEmail=${encodeURIComponent(inviteEmail.value)}&pendingInviteRole=${inviteRole.value}` : ''}`,
       cancelUrl: `${window.location.origin}/${activeOrg.value.data.slug}/members?canceled=true`
-    })
+    }))
 
     if (error)
       throw error

@@ -1,9 +1,10 @@
 import type { H3Event } from 'h3'
 import type { User } from '~~/shared/utils/types'
+import { apiKey } from '@better-auth/api-key'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { APIError, createAuthMiddleware, getOAuthState, getSessionFromCtx } from 'better-auth/api'
-import { admin as adminPlugin, apiKey, openAPI, organization } from 'better-auth/plugins'
+import { admin as adminPlugin, openAPI, organization } from 'better-auth/plugins'
 import { and, eq } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
 import * as schema from '~~/server/db/schema'
@@ -11,11 +12,14 @@ import { ac, admin, member, owner } from '~~/shared/utils/permissions'
 import { createdApiKeyId, isApiKeyManagerRole, parseRequestedOrganizationId } from './apiKeyMetadata'
 import { deleteOrganizationApiKeys } from './apiKeyOrganization'
 import { logAuditEvent } from './auditLogger'
+import { AUDITED_SUCCESS_PATHS, resolveAuditTarget } from './authAudit'
+import { organizationAdditionalFields } from './authSchemaFields'
+import { authStorageOptions } from './authStorage'
 import { getDB } from './db'
-import { cacheClient, getResendClient } from './drivers'
+import { getResendClient } from './drivers'
 import { renderDeleteAccount, renderResetPassword, renderTeamInvite, renderVerifyEmail } from './email'
 import { runtimeConfig } from './runtimeConfig'
-import { createStripeClient, isStripeConfigured, setupStripe } from './stripe'
+import { checkoutSeatsOverride, createStripeClient, isStripeConfigured, resolveUpgradeReferenceId, setupStripe } from './stripe'
 
 console.log(`Base URL is ${runtimeConfig.public.baseURL}`)
 console.log('Schema keys:', Object.keys(schema))
@@ -71,23 +75,18 @@ export function isSubscriptionOwnedByReference(rows: readonly { referenceId: str
  * The billing plugin's upgrade endpoint authorizes the reference it acts
  * for, but loads a subscription named in the body by its id alone. Before
  * the endpoint runs, check that the subscription it will load belongs to
- * that reference, matching rows exactly as the plugin does, and answer the
- * same generic 404 otherwise. Requests that name no subscription and
- * anonymous requests are left to the endpoint.
+ * `referenceId`, the reference the upgrade settles on, matching rows
+ * exactly as the plugin does, and answer the same generic 404 otherwise.
+ * Requests that name no subscription are left to the endpoint.
  */
-async function refuseForeignSubscriptionUpgrade(ctx: AuthMiddlewareContext) {
+async function refuseForeignSubscriptionUpgrade(ctx: AuthMiddlewareContext, referenceId: string) {
   const subscriptionId = ctx.body?.subscriptionId
   if (!subscriptionId) {
-    return
-  }
-  const session = await getSessionFromCtx(ctx)
-  if (!session) {
     return
   }
   if (typeof subscriptionId !== 'string') {
     throw new APIError('NOT_FOUND')
   }
-  const referenceId = ctx.body.referenceId || session.user.id
   const rows = await ctx.context.adapter.findMany<{ referenceId: string }>({
     model: 'subscription',
     where: [
@@ -294,6 +293,22 @@ export const createBetterAuth = () => betterAuth({
             }
           }
         }
+      },
+      delete: {
+        // api_key.reference_id has no foreign key to user (@better-auth/api-key
+        // schema), so the keys of a deleted user would otherwise stay listed.
+        // Every key here references a user: the plugin keeps the default
+        // `references: 'user'`. internalAdapter.deleteUser runs outside a
+        // transaction: a throwing before hook stops it before the user row
+        // and the cached sessions are deleted, where a throwing after hook
+        // would leave the user deleted and its cached sessions alive
+        // (db/with-hooks.mjs, db/internal-adapter.mjs). Returning false
+        // would cancel the deletion, so return nothing.
+        before: async (user) => {
+          await getDB()
+            .delete(schema.apiKey)
+            .where(eq(schema.apiKey.referenceId, user.id))
+        }
       }
     },
     session: {
@@ -410,7 +425,7 @@ export const createBetterAuth = () => betterAuth({
       }
     }
   },
-  secondaryStorage: cacheClient,
+  ...authStorageOptions,
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
@@ -511,31 +526,35 @@ export const createBetterAuth = () => betterAuth({
     before: createAuthMiddleware(async (ctx) => {
       refuseDisabledEndpoint(ctx.path)
       if (ctx.path === '/subscription/upgrade') {
-        await refuseForeignSubscriptionUpgrade(ctx)
+        // Anonymous requests are left to the endpoint's own 401.
+        const session = await getSessionFromCtx(ctx)
+        if (!session) {
+          return undefined
+        }
+        await refuseForeignSubscriptionUpgrade(ctx, resolveUpgradeReferenceId(ctx, session))
+        return checkoutSeatsOverride(ctx, session)
       }
       if (ctx.path === '/api-key/create') {
         await requireApiKeyCreationRights(ctx)
       }
+      return undefined
     }),
     after: createAuthMiddleware(async (ctx) => {
       const ipAddress = ctx.getHeader('x-forwarded-for')
         || ctx.getHeader('remoteAddress') || undefined
       const userAgent = ctx.getHeader('user-agent') || undefined
 
-      let targetType
-      let targetId
-      if (ctx.context.session || ctx.context.newSession) {
-        targetType = 'user'
-        targetId = ctx.context.session?.user.id || ctx.context.newSession?.user.id
-      } else if (['/sign-in/email', '/sign-up/email', 'forget-password'].includes(ctx.path)) {
-        targetType = 'email'
-        targetId = ctx.body.email || ''
-      }
+      const { targetType, targetId } = resolveAuditTarget({
+        path: ctx.path,
+        hasSession: !!(ctx.context.session || ctx.context.newSession),
+        sessionUserId: ctx.context.session?.user.id || ctx.context.newSession?.user.id,
+        email: ctx.body?.email
+      })
       const returned = ctx.context.returned
       if (returned && returned instanceof APIError) {
         const userId = ctx.context.newSession?.user.id
         if (ctx.path == '/callback/:id' && returned.status == 'FOUND' && userId) {
-          const provider = ctx.params.id
+          const provider = ctx.params?.id ?? ':id'
           await logAuditEvent({
             userId,
             category: 'auth',
@@ -560,7 +579,7 @@ export const createBetterAuth = () => betterAuth({
           })
         }
       } else {
-        if (['/sign-in/email', '/sign-up/email', '/forget-password', '/reset-password'].includes(ctx.path)) {
+        if (AUDITED_SUCCESS_PATHS.includes(ctx.path)) {
           let userId: string | undefined
           if (['/sign-in/email', '/sign-up/email'].includes(ctx.path)) {
             userId = ctx.context.newSession?.user.id
@@ -602,6 +621,11 @@ export const createBetterAuth = () => betterAuth({
           await deleteOrganizationApiKeys(getDB(), organization.id)
         }
       },
+      schema: {
+        organization: {
+          additionalFields: organizationAdditionalFields
+        }
+      },
       async sendInvitationEmail({ email, inviter, organization, invitation }) {
         const resend = getResendClient()
         if (resend) {
@@ -631,7 +655,7 @@ export const createBetterAuth = () => betterAuth({
   ]
 })
 
-let _auth: ReturnType<typeof betterAuth>
+let _auth: ReturnType<typeof createBetterAuth>
 
 if (isAuthSchemaCommand) {
   _auth = createBetterAuth()

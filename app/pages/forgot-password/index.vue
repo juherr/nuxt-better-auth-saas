@@ -33,7 +33,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     return
 
   loading.value = true
-  const { error } = await auth.forgetPassword({
+  const { error } = await auth.requestPasswordReset({
     email: event.data.email,
     redirectTo: localePath('/reset-password')
   })

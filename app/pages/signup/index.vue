@@ -59,6 +59,8 @@ async function onSocialLogin(action: 'google' | 'github') {
   auth.signIn.social({
     provider: action,
     callbackURL: redirectTo.value,
+    // The sign-in page explains OAuth callback failures.
+    errorCallbackURL: localePath('/signin'),
     additionalData: referralCode.value ? { referralCode: referralCode.value } : undefined
   })
 }

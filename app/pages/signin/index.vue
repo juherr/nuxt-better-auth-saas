@@ -44,8 +44,16 @@ let unverifiedEmail = ''
 async function onSocialLogin(action: 'google' | 'github') {
   loading.value = true
   loadingAction.value = action
-  auth.signIn.social({ provider: action, callbackURL: redirectTo.value })
+  // Without errorCallbackURL, OAuth callback failures land on better-auth's
+  // own error page (api/routes/callback.mjs) instead of this one.
+  auth.signIn.social({ provider: action, callbackURL: redirectTo.value, errorCallbackURL: localePath('/signin') })
 }
+
+onMounted(() => {
+  const errorKey = socialSignInErrorKey(route.query.error)
+  if (errorKey)
+    toast.add({ title: t(errorKey), color: 'error' })
+})
 
 async function onSubmit(event: FormSubmitEvent<Schema>) {
   if (loading.value)
@@ -59,7 +67,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     callbackURL: redirectTo.value
   })
   if (error) {
-    if (error.code === auth.errorCodes.EMAIL_NOT_VERIFIED) {
+    if (error.code === auth.errorCodes.EMAIL_NOT_VERIFIED.code) {
       unverifiedEmail = event.data.email
       isEmailVerifyModalOpen.value = true
       loading.value = false

@@ -25,6 +25,9 @@ This runs `drizzle-kit generate` with `server/db/drizzle.config.ts` and writes
 checkout, commit these files in your own repository (or remove the `server/db/migrations` line from
 `.gitignore`), so that every build applies the same migrations.
 
+Upgrading a database created with better-auth 1.4 needs a hand-edited migration: see
+[Upgrading from better-auth 1.4](../README.md#upgrading-from-better-auth-14).
+
 ### Apply them through NuxtHub only
 
 Two tools can apply these files, and each keeps its own tracking table:

@@ -19,7 +19,7 @@ describe('deleteOrganizationApiKeys', () => {
     expect(deleteFrom).toHaveBeenCalledWith(apiKey)
     const query = renderSql(where.mock.calls[0]![0])
     expect(query.sql).toBe(
-      '"apiKey"."id" in (select "api_key_id" from "api_key_organization"'
+      '"api_key"."id" in (select "api_key_id" from "api_key_organization"'
       + ' where "api_key_organization"."organization_id" = $1)'
     )
     expect(query.params).toEqual(['org-1'])

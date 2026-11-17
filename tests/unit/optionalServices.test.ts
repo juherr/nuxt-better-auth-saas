@@ -20,7 +20,11 @@ const betterAuth = vi.hoisted(() => vi.fn((options: any) => ({ options, api: {} 
 vi.mock('~~/server/utils/runtimeConfig', () => ({ runtimeConfig }))
 vi.mock('better-auth', () => ({ betterAuth }))
 vi.mock('better-auth/adapters/drizzle', () => ({ drizzleAdapter: vi.fn(() => ({})) }))
-vi.mock('~~/server/utils/db', () => ({ getDB: vi.fn(() => ({})), useDB: vi.fn(async () => ({})) }))
+// An organization upgrade counts the organization's seats; none is found.
+vi.mock('~~/server/utils/db', () => ({
+  getDB: vi.fn(() => ({})),
+  useDB: vi.fn(async () => ({ query: { organization: { findFirst: vi.fn(async () => undefined) } } }))
+}))
 vi.mock('~~/server/utils/auditLogger', () => ({ logAuditEvent: vi.fn() }))
 vi.mock('~~/server/utils/email', () => ({
   renderDeleteAccount: vi.fn(async () => '<p>delete</p>'),
@@ -120,15 +124,25 @@ describe('optional services', () => {
 
     describe('upgrading a named subscription', () => {
       const session = { user: { id: 'user-1' }, session: { id: 'session-1' } }
+      // What the before hook hands the endpoint once the upgrade is settled.
+      const settledFor = (referenceId: string, customerType: 'organization' | 'user') => ({
+        context: { body: customerType === 'user' ? { customerType, seats: 1 } : { customerType, referenceId, seats: 1 } }
+      })
 
-      function upgradeRequest(body: Record<string, unknown> | undefined, rows: Array<{ referenceId: string }>, withSession = true) {
+      function upgradeRequest(
+        body: Record<string, unknown> | undefined,
+        rows: Array<{ referenceId: string }>,
+        withSession = true,
+        activeOrganizationId?: string
+      ) {
         const findMany = vi.fn(async () => rows)
+        const requestSession = { ...session, session: { ...session.session, activeOrganizationId } }
         return {
           findMany,
           ctx: {
             path: '/subscription/upgrade',
             body,
-            context: { session: withSession ? session : null, adapter: { findMany } }
+            context: { session: withSession ? requestSession : null, adapter: { findMany } }
           }
         }
       }
@@ -161,7 +175,7 @@ describe('optional services', () => {
         const options = await authOptions()
         const { ctx, findMany } = upgradeRequest({ plan: 'pro', referenceId: 'org-1', subscriptionId: 'sub-a' }, [{ referenceId: 'org-1' }])
 
-        await expect(options.hooks.before(ctx)).resolves.toBeUndefined()
+        await expect(options.hooks.before(ctx)).resolves.toMatchObject(settledFor('org-1', 'organization'))
         expect(findMany).toHaveBeenCalledWith({
           model: 'subscription',
           where: [
@@ -175,14 +189,23 @@ describe('optional services', () => {
         const options = await authOptions()
         const { ctx } = upgradeRequest({ plan: 'pro', subscriptionId: 'sub-a' }, [{ referenceId: 'user-1' }])
 
-        await expect(options.hooks.before(ctx)).resolves.toBeUndefined()
+        await expect(options.hooks.before(ctx)).resolves.toMatchObject(settledFor('user-1', 'user'))
+      })
+
+      it('checks the subscription against the active organization the upgrade bills when no reference is sent', async () => {
+        const options = await authOptions()
+        const owned = upgradeRequest({ plan: 'pro', subscriptionId: 'sub-a' }, [{ referenceId: 'org-1' }], true, 'org-1')
+        const foreign = upgradeRequest({ plan: 'pro', subscriptionId: 'sub-a' }, [{ referenceId: 'user-1' }], true, 'org-1')
+
+        await expect(options.hooks.before(owned.ctx)).resolves.toMatchObject(settledFor('org-1', 'organization'))
+        await expect(options.hooks.before(foreign.ctx)).rejects.toMatchObject({ statusCode: 404 })
       })
 
       it('lets an upgrade without a subscription id through without any lookup', async () => {
         const options = await authOptions()
         const { ctx, findMany } = upgradeRequest({ plan: 'pro', referenceId: 'org-1' }, [{ referenceId: 'org-2' }])
 
-        await expect(options.hooks.before(ctx)).resolves.toBeUndefined()
+        await expect(options.hooks.before(ctx)).resolves.toMatchObject(settledFor('org-1', 'organization'))
         expect(findMany).not.toHaveBeenCalled()
       })
 

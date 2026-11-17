@@ -1,3 +1,5 @@
+<i18n src="./DangerZone.i18n.json"></i18n>
+
 <script setup lang="ts">
 /**
  * Danger Zone section for leaving or deleting organization
@@ -7,6 +9,7 @@
 const { organization, useActiveOrganization, fetchSession, user } = useAuth()
 const activeOrg = useActiveOrganization()
 const toast = useToast()
+const { t } = useI18n()
 
 const leaveLoading = ref(false)
 const deleteLoading = ref(false)
@@ -99,9 +102,10 @@ async function deleteTeam() {
       window.location.href = '/onboarding'
     }
   } catch (e: any) {
+    const errorKey = organizationDeleteErrorKey(e)
     toast.add({
       title: 'Error deleting team',
-      description: e.message,
+      description: errorKey ? t(errorKey) : e.message,
       color: 'error'
     })
   } finally {
