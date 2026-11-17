@@ -1,3 +1,4 @@
+import type { OrgRole } from '~~/shared/utils/permissions'
 import { describe, expect, it } from 'vitest'
 import { isApiKeyManagerRole } from '~~/server/utils/apiKeyMetadata'
 import {
@@ -32,7 +33,7 @@ describe('hasOrgRole', () => {
     ['owner,admin', ['owner']],
     ['admin, owner', ['owner']],
     ['admin,member', ['owner', 'admin']]
-  ])('accepts "%s" for %j', (role, roles) => {
+  ] satisfies [string, OrgRole[]][])('accepts "%s" for %j', (role, roles) => {
     expect(hasOrgRole(role, roles)).toBe(true)
   })
 
@@ -45,7 +46,7 @@ describe('hasOrgRole', () => {
     [null, ['owner']],
     [undefined, ['owner']],
     ['owner', []]
-  ])('refuses %j for %j', (role, roles) => {
+  ] satisfies [string | null | undefined, OrgRole[]][])('refuses %j for %j', (role, roles) => {
     expect(hasOrgRole(role, roles)).toBe(false)
   })
 })

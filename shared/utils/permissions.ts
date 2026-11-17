@@ -173,8 +173,10 @@ export function parseOrgRoles(role: string | null | undefined): string[] {
  * Whether a member's stored role, a single role or a role list, holds at
  * least one of `roles`. Casing must match.
  */
-export function hasOrgRole(role: string | null | undefined, roles: readonly string[]): boolean {
-  return parseOrgRoles(role).some(entry => roles.includes(entry))
+export function hasOrgRole(role: string | null | undefined, roles: readonly OrgRole[]): boolean {
+  // Widened for the lookup only: stored entries are unchecked strings.
+  const wanted: readonly string[] = roles
+  return parseOrgRoles(role).some(entry => wanted.includes(entry))
 }
 
 /**
