@@ -7,6 +7,8 @@ import { and, eq } from 'drizzle-orm'
 import { member as memberTable, organization as organizationTable, subscription as subscriptionTable } from '~~/server/db/schema'
 import { getAuthSession } from '~~/server/utils/auth'
 import { useDB } from '~~/server/utils/db'
+import { memberHasRoleSql } from '~~/server/utils/memberRoleSql'
+import { isOwner } from '~~/shared/utils/permissions'
 
 export default defineEventHandler(async (event) => {
   try {
@@ -81,7 +83,7 @@ export default defineEventHandler(async (event) => {
     const ownedMemberships = await db.query.member.findMany({
       where: and(
         eq(memberTable.userId, session.user.id),
-        eq(memberTable.role, 'owner')
+        memberHasRoleSql(memberTable.role, 'owner')
       ),
       with: {
         organization: true
@@ -109,7 +111,7 @@ export default defineEventHandler(async (event) => {
     // If no subscription exists and I am member, assume it's the Owner's free org?
 
     // To be robust: We should check the OWNER of this org.
-    const ownerMember = org.members.find(m => m.role === 'owner')
+    const ownerMember = org.members.find(m => isOwner(m.role))
     let isFreeOrg = false
 
     if (ownerMember) {
@@ -122,7 +124,7 @@ export default defineEventHandler(async (event) => {
         const ownerMemberships = await db.query.member.findMany({
           where: and(
             eq(memberTable.userId, ownerMember.userId),
-            eq(memberTable.role, 'owner')
+            memberHasRoleSql(memberTable.role, 'owner')
           ),
           with: {
             organization: true

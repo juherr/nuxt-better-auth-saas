@@ -4,7 +4,9 @@
  */
 
 import { member as memberTable } from '~~/server/db/schema'
+import { isOwner } from '~~/shared/utils/permissions'
 import { useDB } from './db'
+import { memberHasRoleSql } from './memberRoleSql'
 
 /**
  * Remove excess members when subscription expires or is canceled
@@ -23,7 +25,7 @@ export async function removeExcessMembersOnExpiration(organizationId: string) {
     })
 
     // Find the owner
-    const owner = members.find(m => m.role === 'owner')
+    const owner = members.find(m => isOwner(m.role))
 
     if (!owner) {
       console.error(`No owner found for organization ${organizationId}`)
@@ -31,7 +33,7 @@ export async function removeExcessMembersOnExpiration(organizationId: string) {
     }
 
     // Get all non-owner members
-    const membersToRemove = members.filter(m => m.role !== 'owner')
+    const membersToRemove = members.filter(m => !isOwner(m.role))
 
     if (membersToRemove.length === 0) {
       console.log(`No members to remove from organization ${organizationId}`)
@@ -39,12 +41,12 @@ export async function removeExcessMembersOnExpiration(organizationId: string) {
     }
 
     // Remove all non-owner members
-    const { and, eq, ne } = await import('drizzle-orm')
+    const { and, eq, not } = await import('drizzle-orm')
     await db.delete(memberTable)
       .where(
         and(
           eq(memberTable.organizationId, organizationId),
-          ne(memberTable.role, 'owner')
+          not(memberHasRoleSql(memberTable.role, 'owner'))
         )
       )
 
