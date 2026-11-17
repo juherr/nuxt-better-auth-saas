@@ -3,8 +3,9 @@ import { user } from './auth'
 
 // Kept by hand: `pnpm auth:schema` omits this table because the app stores
 // sessions in `secondaryStorage` (better-auth core `db/get-tables.mjs`, same
-// rule in 1.4). `create-admin.ts` runs better-auth without secondary storage,
-// so its sign-up still writes a session row here.
+// rule in 1.4). `create-admin.ts` runs better-auth without secondary storage
+// and declares its own `session` table, so its sign-up writes a session row:
+// this declaration only keeps drizzle-kit creating that table.
 export const session = pgTable('session', {
   id: text('id').primaryKey(),
   expiresAt: timestamp('expires_at').notNull(),
