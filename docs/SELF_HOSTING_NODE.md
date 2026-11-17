@@ -139,6 +139,28 @@ configured database. It answers `503` with `{ "status": "error" }` when no datab
 when the query fails, or when it does not answer within 2 seconds, and logs the cause on the server
 only. Use it as the readiness probe of a load balancer or a container.
 
+### Access logs
+
+The server writes one line per request once the response is sent: timestamp, level, method, path,
+status, duration and request id. A request whose client disconnects before the response completes
+is still logged once, with status `499`. The path is cut at the first `?` or `#` and logged as received,
+still percent-encoded, so query strings and fragments, which can carry reset tokens or OAuth codes,
+never reach the log. A secret carried in the path itself, such as the token of a password reset
+link (`/api/auth/reset-password/:token`), is replaced with a placeholder named after the route
+parameter. Headers and bodies are never logged.
+
+Each response carries an `x-request-id` header. An inbound `x-request-id` made of 1 to 128
+characters among `A-Z a-z 0-9 . _ : -` is kept, so a proxy can correlate its own logs; any other
+value is replaced by a generated UUID.
+
+| Variable | Values | Default |
+|----------|--------|---------|
+| `NUXT_LOG_LEVEL` | `debug`, `info`, `warn`, `error`: minimum level written. `4xx` responses are `warn`, `5xx` are `error`, the rest `info`. | `info` |
+| `NUXT_LOG_FORMAT` | `text`, or `json` for one JSON object per line | `text` |
+
+Both are read when the server starts; an empty or unknown value falls back to the default. `info`
+and `debug` lines go to standard output, `warn` and `error` lines to standard error.
+
 ### Reverse proxy
 
 Set the public URL explicitly: `NUXT_APP_URL` at build time, or `NUXT_PUBLIC_BASE_URL` when the
