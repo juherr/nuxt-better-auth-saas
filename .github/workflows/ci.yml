@@ -5,8 +5,11 @@ on:
   push:
     branches: [main]
 
+# Pull requests share one group per branch so a new push cancels the
+# previous run; pushes to main get one group per commit so no commit's
+# run is replaced by a newer pending one.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -15,6 +18,7 @@ permissions:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -27,6 +31,7 @@ jobs:
 
   typecheck:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # Non-blocking until the existing type errors are fixed (see #8).
     continue-on-error: true
     steps:
@@ -41,6 +46,7 @@ jobs:
 
   unit:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -53,6 +59,7 @@ jobs:
 
   build-no-secrets:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -71,6 +78,7 @@ jobs:
   # services, then checks the health endpoint and an email sign-in.
   smoke-node:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:16
@@ -141,19 +149,33 @@ jobs:
             -H "Origin: $NUXT_APP_URL" \
             -d "{\"email\":\"$NUXT_ADMIN_EMAIL\",\"password\":\"$NUXT_ADMIN_PASSWORD\"}")
           echo "sign-in status: $status"
-          if [ "$status" != "200" ]; then
+          # On failure no session exists, so the headers and body hold
+          # nothing secret and are printed as they are.
+          show_response() {
+            echo "--- sign-in response headers ---"
+            cat sign-in-headers.txt
+            echo "--- sign-in response body ---"
             cat sign-in-body.txt
+            echo
+          }
+          if [ "$status" != "200" ]; then
+            echo "::error::sign-in answered $status instead of 200"
+            show_response
             exit 1
           fi
           # Without HTTPS, better-auth names the cookie without the
           # __Secure- prefix.
           if ! grep -qi '^set-cookie: better-auth\.session_token=' sign-in-headers.txt; then
             echo "::error::no better-auth session cookie in the sign-in response"
+            show_response
             exit 1
           fi
-      - name: Upload the server log
+      - name: Upload the server log and smoke responses
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: smoke-node-server-log
-          path: server.log
+          path: |
+            server.log
+            sign-in-headers.txt
+            sign-in-body.txt
