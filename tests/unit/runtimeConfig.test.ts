@@ -32,7 +32,9 @@ const BUILD_ENV = [
   'NUXT_APP_NOTIFY_EMAIL',
   'NUXT_APP_CONTACT_EMAIL',
   'NUXT_GOOGLE_MAPS_API_KEY_PUBLIC',
-  'NUXT_PAYMENT'
+  'NUXT_PAYMENT',
+  'NUXT_LOG_LEVEL',
+  'NUXT_LOG_FORMAT'
 ]
 
 // Paths of the values that end up `undefined`. Nuxt serializes the runtime
@@ -75,6 +77,23 @@ describe('generateRuntimeConfig', () => {
 
   it('defaults the preset to node-server', () => {
     expect(generateRuntimeConfig().preset).toBe('node-server')
+  })
+
+  it('declares the logging settings so they can be set at runtime', () => {
+    const config = generateRuntimeConfig()
+
+    expect(config.logLevel).toBe('')
+    expect(config.logFormat).toBe('')
+  })
+
+  it('reads the logging settings at build time', () => {
+    vi.stubEnv('NUXT_LOG_LEVEL', 'warn')
+    vi.stubEnv('NUXT_LOG_FORMAT', 'json')
+
+    const config = generateRuntimeConfig()
+
+    expect(config.logLevel).toBe('warn')
+    expect(config.logFormat).toBe('json')
   })
 
   it('keeps the preset chosen for the build', () => {

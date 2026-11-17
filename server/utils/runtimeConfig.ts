@@ -45,6 +45,9 @@ export const generateRuntimeConfig = (preset = 'node-server') => ({
   // DB
   redisUrl: process.env.NUXT_REDIS_URL || '',
   databaseUrl: process.env.DATABASE_URL || '',
+  // Access logs: `''` means `info` / `text` (see server/utils/accessLog.ts)
+  logLevel: process.env.NUXT_LOG_LEVEL || '', // debug, info, warn or error
+  logFormat: process.env.NUXT_LOG_FORMAT || '', // text or json
   // File
   fileManager: {
     storage: {
