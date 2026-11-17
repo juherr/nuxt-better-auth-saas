@@ -13,8 +13,9 @@ import { createdApiKeyId, isApiKeyManagerRole, parseRequestedOrganizationId } fr
 import { deleteOrganizationApiKeys } from './apiKeyOrganization'
 import { logAuditEvent } from './auditLogger'
 import { AUDITED_SUCCESS_PATHS, resolveAuditTarget } from './authAudit'
+import { authStorageOptions } from './authStorage'
 import { getDB } from './db'
-import { cacheClient, getResendClient } from './drivers'
+import { getResendClient } from './drivers'
 import { renderDeleteAccount, renderResetPassword, renderTeamInvite, renderVerifyEmail } from './email'
 import { runtimeConfig } from './runtimeConfig'
 import { createStripeClient, isStripeConfigured, setupStripe } from './stripe'
@@ -412,7 +413,7 @@ export const createBetterAuth = () => betterAuth({
       }
     }
   },
-  secondaryStorage: cacheClient,
+  ...authStorageOptions,
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,

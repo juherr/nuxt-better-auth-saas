@@ -38,6 +38,17 @@ export const getPgPool = () => {
 }
 
 // Cache Client
+const unsupported = (method: string) => new Error(
+  `cacheClient.${method} is not supported: hub:kv cannot run it atomically `
+  + 'on every driver. Keep its caller on the database (see authStorage.ts).'
+)
+
+// better-auth secondary storage. better-auth 1.7 types getAndDelete and
+// increment as required, but hub:kv only offers them atomically on Redis
+// and Upstash, not on Cloudflare KV or fs-lite. A read-then-write version
+// would let a single-use token be consumed twice and a rate limit be
+// undercounted, so both throw and authStorageOptions keeps their callers
+// (verification consume, rate limit) on the database.
 export const cacheClient = {
   get: async (key: string) => {
     const value = await kv.get(key)
@@ -51,6 +62,12 @@ export const cacheClient = {
   },
   delete: async (key: string) => {
     await kv.del(key)
+  },
+  getAndDelete: async (_key: string): Promise<string | null> => {
+    throw unsupported('getAndDelete')
+  },
+  increment: async (_key: string, _ttl: number): Promise<number> => {
+    throw unsupported('increment')
   }
 }
 
