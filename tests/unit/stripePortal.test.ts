@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { callRoute, stubNitroGlobals } from './support/nitroGlobals'
 
 const runtimeConfig = vi.hoisted(() => ({
   public: { baseURL: 'https://saas.example.test' as string | undefined }
@@ -7,7 +8,6 @@ const getAuthSession = vi.hoisted(() => vi.fn())
 const findMember = vi.hoisted(() => vi.fn())
 const findOrganization = vi.hoisted(() => vi.fn())
 const createPortalSession = vi.hoisted(() => vi.fn())
-const body = vi.hoisted(() => ({ current: {} as Record<string, unknown> }))
 
 vi.mock('~~/server/utils/runtimeConfig', () => ({ runtimeConfig }))
 vi.mock('~~/server/utils/auth', () => ({ getAuthSession }))
@@ -23,13 +23,7 @@ vi.mock('~~/server/utils/stripe', () => ({
   createStripeClient: () => ({ billingPortal: { sessions: { create: createPortalSession } } })
 }))
 
-// Nitro auto-imports these h3 helpers; stand in with the same shapes.
-beforeAll(() => {
-  vi.stubGlobal('defineEventHandler', (handler: unknown) => handler)
-  vi.stubGlobal('readBody', async () => body.current)
-  vi.stubGlobal('createError', (input: { statusCode: number, statusMessage: string }) =>
-    Object.assign(new Error(input.statusMessage), input))
-})
+beforeAll(stubNitroGlobals)
 afterAll(() => {
   vi.unstubAllGlobals()
 })
@@ -38,9 +32,7 @@ const org = { id: 'org-1', slug: 'acme', stripeCustomerId: 'cus_acme' }
 const defaultReturnUrl = 'https://saas.example.test/acme/billing'
 
 async function callPortal(payload: Record<string, unknown>) {
-  body.current = payload
-  const { default: handler } = await import('~~/server/api/stripe/portal.post')
-  return (handler as unknown as (event: unknown) => Promise<{ url: string }>)({})
+  return callRoute<{ url: string }>(() => import('~~/server/api/stripe/portal.post'), payload)
 }
 
 function returnUrlSentToStripe() {

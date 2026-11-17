@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { callRoute, stubNitroGlobals } from './support/nitroGlobals'
 
 const runtimeConfig = vi.hoisted(() => ({
   stripeSecretKey: '' as string | undefined,
@@ -26,10 +27,7 @@ vi.mock('~~/server/utils/subscription-handlers', () => ({ removeExcessMembersOnE
 
 // Nitro auto-imports, unavailable outside Nuxt.
 vi.stubGlobal('runtimeConfig', runtimeConfig)
-vi.stubGlobal('defineEventHandler', (handler: unknown) => handler)
-vi.stubGlobal('readBody', async (event: { body: unknown }) => event.body)
-vi.stubGlobal('createError', (input: { statusCode: number, statusMessage: string }) =>
-  Object.assign(new Error(input.statusMessage), input))
+stubNitroGlobals()
 
 const routes = {
   'cancel': {
@@ -54,9 +52,7 @@ describe('stripe routes without a secret key', () => {
   })
 
   it.each(Object.entries(routes))('%s answers 503 Billing is not configured', async (_name, route) => {
-    const handler = (await route.load()).default as unknown as (event: unknown) => Promise<unknown>
-
-    await expect(handler({ body: route.body })).rejects.toMatchObject({
+    await expect(callRoute(route.load, route.body)).rejects.toMatchObject({
       statusCode: 503,
       statusMessage: 'Billing is not configured'
     })

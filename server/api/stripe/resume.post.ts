@@ -1,19 +1,11 @@
-import { and, eq } from 'drizzle-orm'
-import { member as memberTable } from '~~/server/db/schema'
-import { getAuthSession } from '~~/server/utils/auth'
+import { eq } from 'drizzle-orm'
+import { organization as organizationTable } from '~~/server/db/schema'
+import { requireOrganizationRole, resolveOwnedSubscription } from '~~/server/utils/billing'
 import { useDB } from '~~/server/utils/db'
 import { addPaymentLog, createStripeClient } from '~~/server/utils/stripe'
 import { sendSubscriptionResumedEmail } from '~~/server/utils/stripeEmails'
 
 export default defineEventHandler(async (event) => {
-  const session = await getAuthSession(event)
-  if (!session) {
-    throw createError({
-      statusCode: 401,
-      statusMessage: 'Unauthorized'
-    })
-  }
-
   const body = await readBody(event)
   const { subscriptionId, referenceId } = body
 
@@ -31,23 +23,20 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Verify ownership: Check if user is owner of the organization
-  const db = await useDB()
-  const member = await db.query.member.findFirst({
-    where: and(
-      eq(memberTable.organizationId, referenceId),
-      eq(memberTable.userId, session.user.id)
-    )
-  })
+  // subscriptionId and referenceId are client input: check the caller owns
+  // the organization, then that the subscription is billed to it.
+  await requireOrganizationRole(event, referenceId, ['owner'])
 
-  if (!member || member.role !== 'owner') {
-    throw createError({
-      statusCode: 403,
-      statusMessage: 'Forbidden: Only organization owners can manage subscriptions'
-    })
+  const db = await useDB()
+  const organization = await db.query.organization.findFirst({
+    where: eq(organizationTable.id, referenceId)
+  })
+  if (!organization) {
+    throw createError({ statusCode: 404, statusMessage: 'Subscription not found' })
   }
 
   const stripe = createStripeClient()
+  await resolveOwnedSubscription(db, stripe, organization, subscriptionId)
 
   try {
     // Resume subscription (disable cancel_at_period_end)
