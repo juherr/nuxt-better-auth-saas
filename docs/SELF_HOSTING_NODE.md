@@ -144,9 +144,18 @@ only. Use it as the readiness probe of a load balancer or a container.
 Set the public URL explicitly: `NUXT_APP_URL` at build time, or `NUXT_PUBLIC_BASE_URL` when the
 server starts. The server passes it to Better Auth as `baseURL` and adds it to the trusted origins
 (`server/utils/auth.ts`), and builds the links of emails and of the Stripe portal from it. When it
-is empty, Better Auth (1.4.1) falls back to the `BETTER_AUTH_URL` environment variable, then to
-the `X-Forwarded-Host` and `X-Forwarded-Proto` headers of a request, then to that request's URL,
-and keeps the first value it derives for the life of the process.
+is empty, Better Auth (1.4.1) falls back to the first of these environment variables that is set:
+`BETTER_AUTH_URL`, `NEXT_PUBLIC_BETTER_AUTH_URL`, `PUBLIC_BETTER_AUTH_URL`,
+`NUXT_PUBLIC_BETTER_AUTH_URL`, `NUXT_PUBLIC_AUTH_URL`, then `BASE_URL` (unless it is `/`). A
+generic `BASE_URL` set by your host or platform is picked up as the auth URL this way. Without
+any of them, it uses the `X-Forwarded-Proto` and `X-Forwarded-Host` headers of a request, only
+when both are present, then that request's URL, and keeps the first value it derives for the life
+of the process.
+
+During server-side rendering, the auth client of the pages never calls the request's origin: it
+dispatches each request to `/api/auth/*` inside the server process (Nitro's `event.fetch`) with
+only its path and query, so a manipulated `Host` header cannot send it to another server. In the
+browser it calls the page's own origin.
 
 Nitro (h3 1.15) derives the origin of a request with `getRequestURL`: the host comes from the
 `Host` header, and `X-Forwarded-Host` is read only when a caller passes `xForwardedHost: true`
