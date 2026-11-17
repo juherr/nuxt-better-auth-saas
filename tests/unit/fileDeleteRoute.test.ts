@@ -69,6 +69,19 @@ describe('deleting a file', () => {
     expect(deleteFile).not.toHaveBeenCalled()
   })
 
+  it('answers a generic 500 when the stored file cannot be deleted', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const failure = new Error('EACCES: permission denied, unlink \'/srv/uploads/a.png\'')
+    deleteFile.mockRejectedValue(failure)
+
+    const error = await remove().catch((e: unknown) => e)
+
+    expect(error).toMatchObject({ statusCode: 500, statusMessage: 'File deletion failed' })
+    expect((error as Error).message).not.toMatch(/EACCES|srv/)
+    expect(consoleError).toHaveBeenCalledWith('[file/delete]', failure)
+    consoleError.mockRestore()
+  })
+
   it('answers 404 for an unknown file', async () => {
     await expect(remove('unknown')).rejects.toMatchObject({ statusCode: 404 })
     expect(deleteFile).not.toHaveBeenCalled()

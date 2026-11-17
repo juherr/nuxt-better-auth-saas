@@ -1,13 +1,16 @@
 import type { StorageProvider } from '~~/server/services/file/types'
+import type { FileRecord } from '~~/shared/utils/types'
 import { Buffer } from 'node:buffer'
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MAX_DISPLAY_NAME_LENGTH } from '~~/server/services/file/fileNames'
 import { FileService } from '~~/server/services/file/fileService'
+import { logAuditEvent } from '~~/server/utils/auditLogger'
 import { stubNitroGlobals } from './support/nitroGlobals'
 
 vi.mock('~~/server/utils/auditLogger', () => ({ logAuditEvent: vi.fn() }))
 
 const insertedValues = vi.fn()
+const deletedRows = vi.fn()
 
 beforeAll(() => {
   stubNitroGlobals()
@@ -18,7 +21,8 @@ beforeAll(() => {
         insertedValues(values)
         return { returning: async () => [values] }
       }
-    })
+    }),
+    delete: () => ({ where: async (condition: unknown) => deletedRows(condition) })
   }))
 })
 afterAll(() => {
@@ -89,5 +93,48 @@ describe('fileService.uploadFile', () => {
 
     expect(upload.mock.calls[0]![1]).toMatch(/^2026-03-02\//)
     vi.unstubAllEnvs()
+  })
+})
+
+describe('fileService.deleteFile', () => {
+  const FILE = { id: 'f1', path: '2026-03-02/abc.png', originalName: 'a.png', fileName: '2026-03-02/abc.png', mimeType: 'image/png', size: 4 }
+
+  beforeEach(() => {
+    deletedRows.mockReset()
+    vi.mocked(logAuditEvent).mockReset()
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  function serviceWith(deleteImpl: StorageProvider['delete']) {
+    const { provider } = storage()
+    provider.delete = vi.fn(deleteImpl)
+    const service = new FileService(provider)
+    vi.spyOn(service, 'getFile').mockResolvedValue(FILE as FileRecord)
+    return { service, provider }
+  }
+
+  it('removes the row and records a success once the stored file is gone', async () => {
+    const { service, provider } = serviceWith(async () => {})
+
+    await expect(service.deleteFile('f1', 'u1')).resolves.toBe(true)
+
+    expect(provider.delete).toHaveBeenCalledWith(FILE.path)
+    expect(deletedRows).toHaveBeenCalledTimes(1)
+    expect(logAuditEvent).toHaveBeenCalledWith(expect.objectContaining({ action: 'delete', targetId: 'f1', status: 'success' }))
+  })
+
+  it('keeps the row, records a failure and rethrows when the storage cannot delete', async () => {
+    const failure = new Error('EACCES: permission denied')
+    const { service } = serviceWith(async () => {
+      throw failure
+    })
+
+    await expect(service.deleteFile('f1', 'u1')).rejects.toBe(failure)
+
+    expect(deletedRows).not.toHaveBeenCalled()
+    expect(logAuditEvent).toHaveBeenCalledTimes(1)
+    expect(logAuditEvent).toHaveBeenCalledWith(expect.objectContaining({ action: 'delete', targetId: 'f1', status: 'failure' }))
   })
 })

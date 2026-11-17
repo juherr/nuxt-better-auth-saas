@@ -31,12 +31,21 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const deleted = await fileService.deleteFile(
-    fileId,
-    user.id,
-    getRequestIP(event),
-    getHeader(event, 'user-agent')
-  )
+  let deleted: boolean
+  try {
+    deleted = await fileService.deleteFile(
+      fileId,
+      user.id,
+      getRequestIP(event),
+      getHeader(event, 'user-agent')
+    )
+  } catch (error) {
+    console.error('[file/delete]', error)
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'File deletion failed'
+    })
+  }
 
   return {
     success: deleted,
