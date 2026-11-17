@@ -1,1 +1,1 @@
-npm run lint -- --max-warnings=0
+pnpm lint --max-warnings=0
