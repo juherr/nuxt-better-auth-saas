@@ -17,21 +17,38 @@ export interface AuthClientTransport {
 }
 
 /**
+ * Inbound headers handed to in-process auth calls: the session cookie, and the visitor's own
+ * `origin` and `referer`, which better-auth's origin check reads (Origin first, then Referer) on
+ * every cookie-carrying POST and validates against its trusted origins. They are never derived
+ * from `Host` or `X-Forwarded-*`: a request without them stays refused.
+ */
+export const FORWARDED_REQUEST_HEADERS = ['cookie', 'origin', 'referer'] as const
+
+function forwardedHeaders(requestHeaders: Record<string, string | undefined> | undefined) {
+  const headers: Record<string, string> = {}
+  for (const name of FORWARDED_REQUEST_HEADERS) {
+    const value = requestHeaders?.[name]
+    if (value)
+      headers[name] = value
+  }
+  return headers
+}
+
+/**
  * Transport of the better-auth client. In the browser it keeps the page origin and the default
  * fetch. During SSR the origin comes from the inbound `Host` header, so the client never calls
  * it: every request is cut down to its path and query and dispatched in-process, and only the
- * visitor's cookie is handed over.
+ * headers in `FORWARDED_REQUEST_HEADERS` are handed over.
  */
 export function authClientTransport(input: AuthClientTransportInput): AuthClientTransport {
   if (!input.isServer)
     return { baseURL: input.origin, fetchOptions: { headers: undefined } }
 
-  const cookie = input.requestHeaders?.cookie
   const { localFetch } = input
   return {
     baseURL: input.origin,
     fetchOptions: {
-      headers: cookie ? { cookie } : {},
+      headers: forwardedHeaders(input.requestHeaders),
       customFetchImpl: async (request, init) => {
         if (!localFetch)
           throw new Error('The auth client has no in-process fetch on the server')

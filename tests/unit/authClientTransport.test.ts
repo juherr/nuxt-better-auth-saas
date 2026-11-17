@@ -7,6 +7,8 @@ const HOSTILE_ORIGIN = 'http://canary-host.invalid:8443'
 const inboundHeaders = {
   'host': 'canary-host.invalid:8443',
   'cookie': 'better-auth.session_token=canary-session',
+  'origin': 'https://app.example.test',
+  'referer': 'https://app.example.test/acme/dashboard',
   'authorization': 'Bearer canary-token',
   'x-forwarded-host': 'canary-forwarded.invalid',
   'x-forwarded-proto': 'https'
@@ -73,13 +75,32 @@ describe('authClientTransport', () => {
       })
     })
 
-    it('hands only the inbound cookie to the local fetch', async () => {
+    // better-auth refuses a cookie-carrying POST whose Origin, or Referer when Origin is absent,
+    // is missing or not a trusted origin (MISSING_OR_NULL_ORIGIN): the visitor's own values must
+    // reach it so that it can still validate them.
+    it('hands the inbound origin and referer to a POST so that better-auth can check them', async () => {
+      const { localFetch, client } = serverClient()
+
+      await client.$fetch('/organization/set-active', {
+        method: 'POST',
+        body: { organizationId: 'org-1' }
+      })
+
+      expect(localFetch.mock.calls[0]![1]?.headers).toMatchObject({
+        origin: inboundHeaders.origin,
+        referer: inboundHeaders.referer
+      })
+    })
+
+    it('hands only the inbound cookie, origin and referer to the local fetch', async () => {
       const { localFetch, client } = serverClient()
 
       await client.$fetch('/get-session')
 
       const headers = localFetch.mock.calls[0]![1]?.headers as Record<string, string>
       expect(headers.cookie).toBe(inboundHeaders.cookie)
+      expect(headers.origin).toBe(inboundHeaders.origin)
+      expect(headers.referer).toBe(inboundHeaders.referer)
       expect(headers).not.toHaveProperty('authorization')
       expect(headers).not.toHaveProperty('host')
       expect(headers).not.toHaveProperty('x-forwarded-host')
@@ -95,6 +116,17 @@ describe('authClientTransport', () => {
       })
 
       expect(transport.fetchOptions.headers).toEqual({})
+    })
+
+    it('never derives an origin or referer from the Host when the request carries none', () => {
+      const transport = authClientTransport({
+        isServer: true,
+        origin: HOSTILE_ORIGIN,
+        requestHeaders: { 'host': 'canary-host.invalid', 'x-forwarded-host': 'canary-forwarded.invalid', 'cookie': inboundHeaders.cookie },
+        localFetch: vi.fn()
+      })
+
+      expect(transport.fetchOptions.headers).toEqual({ cookie: inboundHeaders.cookie })
     })
 
     it('fails instead of reaching the network when no local fetch is available', async () => {

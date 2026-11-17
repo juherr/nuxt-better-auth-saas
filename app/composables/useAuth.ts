@@ -7,7 +7,7 @@ import { stripeClient } from '@better-auth/stripe/client'
 import { adminClient, apiKeyClient, inferAdditionalFields, organizationClient } from 'better-auth/client/plugins'
 import { createAuthClient } from 'better-auth/vue'
 import { ac, admin, member, owner } from '~~/shared/utils/permissions'
-import { authClientTransport } from '~/utils/authClientTransport'
+import { authClientTransport, FORWARDED_REQUEST_HEADERS } from '~/utils/authClientTransport'
 
 export function useAuth() {
   const url = useRequestURL()
@@ -17,7 +17,7 @@ export function useAuth() {
     ...authClientTransport({
       isServer: import.meta.server,
       origin: url.origin,
-      requestHeaders: import.meta.server ? useRequestHeaders(['cookie']) : undefined,
+      requestHeaders: import.meta.server ? useRequestHeaders([...FORWARDED_REQUEST_HEADERS]) : undefined,
       localFetch: import.meta.server ? useRequestEvent()?.fetch : undefined
     }),
     plugins: [
