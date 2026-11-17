@@ -23,6 +23,26 @@ const isAuthSchemaCommand = process.argv.some(arg => arg.includes('server/db/sch
 
 const emailSender = () => `${runtimeConfig.public.appName} <${runtimeConfig.public.appNotifyEmail}>`
 
+/**
+ * Auth endpoints the app does not serve. Subscriptions are cancelled and
+ * resumed through /api/stripe/cancel and /api/stripe/resume, which check
+ * that the subscription belongs to the caller's organization; the billing
+ * plugin's own endpoints for the same actions do not, so they are off.
+ * Paths are relative to the /api/auth base path.
+ */
+export const DISABLED_AUTH_PATHS: readonly string[] = ['/subscription/cancel', '/subscription/restore']
+
+/**
+ * Answers 404 for a disabled endpoint. `disabledPaths` compares the raw
+ * request path; this check runs as a before hook on the endpoint the
+ * router resolved, so it holds whatever form the request path took.
+ */
+export function refuseDisabledEndpoint(endpointPath: string) {
+  if (DISABLED_AUTH_PATHS.includes(endpointPath)) {
+    throw new APIError('NOT_FOUND')
+  }
+}
+
 export const createBetterAuth = () => betterAuth({
   baseURL: runtimeConfig.public.baseURL,
   trustedOrigins: [
@@ -38,6 +58,7 @@ export const createBetterAuth = () => betterAuth({
     runtimeConfig.public.baseURL
   ],
   secret: runtimeConfig.betterAuthSecret,
+  disabledPaths: [...DISABLED_AUTH_PATHS],
   session: {
     cookieCache: {
       enabled: true,
@@ -377,6 +398,9 @@ export const createBetterAuth = () => betterAuth({
     }
   },
   hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      refuseDisabledEndpoint(ctx.path)
+    }),
     after: createAuthMiddleware(async (ctx) => {
       const ipAddress = ctx.getHeader('x-forwarded-for')
         || ctx.getHeader('remoteAddress') || undefined

@@ -84,6 +84,33 @@ describe('optional services', () => {
       expect(options.plugins.map((plugin: any) => plugin.id)).toContain('stripe')
     })
 
+    it('disables the billing plugin\'s cancel and restore endpoints in favour of the app routes', async () => {
+      runtimeConfig.stripeSecretKey = 'sk_test_canary'
+
+      const options = await authOptions()
+
+      expect(options.disabledPaths).toEqual(expect.arrayContaining(['/subscription/cancel', '/subscription/restore']))
+      expect(options.disabledPaths).not.toContain('/subscription/upgrade')
+    })
+
+    it('refuses the disabled endpoints by their resolved path, whatever the request path looked like', async () => {
+      const { refuseDisabledEndpoint } = await import('~~/server/utils/auth')
+
+      for (const path of ['/subscription/cancel', '/subscription/restore']) {
+        expect(() => refuseDisabledEndpoint(path)).toThrow(expect.objectContaining({ statusCode: 404 }))
+      }
+      for (const path of ['/subscription/upgrade', '/subscription/list', '/sign-in/email']) {
+        expect(() => refuseDisabledEndpoint(path)).not.toThrow()
+      }
+    })
+
+    it('runs the disabled-endpoint check before every auth endpoint', async () => {
+      const options = await authOptions()
+
+      await expect(options.hooks.before({ path: '/subscription/cancel' })).rejects.toMatchObject({ statusCode: 404 })
+      await expect(options.hooks.before({ path: '/subscription/upgrade' })).resolves.toBeUndefined()
+    })
+
     it('answers 503 instead of crashing when a client is requested without a key', async () => {
       const { createStripeClient } = await import('~~/server/utils/stripe')
 
