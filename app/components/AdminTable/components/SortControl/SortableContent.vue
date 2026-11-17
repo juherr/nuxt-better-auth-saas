@@ -7,7 +7,7 @@ const { columns, t } = defineProps<{
 }>()
 
 const dragEl = useTemplateRef<HTMLElement>('dragEl')
-const sortOptions = defineModel<SortOption[]>('sortOptions', { default: [] })
+const sortOptions = defineModel<SortOption[]>('sortOptions', { default: () => [] })
 
 useSortable(dragEl, sortOptions, {
   handle: '.drag-handle'

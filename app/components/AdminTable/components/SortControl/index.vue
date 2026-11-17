@@ -7,7 +7,7 @@ const { columns } = defineProps<{
   columns: AdminTableColumn<T>[]
 }>()
 
-const sortOptions = defineModel<SortOption[]>('sortOptions', { default: [] })
+const sortOptions = defineModel<SortOption[]>('sortOptions', { default: () => [] })
 
 const { t } = useI18n()
 </script>

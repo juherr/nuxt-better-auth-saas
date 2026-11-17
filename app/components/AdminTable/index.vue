@@ -31,7 +31,7 @@ const limit = ref<number>(Number(route.query.limit) || 20)
 const loading = ref(false)
 const total = ref(0)
 const data = ref<any[]>([])
-const rowSelection = defineModel<Record<string, boolean>>('rowSelection', { default: {} })
+const rowSelection = defineModel<Record<string, boolean>>('rowSelection', { default: () => ({}) })
 
 const sortOptions = ref<SortOption[]>([])
 
