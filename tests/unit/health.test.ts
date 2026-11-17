@@ -40,15 +40,33 @@ describe('the health endpoint (GET /api/health)', () => {
     expect(db.execute).toHaveBeenCalledTimes(1)
   })
 
-  it('answers ok without touching the database when none is configured', async () => {
+  it('answers 503 without touching the database when none is configured', async () => {
     drivers.isDatabaseConfigured.mockReturnValue(false)
 
     const { status, body } = await callHealth()
 
-    expect(status).toBe(200)
-    expect(body).toEqual({ status: 'ok' })
+    expect(status).toBe(503)
+    expect(body).toEqual({ status: 'error' })
     expect(getDB).not.toHaveBeenCalled()
     expect(db.execute).not.toHaveBeenCalled()
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('no database configured'))
+  })
+
+  it('answers 503 when the database check does not settle in time', async () => {
+    vi.useFakeTimers()
+    try {
+      db.execute.mockReturnValue(new Promise(() => {}))
+
+      const pending = callHealth()
+      await vi.advanceTimersByTimeAsync(2000)
+      const { status, body } = await pending
+
+      expect(status).toBe(503)
+      expect(body).toEqual({ status: 'error' })
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('answers 503 with a generic body and logs the error when the database check fails', async () => {
