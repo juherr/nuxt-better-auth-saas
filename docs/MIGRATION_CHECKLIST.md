@@ -232,6 +232,55 @@ npx nuxt db mark-as-migrated 0001_migration_name
 
 ---
 
+## API Keys Scoped to Their Organization
+
+API keys now belong to exactly one organization through the `api_key_organization` table
+(`server/db/schema/apiKeyOrganization.ts`). Keys were previously matched by searching their
+`metadata` text for the organization id, which is not a reliable tenant boundary. Existing keys
+need a one-off backfill.
+
+- [ ] Generate the migration that creates `api_key_organization` (`server/db/migrations` is
+  gitignored, so each deployment generates its own):
+
+```bash
+pnpm db:generate
+```
+
+- [ ] Apply it through NuxtHub, never with `pnpm db:migrate` (see
+  [Self-Hosting on Node.js](./SELF_HOSTING_NODE.md#1-database-migrations)):
+
+```bash
+DATABASE_URL=postgres://user:password@host:5432/database npx nuxt db migrate
+```
+
+- [ ] Backfill the existing keys:
+
+```bash
+DATABASE_URL=postgres://user:password@host:5432/database pnpm db:backfill-api-keys
+```
+
+The script reads each key's `metadata` (a JSON object, or a JSON string of a JSON object as
+older clients stored it), never the key itself, and prints one line of counts:
+
+| Count | Meaning |
+|-------|---------|
+| `scanned` | API keys read. |
+| `linked` | Keys linked to their organization by this run. |
+| `already-linked` | Keys that already had an organization; left unchanged. |
+| `skipped-invalid` | Metadata missing, not JSON, or without a non-empty string `organizationId`. |
+| `skipped-unknown-org` | The organization named in the metadata does not exist. |
+| `skipped-not-manager` | The key's owner is not currently `owner` or `admin` of that organization. |
+
+The script is idempotent: run it again at any time, linked keys stay as they are. A second run
+reports the same skipped counts, since skipped keys are not changed.
+
+- [ ] Tell the affected users. Organization API key listings only show linked keys, matched
+  exactly on the organization id; there is no fallback on metadata. Skipped keys, including those
+  whose owner is no longer `owner` or `admin` of the organization, no longer appear and must be
+  recreated by an owner or admin.
+
+---
+
 ## Deployment
 
 - [ ] Build the application:
