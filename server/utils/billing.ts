@@ -2,15 +2,23 @@ import type { H3Event } from 'h3'
 import type Stripe from 'stripe'
 import type { OrgRole } from '~~/shared/utils/permissions'
 import { and, eq, inArray } from 'drizzle-orm'
-import { member as memberTable, subscription as subscriptionTable } from '~~/server/db/schema'
+import { member as memberTable, organization as organizationTable, subscription as subscriptionTable } from '~~/server/db/schema'
 import { getAuthSession } from '~~/server/utils/auth'
 import { useDB } from '~~/server/utils/db'
+import { createStripeClient } from '~~/server/utils/stripe'
 
 type Database = Awaited<ReturnType<typeof useDB>>
 
 export interface BillingOrganization {
   id: string
   stripeCustomerId?: string | null
+}
+
+/** The organization with this id, or undefined when there is none. */
+export function findOrganization(db: Database, organizationId: string) {
+  return db.query.organization.findFirst({
+    where: eq(organizationTable.id, organizationId)
+  })
 }
 
 type AuthSession = NonNullable<Awaited<ReturnType<typeof getAuthSession>>>
@@ -72,6 +80,17 @@ const subscriptionNotFound = () =>
 const customerIdOf = (customer: Stripe.Subscription['customer'] | null | undefined) =>
   typeof customer === 'string' ? customer : customer?.id
 
+async function retrieveIfExists(stripe: Stripe, subscriptionId: string) {
+  try {
+    return await stripe.subscriptions.retrieve(subscriptionId)
+  } catch (error: any) {
+    if (error?.code === 'resource_missing') {
+      return undefined
+    }
+    throw error
+  }
+}
+
 /**
  * Resolves a client-supplied Stripe subscription id to a subscription that
  * belongs to `org`: the organization must hold a local record of it, and
@@ -99,21 +118,54 @@ export async function resolveOwnedSubscription(
     throw subscriptionNotFound()
   }
 
-  let subscription: Stripe.Subscription
-  try {
-    subscription = await stripe.subscriptions.retrieve(subscriptionId)
-  } catch (error: any) {
-    if (error?.code === 'resource_missing') {
-      throw subscriptionNotFound()
-    }
-    throw error
-  }
-
-  if (customerIdOf(subscription.customer) !== org.stripeCustomerId) {
+  const subscription = await retrieveIfExists(stripe, subscriptionId)
+  if (!subscription || customerIdOf(subscription.customer) !== org.stripeCustomerId) {
     throw subscriptionNotFound()
   }
 
   return subscription
+}
+
+/**
+ * Shared guard of the cancel and resume routes: requires a signed-in owner
+ * of the client-supplied organization and resolves the client-supplied
+ * subscription id to one billed to it. Returns what the route needs to
+ * update the subscription.
+ */
+export async function requireOwnedSubscription(event: H3Event) {
+  await requireAuthSession(event)
+
+  const body = (await readBody(event)) ?? {}
+  const { subscriptionId, referenceId } = body
+
+  if (!subscriptionId) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Subscription ID is required'
+    })
+  }
+
+  if (!referenceId) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Reference ID (Organization ID) is required'
+    })
+  }
+
+  // subscriptionId and referenceId are client input: check the caller owns
+  // the organization, then that the subscription is billed to it.
+  await requireOrganizationRole(event, referenceId, ['owner'])
+
+  const db = await useDB()
+  const organization = await findOrganization(db, referenceId)
+  if (!organization) {
+    throw subscriptionNotFound()
+  }
+
+  const stripe = createStripeClient()
+  await resolveOwnedSubscription(db, stripe, organization, subscriptionId)
+
+  return { stripe, subscriptionId: subscriptionId as string, referenceId: referenceId as string }
 }
 
 const ACTIVE_STATUSES = ['active', 'trialing'] as const
@@ -139,17 +191,6 @@ export function chooseSingleSubscription<T extends { id: string }>(candidates: r
     return { outcome: 'many' }
   }
   return { outcome: 'one', subscription: distinct.values().next().value! }
-}
-
-async function retrieveIfExists(stripe: Stripe, subscriptionId: string) {
-  try {
-    return await stripe.subscriptions.retrieve(subscriptionId)
-  } catch (error: any) {
-    if (error?.code === 'resource_missing') {
-      return undefined
-    }
-    throw error
-  }
 }
 
 /**

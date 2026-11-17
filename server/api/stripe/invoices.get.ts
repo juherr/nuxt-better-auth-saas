@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
-import { organization as organizationTable, subscription as subscriptionTable } from '~~/server/db/schema'
-import { requireAuthSession, requireOrganizationRole } from '~~/server/utils/billing'
+import { subscription as subscriptionTable } from '~~/server/db/schema'
+import { findOrganization, requireAuthSession, requireOrganizationRole } from '~~/server/utils/billing'
 import { useDB } from '~~/server/utils/db'
 import { createStripeClient } from '~~/server/utils/stripe'
 
@@ -23,9 +23,7 @@ export default defineEventHandler(async (event) => {
 
   await requireOrganizationRole(event, organizationId)
 
-  const org = await db.query.organization.findFirst({
-    where: eq(organizationTable.id, organizationId)
-  })
+  const org = await findOrganization(db, organizationId)
 
   if (!org || !org.stripeCustomerId) {
     return {
