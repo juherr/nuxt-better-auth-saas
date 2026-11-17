@@ -37,6 +37,10 @@ export const sniffContentType = (data: Uint8Array): DetectedType | undefined => 
   return signature && { mimeType: signature.mimeType, extension: signature.extension }
 }
 
+/** Type of a storage extension from the same table, or `undefined` outside it. */
+export const typeOfExtension = (extension: string): string | undefined =>
+  SIGNATURES.find(signature => signature.extension === extension.toLowerCase())?.mimeType
+
 const EXECUTABLE_TYPES = new Set([
   'application/x-msdownload',
   'application/x-msdos-program',
