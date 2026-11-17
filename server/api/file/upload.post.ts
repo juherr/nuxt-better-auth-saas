@@ -117,10 +117,14 @@ export default defineEventHandler(async (event) => {
       file
     }
   } catch (error) {
-    console.error(error)
+    // An h3 error was raised on purpose: its status and message are public.
+    if ((error as { statusCode?: number }).statusCode) {
+      throw error
+    }
+    console.error('[file/upload]', error)
     throw createError({
-      statusCode: 400,
-      statusMessage: error instanceof Error ? error.message : 'Upload failed'
+      statusCode: 500,
+      statusMessage: 'Upload failed'
     })
   }
 })
