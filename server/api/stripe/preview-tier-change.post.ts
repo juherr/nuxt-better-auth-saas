@@ -1,7 +1,7 @@
 import type { PlanInterval, PlanKey } from '~~/shared/utils/plans'
 import { eq } from 'drizzle-orm'
 import { organization as organizationTable, subscription as subscriptionTable } from '~~/server/db/schema'
-import { requireAuthSession, requireOrganizationRole } from '~~/server/utils/billing'
+import { requireAuthSession, requireOrganizationRole, selectActiveSubscription } from '~~/server/utils/billing'
 import { useDB } from '~~/server/utils/db'
 import { createStripeClient } from '~~/server/utils/stripe'
 import { getPlanByStripePriceId, getTierForInterval, PLAN_TIERS } from '~~/shared/utils/plans'
@@ -36,19 +36,7 @@ export default defineEventHandler(async (event) => {
   const stripe = createStripeClient()
 
   // Get current subscription
-  const subscriptions = await stripe.subscriptions.list({
-    customer: org.stripeCustomerId,
-    limit: 1,
-    status: 'all'
-  })
-
-  const subscription = subscriptions.data.find(sub =>
-    sub.status === 'active' || sub.status === 'trialing'
-  )
-
-  if (!subscription) {
-    throw createError({ statusCode: 400, statusMessage: 'No active subscription found' })
-  }
+  const subscription = await selectActiveSubscription(stripe, db, org)
 
   // Get current plan info from STRIPE (source of truth), not local DB
   const stripePrice = subscription.items.data[0].price
