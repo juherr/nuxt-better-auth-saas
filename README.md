@@ -326,6 +326,20 @@ Enable these webhooks in your Stripe Dashboard:
 | `invoice.payment_succeeded` | Payment successful |
 | `payment_intent.payment_failed` | Payment method or payment attempt failed |
 
+**API version:** create the webhook endpoint with the API version the
+server's Stripe client is pinned to: `Stripe.API_VERSION` from the
+`stripe` package (`2026-10-28.endive` with `stripe` 23.1.0), set in
+`server/utils/stripe.ts`. Stripe renders event payloads in the
+endpoint's API version, not in the client's
+([Webhook versioning](https://docs.stripe.com/webhooks/versioning)), so
+an endpoint on another version sends objects shaped differently from
+the ones the code expects. Check it again whenever `stripe` is bumped
+(Dependabot opens those pull requests): print the new value with
+`node -p "require('stripe').API_VERSION"`. An endpoint's API version is
+set when it is created and cannot be updated, so create a new endpoint
+on that version, set `NUXT_STRIPE_WEBHOOK_SECRET` to its signing secret,
+then disable the old endpoint.
+
 <p align="center">
   <img src="/public/screenshots/subscription.png" alt="Subscription Management" width="70%" />
 </p>
