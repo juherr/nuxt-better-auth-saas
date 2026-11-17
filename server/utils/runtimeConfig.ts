@@ -103,7 +103,7 @@ if (typeof useRuntimeConfig !== 'undefined') {
   runtimeConfigInstance = useRuntimeConfig()
 } else {
   // for cli: npm run auth:schema
-  config()
+  config({ quiet: true })
   runtimeConfigInstance = generateRuntimeConfig() as NitroRuntimeConfig
 }
 
