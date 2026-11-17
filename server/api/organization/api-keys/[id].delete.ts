@@ -1,90 +1,42 @@
-import { and, eq } from 'drizzle-orm'
-import { apiKey, member } from '~~/server/db/schema'
-import { getAuthSession } from '~~/server/utils/auth'
+import { eq } from 'drizzle-orm'
+import { apiKey, apiKeyOrganization } from '~~/server/db/schema'
+import { requireApiKeyManager } from '~~/server/utils/apiKeyAccess'
+import { requireAuthSession } from '~~/server/utils/billing'
 import { useDB } from '~~/server/utils/db'
 
+const keyNotFound = () => createError({ statusCode: 404, statusMessage: 'API key not found' })
+
+/**
+ * Revokes a key of an organization the caller manages. An unknown key, a
+ * key without organization link, another organization's key and a caller
+ * who does not manage the key's organization all get the same 404, checked
+ * before anything is deleted.
+ */
 export default defineEventHandler(async (event) => {
-  const session = await getAuthSession(event)
-  if (!session?.user) {
-    throw createError({
-      statusCode: 401,
-      message: 'Unauthorized'
-    })
-  }
+  await requireAuthSession(event)
 
   const keyId = getRouterParam(event, 'id')
   if (!keyId) {
-    throw createError({
-      statusCode: 400,
-      message: 'Key ID is required'
-    })
+    throw createError({ statusCode: 400, statusMessage: 'Key ID is required' })
   }
 
   const db = await useDB()
-
-  // Fetch the key first to check organization
-  const key = await db.query.apiKey.findFirst({
-    where: eq(apiKey.id, keyId)
+  const link = await db.query.apiKeyOrganization.findFirst({
+    where: eq(apiKeyOrganization.apiKeyId, keyId)
   })
-
-  if (!key) {
-    throw createError({
-      statusCode: 404,
-      message: 'API Key not found'
-    })
+  if (!link) {
+    throw keyNotFound()
   }
 
-  // Parse metadata to get organizationId
-  let orgId: string | undefined
   try {
-    if (key.metadata) {
-      let meta: any = key.metadata
-      // Handle potentially double-encoded JSON string
-      if (typeof meta === 'string') {
-        try {
-          meta = JSON.parse(meta)
-        } catch {
-          // ignore
-        }
-      }
-      // Try parsing again if it's still a string (double encoded)
-      if (typeof meta === 'string') {
-        try {
-          meta = JSON.parse(meta)
-        } catch {
-          // ignore
-        }
-      }
-
-      orgId = meta?.organizationId
+    await requireApiKeyManager(event, link.organizationId)
+  } catch (error) {
+    if ((error as { statusCode?: number }).statusCode === 403) {
+      throw keyNotFound()
     }
-  } catch {
-    // Ignore parse error
+    throw error
   }
 
-  if (!orgId) {
-    throw createError({
-      statusCode: 403,
-      message: 'This API key does not belong to an organization'
-    })
-  }
-
-  // Verify user is Admin or Owner of this organization
-  const membership = await db.query.member.findFirst({
-    where: and(
-      eq(member.userId, session.user.id),
-      eq(member.organizationId, orgId)
-    )
-  })
-
-  if (!membership || (membership.role !== 'owner' && membership.role !== 'admin')) {
-    throw createError({
-      statusCode: 403,
-      message: 'You do not have permission to delete API keys for this organization'
-    })
-  }
-
-  // Delete the key
   await db.delete(apiKey).where(eq(apiKey.id, keyId))
 
   return { success: true }
