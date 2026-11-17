@@ -1,10 +1,11 @@
 import type {
-  ClientOptions,
+  BetterAuthClientOptions,
   InferSessionFromClient
 } from 'better-auth/client'
 import type { RouteLocationRaw } from 'vue-router'
+import { apiKeyClient } from '@better-auth/api-key/client'
 import { stripeClient } from '@better-auth/stripe/client'
-import { adminClient, apiKeyClient, inferAdditionalFields, organizationClient } from 'better-auth/client/plugins'
+import { adminClient, inferAdditionalFields, organizationClient } from 'better-auth/client/plugins'
 import { createAuthClient } from 'better-auth/vue'
 import { ac, admin, member, owner } from '~~/shared/utils/permissions'
 import { authClientTransport, FORWARDED_REQUEST_HEADERS } from '~/utils/authClientTransport'
@@ -54,7 +55,7 @@ export function useAuth() {
   // Create global state for active organization (SSR friendly)
   const useActiveOrgState = () => useState<any>('active-org-state', () => ({ data: null }))
 
-  const session = useState<InferSessionFromClient<ClientOptions> | null>('auth:session', () => null)
+  const session = useState<InferSessionFromClient<BetterAuthClientOptions> | null>('auth:session', () => null)
   const user = useState<User | null>('auth:user', () => null)
   const sessionFetching = import.meta.server ? ref(false) : useState('auth:sessionFetching', () => false)
 

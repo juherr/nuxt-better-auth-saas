@@ -1,9 +1,10 @@
 import type { H3Event } from 'h3'
 import type { User } from '~~/shared/utils/types'
+import { apiKey } from '@better-auth/api-key'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { APIError, createAuthMiddleware, getOAuthState, getSessionFromCtx } from 'better-auth/api'
-import { admin as adminPlugin, apiKey, openAPI, organization } from 'better-auth/plugins'
+import { admin as adminPlugin, openAPI, organization } from 'better-auth/plugins'
 import { and, eq } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
 import * as schema from '~~/server/db/schema'
@@ -535,7 +536,7 @@ export const createBetterAuth = () => betterAuth({
       if (returned && returned instanceof APIError) {
         const userId = ctx.context.newSession?.user.id
         if (ctx.path == '/callback/:id' && returned.status == 'FOUND' && userId) {
-          const provider = ctx.params.id
+          const provider = ctx.params?.id ?? ':id'
           await logAuditEvent({
             userId,
             category: 'auth',
