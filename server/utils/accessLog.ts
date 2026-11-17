@@ -2,8 +2,9 @@
  * Access log policy: what a request line contains and when it is written.
  *
  * Pure functions, no framework import, so the redaction rules are tested
- * directly. The line never carries headers, bodies, the query string or the
- * fragment: those can hold reset tokens, OAuth codes or session identifiers.
+ * directly. The line never carries headers, bodies, the query string, the
+ * fragment or a secret path segment: those can hold reset tokens, OAuth codes
+ * or session identifiers.
  */
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
@@ -55,7 +56,40 @@ const ABSOLUTE_URL = /^[a-z][a-z\d+.-]*:\/\/[^/?#]*/i
 const UNSAFE_CHARS = /[\x00-\x1F\x20\x7F]/g
 
 /**
- * Returns the path of a request URL without its query string or fragment.
+ * Routes that carry a secret in the path itself: a value whose possession
+ * grants an action, not an identifier. Everything after `prefix` is
+ * replaced with `placeholder`, named after the route parameter.
+ *
+ * - `/api/auth/reset-password/:token`: better-auth's password reset link
+ *   (`requestPasswordResetCallback`, better-auth 1.4.1).
+ *
+ * Other dynamic routes carry identifiers that need a session to act on, and
+ * other better-auth tokens travel in the query, which is never logged.
+ */
+const SECRET_PATH_ROUTES: readonly { prefix: readonly string[], placeholder: string }[] = [
+  { prefix: ['api', 'auth', 'reset-password'], placeholder: ':token' }
+]
+
+// One or more raw or percent-encoded slashes.
+const SEPARATOR = '(?:/|%2F)+'
+
+// Deliberately broader than the router: the prefix matches in any case, after
+// any leading segments (an `app.baseURL`), across repeated or encoded slashes.
+const SECRET_PATH_PATTERNS = SECRET_PATH_ROUTES.map(({ prefix, placeholder }) => ({
+  pattern: new RegExp(`((?:^|/|%2F)${prefix.join(SEPARATOR)}${SEPARATOR}).+$`, 'i'),
+  placeholder
+}))
+
+function redactSecretSegments(path: string): string {
+  return SECRET_PATH_PATTERNS.reduce(
+    (redacted, { pattern, placeholder }) => redacted.replace(pattern, (_match, kept: string) => `${kept}${placeholder}`),
+    path
+  )
+}
+
+/**
+ * Returns the path of a request URL without its query string or fragment,
+ * with the secret segments of `SECRET_PATH_ROUTES` replaced by a placeholder.
  *
  * The URL is cut at the first raw `?` or `#` before anything else, and the
  * path is logged as received (still percent-encoded): it is never decoded, so
@@ -66,7 +100,7 @@ const UNSAFE_CHARS = /[\x00-\x1F\x20\x7F]/g
 export function sanitizeLogPath(url: string): string {
   const cut = url.search(/[?#]/)
   const withoutQuery = cut === -1 ? url : url.slice(0, cut)
-  const path = withoutQuery.replace(ABSOLUTE_URL, '')
+  const path = redactSecretSegments(withoutQuery.replace(ABSOLUTE_URL, ''))
   const escaped = path.replace(UNSAFE_CHARS, char =>
     `%${char.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')}`)
   return escaped.startsWith('/') ? escaped : `/${escaped}`

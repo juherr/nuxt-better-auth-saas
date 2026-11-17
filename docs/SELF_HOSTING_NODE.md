@@ -144,7 +144,9 @@ only. Use it as the readiness probe of a load balancer or a container.
 The server writes one line per request once the response is sent: timestamp, level, method, path,
 status, duration and request id. The path is cut at the first `?` or `#` and logged as received,
 still percent-encoded, so query strings and fragments, which can carry reset tokens or OAuth codes,
-never reach the log. Headers and bodies are never logged.
+never reach the log. A secret carried in the path itself, such as the token of a password reset
+link (`/api/auth/reset-password/:token`), is replaced with a placeholder named after the route
+parameter. Headers and bodies are never logged.
 
 Each response carries an `x-request-id` header. An inbound `x-request-id` made of 1 to 128
 characters among `A-Z a-z 0-9 . _ : -` is kept, so a proxy can correlate its own logs; any other

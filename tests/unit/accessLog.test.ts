@@ -59,6 +59,36 @@ describe('sanitizeLogPath', () => {
   })
 })
 
+describe('sanitizeLogPath: secret path segments', () => {
+  it.each([
+    [`/api/auth/reset-password/${ENCODED_SECRET}?callbackURL=%2Freset-password`, '/api/auth/reset-password/:token'],
+    [`/api/auth/reset-password/${SECRET}`, '/api/auth/reset-password/:token'],
+    [`/api/auth/reset-password/${ENCODED_SECRET}/`, '/api/auth/reset-password/:token'],
+    [`/api/auth/reset-password/${ENCODED_SECRET}/extra/segments`, '/api/auth/reset-password/:token'],
+    [`/API/Auth/Reset-Password/${ENCODED_SECRET}`, '/API/Auth/Reset-Password/:token'],
+    [`//api//auth/reset-password//${ENCODED_SECRET}`, '//api//auth/reset-password//:token'],
+    [`/api%2Fauth%2freset-password%2F${ENCODED_SECRET}`, '/api%2Fauth%2freset-password%2F:token'],
+    [`/base/api/auth/reset-password/${ENCODED_SECRET}`, '/base/api/auth/reset-password/:token'],
+    [`https://app.example.test/api/auth/reset-password/${ENCODED_SECRET}?callbackURL=x`, '/api/auth/reset-password/:token']
+  ])('replaces the password reset token of %s with a placeholder', (input, expected) => {
+    expect(sanitizeLogPath(input)).toBe(expected)
+  })
+
+  it.each([
+    '/api/file/0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b',
+    '/api/organization/api-keys/0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b',
+    '/api/admin/count/user/email',
+    '/api/auth/callback/github',
+    '/api/auth/reset-password',
+    '/accept-invite/0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b',
+    '/fr/reset-password',
+    '/acme/dashboard',
+    '/api/auth/reset-password-extra/value'
+  ])('keeps the identifier path %s unchanged', (path) => {
+    expect(sanitizeLogPath(path)).toBe(path)
+  })
+})
+
 describe('formatAccessLog', () => {
   it('writes one text line with the timestamp, method, path, status, duration and request id', () => {
     expect(formatAccessLog(entry('/dashboard?tab=1'), 'text'))
@@ -89,6 +119,19 @@ describe('formatAccessLog', () => {
       `https://app.example.test/reset?token=${ENCODED_SECRET}`
     ]) {
       expectNoSecret(formatAccessLog(entry(path), format))
+    }
+  })
+
+  it.each(['text', 'json'] as const)('never writes a token placed in the path of a password reset link (%s)', (format) => {
+    for (const path of [
+      `/api/auth/reset-password/${SECRET}?callbackURL=%2Freset-password`,
+      `/api/auth/reset-password/${ENCODED_SECRET}?callbackURL=%2Freset-password`
+    ]) {
+      const line = formatAccessLog(entry(path), format)
+
+      expectNoSecret(line)
+      expect(line).not.toContain('callbackURL')
+      expect(line).toContain('/api/auth/reset-password/:token')
     }
   })
 })
