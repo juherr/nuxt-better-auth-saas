@@ -11,6 +11,16 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     coverage: {
+      // Without `include`, Vitest only reports the files the tests loaded,
+      // so untested sources would not show up at all.
+      include: [
+        'app/**/*.{ts,vue}',
+        'server/**/*.ts',
+        'shared/**/*.ts',
+        'emails/**/*.{ts,tsx}',
+        'create-admin.ts'
+      ],
+      exclude: ['**/*.d.ts'],
       reporter: ['html'],
       reportsDirectory: 'tests/coverage'
     },
