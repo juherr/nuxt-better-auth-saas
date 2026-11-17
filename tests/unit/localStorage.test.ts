@@ -1,8 +1,9 @@
 import { Buffer } from 'node:buffer'
+import { promises as fs } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { LocalStorageProvider } from '~~/server/services/file/storage/local'
 
 describe('the local storage provider', () => {
@@ -20,6 +21,7 @@ describe('the local storage provider', () => {
   })
 
   afterEach(async () => {
+    vi.restoreAllMocks()
     await rm(root, { recursive: true, force: true })
   })
 
@@ -93,6 +95,26 @@ describe('the local storage provider', () => {
 
     it('refuses to check through a link outside the upload directory', async () => {
       await expect(provider.exists('linked-out.txt')).rejects.toThrow('outside the upload directory')
+    })
+
+    it('refuses to write through a link at the final name, even to a file inside the upload directory', async () => {
+      await mkdir(join(uploadDir, '2026-03-02'), { recursive: true })
+      await writeFile(join(uploadDir, '2026-03-02', 'stored.png'), 'stored')
+      await symlink(join(uploadDir, '2026-03-02', 'stored.png'), join(uploadDir, '2026-03-02', 'new.png'))
+
+      await expect(provider.upload(Buffer.from('data'), '2026-03-02/new.png')).rejects.toThrow()
+      expect(await readFile(join(uploadDir, '2026-03-02', 'stored.png'), 'utf8')).toBe('stored')
+    })
+
+    it('refuses to write when the directory is swapped for a link while it is created', async () => {
+      vi.spyOn(fs, 'mkdir').mockImplementation(async (path) => {
+        // Another process wins the race and plants a link to the outside.
+        await symlink(join(root, 'uploads-other'), path as string)
+        return undefined
+      })
+
+      await expect(provider.upload(Buffer.from('data'), '2026-03-03/new.png')).rejects.toThrow('outside the upload directory')
+      await expect(readFile(join(root, 'uploads-other', 'new.png'))).rejects.toThrow()
     })
 
     it('still writes when the upload directory itself is reached through a link', async () => {
