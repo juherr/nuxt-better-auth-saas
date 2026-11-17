@@ -86,6 +86,14 @@ describe.each(Object.entries(routes))('the %s subscription endpoint', (_name, ro
     expect(updateSubscription).not.toHaveBeenCalled()
   })
 
+  it('answers 404 when the organization no longer exists, without reaching Stripe', async () => {
+    findOrganization.mockResolvedValue(undefined)
+
+    await expect(call({ subscriptionId: 'sub_a', referenceId: 'org-a' })).rejects.toMatchObject({ statusCode: 404, statusMessage: 'Subscription not found' })
+    expect(retrieveSubscription).not.toHaveBeenCalled()
+    expect(updateSubscription).not.toHaveBeenCalled()
+  })
+
   it('refuses an anonymous request with 401, without updating', async () => {
     getAuthSession.mockResolvedValue(null)
 

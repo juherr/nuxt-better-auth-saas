@@ -1,3 +1,4 @@
+import { PgDialect } from 'drizzle-orm/pg-core'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { stubNitroGlobals } from './support/nitroGlobals'
 
@@ -101,6 +102,17 @@ describe('resolveOwnedSubscription', () => {
     await expect(resolve(org, 'sub_a')).resolves.toEqual({ id: 'sub_a', customer: 'cus_a' })
     expect(retrieve).toHaveBeenCalledWith('sub_a')
     expect(update).not.toHaveBeenCalled()
+  })
+
+  it('looks the local record up by both the organization and the Stripe subscription id', async () => {
+    await resolve(org, 'sub_a')
+
+    const { where } = findSubscription.mock.calls[0]![0]
+    const query = new PgDialect().sqlToQuery(where)
+    expect(query.sql).toContain('"subscription"."reference_id" = $')
+    expect(query.sql).toContain('"subscription"."stripe_subscription_id" = $')
+    expect(query.sql).toMatch(/\band\b/)
+    expect(query.params).toEqual(['org-a', 'sub_a'])
   })
 
   it('accepts an expanded customer object of the organization', async () => {
