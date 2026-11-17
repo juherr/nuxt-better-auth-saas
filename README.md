@@ -86,6 +86,49 @@ pnpm run dev -o
 npx nuxthub deploy
 ```
 
+### Upgrading from better-auth 1.4
+
+The better-auth 1.7 schema changes tables that already hold data. On an existing deployment, keep
+your current `server/db/migrations` folder and run `pnpm db:generate`. drizzle-kit asks how each
+new table was created:
+
+- `api_key`: choose **create table**. It replaces `apiKey`, and `user_id` becomes `reference_id`
+  (plus a new `config_id`, default `'default'`). Choosing *rename table* makes drizzle-kit 0.31
+  stop with `Cannot read properties of undefined (reading 'columns')`.
+- `rate_limit`: choose **create table**. better-auth now keeps its rate-limit counters there.
+
+The generated migration then ends with `DROP TABLE "apiKey" CASCADE`, which loses every API key.
+**Do not apply it as generated.** Edit the new `.sql` file first:
+
+1. Copy the keys before the line `ALTER TABLE "apiKey" DISABLE ROW LEVEL SECURITY;`:
+
+   ```sql
+   INSERT INTO "api_key" ("id", "name", "start", "reference_id", "prefix", "key", "refill_interval", "refill_amount", "last_refill_at", "enabled", "rate_limit_enabled", "rate_limit_time_window", "rate_limit_max", "request_count", "remaining", "last_request", "expires_at", "created_at", "updated_at", "permissions", "metadata")
+   SELECT "id", "name", "start", "user_id", "prefix", "key", "refill_interval", "refill_amount", "last_refill_at", "enabled", "rate_limit_enabled", "rate_limit_time_window", "rate_limit_max", "request_count", "remaining", "last_request", "expires_at", "created_at", "updated_at", "permissions", "metadata" FROM "apiKey";--> statement-breakpoint
+   ```
+
+2. `subscription.status` becomes `NOT NULL`. Before the line
+   `ALTER TABLE "subscription" ALTER COLUMN "status" SET NOT NULL;`, add:
+
+   ```sql
+   UPDATE "subscription" SET "status" = 'incomplete' WHERE "status" IS NULL;--> statement-breakpoint
+   ```
+
+3. If `api_key_organization` already exists (see "API Keys Scoped to Their Organization" in
+   [the migration checklist](./docs/MIGRATION_CHECKLIST.md)), its foreign key points at `apiKey`,
+   and `DROP TABLE "apiKey" CASCADE` drops that constraint. Check that the file adds a foreign key
+   from `api_key_organization` to `api_key` after the copy of step 1: the copy keeps the key ids,
+   so the links stay valid. Run `pnpm db:backfill-api-keys` only after this migration: the script
+   reads `api_key`.
+
+Then apply it (`npx nuxt db migrate`, or `pnpm build`). The same migration also adds
+`user.stripe_customer_id` and the `subscription` columns `cancel_at`, `canceled_at`, `ended_at`,
+`billing_interval` and `stripe_schedule_id`. API keys no longer have a foreign key to `user`: keys of
+a deleted user are not deleted with it.
+
+Verification tokens (email verification, password reset) are now stored in the database instead of
+the KV store: links sent before the upgrade stop working, and users have to request a new one.
+
 ### Environment Variables
 
 **Important:** Set `NUXT_APP_URL` to your production URL for Better Auth to work correctly.
