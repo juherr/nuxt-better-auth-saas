@@ -5,6 +5,10 @@ export interface HttpErrorInput {
   statusMessage: string
 }
 
+/** Stand-in for h3's `createError`: an `Error` carrying the input fields. */
+export const nitroCreateError = (input: HttpErrorInput) =>
+  Object.assign(new Error(input.statusMessage), input)
+
 /**
  * Nitro auto-imports these h3 helpers in server code; unit tests run in plain
  * Node, so stand in with the same shapes. `defineEventHandler` and
@@ -30,8 +34,7 @@ export function stubNitroGlobals() {
   vi.stubGlobal('setResponseStatus', (event: { status?: number }, code: number) => {
     event.status = code
   })
-  vi.stubGlobal('createError', (input: HttpErrorInput) =>
-    Object.assign(new Error(input.statusMessage), input))
+  vi.stubGlobal('createError', nitroCreateError)
 }
 
 /**

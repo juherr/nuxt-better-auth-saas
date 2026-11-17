@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nitroCreateError } from './support/nitroGlobals'
 
 const runtimeConfig = vi.hoisted(() => ({
   preset: 'cloudflare-module',
@@ -37,8 +38,7 @@ vi.mock('better-auth/api', async importOriginal => ({
   getSessionFromCtx: vi.fn(async (ctx: any) => ctx.context?.session ?? null)
 }))
 
-vi.stubGlobal('createError', (input: { statusCode: number, statusMessage: string }) =>
-  Object.assign(new Error(input.statusMessage), input))
+vi.stubGlobal('createError', nitroCreateError)
 
 const user = { id: 'u1', name: 'Ada', email: 'ada@example.test' }
 

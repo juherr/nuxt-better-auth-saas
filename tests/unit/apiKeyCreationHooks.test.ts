@@ -2,6 +2,7 @@ import type { Table } from 'drizzle-orm'
 import { APIError } from 'better-auth/api'
 import { getTableName } from 'drizzle-orm'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nitroCreateError } from './support/nitroGlobals'
 import { renderSql } from './support/sql'
 
 const runtimeConfig = vi.hoisted(() => ({
@@ -40,8 +41,7 @@ vi.mock('better-auth/api', async importOriginal => ({
   getSessionFromCtx: vi.fn(async (ctx: any) => ctx.context?.session ?? null)
 }))
 
-vi.stubGlobal('createError', (input: { statusCode: number, statusMessage: string }) =>
-  Object.assign(new Error(input.statusMessage), input))
+vi.stubGlobal('createError', nitroCreateError)
 
 const PLAINTEXT_KEY = 'canary-plaintext-key'
 const session = { user: { id: 'user-1' }, session: { id: 'session-1' } }
