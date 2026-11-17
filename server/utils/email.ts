@@ -2,7 +2,7 @@
  * Email rendering utilities using React Email
  */
 
-import { render } from '@react-email/render'
+import { render } from 'react-email'
 import { DeleteAccount } from '~~/emails/DeleteAccount'
 import { PaymentFailed } from '~~/emails/PaymentFailed'
 import { ResetPassword } from '~~/emails/ResetPassword'
