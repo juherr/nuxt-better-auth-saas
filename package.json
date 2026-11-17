@@ -24,7 +24,7 @@
     "db:backfill-api-keys": "node scripts/backfill-api-key-organization.ts",
     "build": "nuxt build",
     "serve": "node .output/server/index.mjs",
-    "preview:cf": "wrangler dev --x-remote-bindings",
+    "preview:cf": "wrangler dev",
     "deploy": "wrangler deploy",
     "prepare": "husky"
   },
