@@ -1,12 +1,58 @@
 import { readMultipartFormData } from 'h3'
 import { FileService, useFileManagerConfig } from '~~/server/services/file/fileService'
-import { UploadRateLimiter } from '~~/server/services/file/rateLimiter'
+import { RateLimitUnavailableError, UploadRateLimiter } from '~~/server/services/file/rateLimiter'
 import { createStorageProvider } from '~~/server/services/file/storage/factory'
+import {
+  checkDeclaredBodyLength,
+  maxUploadBodySize,
+  resolveAllowedMimeTypes,
+  resolveMaxFileSize
+} from '~~/server/services/file/uploadPolicy'
 
 export default defineEventHandler(async (event) => {
   const config = useFileManagerConfig()
+  const maxFileSize = resolveMaxFileSize(config.maxFileSize)
+  const allowedMimeTypes = resolveAllowedMimeTypes(config.allowedMimeTypes)
 
   const user = await requireAuth(event)
+
+  // Refuse before buffering: h3 reads the whole body into memory.
+  const bodyLength = checkDeclaredBodyLength(
+    getRequestHeader(event, 'content-length'),
+    getRequestHeader(event, 'transfer-encoding'),
+    maxUploadBodySize(maxFileSize)
+  )
+  if (!bodyLength.ok) {
+    throw createError(bodyLength.statusCode === 411
+      ? { statusCode: 411, statusMessage: 'Content-Length required' }
+      : { statusCode: 413, statusMessage: `Upload exceeds maximum allowed size of ${formatFileSize(maxFileSize)}` })
+  }
+
+  // Counts every attempt that passes the length check, valid or not.
+  if (config.uploadRateLimit) {
+    const { maxUploadsPerWindow, windowSizeMinutes } = config.uploadRateLimit
+    const rateLimiter = new UploadRateLimiter(windowSizeMinutes, maxUploadsPerWindow)
+
+    let result
+    try {
+      result = await rateLimiter.checkAndIncrement(user.id)
+    } catch (error) {
+      if (error instanceof RateLimitUnavailableError) {
+        throw createError({
+          statusCode: 503,
+          statusMessage: 'Upload temporarily unavailable, please retry later'
+        })
+      }
+      throw error
+    }
+
+    if (!result.allowed) {
+      throw createError({
+        statusCode: 429,
+        statusMessage: `Upload rate limit exceeded. Maximum ${maxUploadsPerWindow} uploads per ${windowSizeMinutes} minutes. Current count: ${result.currentCount}`
+      })
+    }
+  }
 
   const formData = await readMultipartFormData(event)
   if (!formData) {
@@ -31,21 +77,6 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Check upload rate limit if enabled
-  if (config.uploadRateLimit) {
-    const { maxUploadsPerWindow, windowSizeMinutes } = config.uploadRateLimit
-    const rateLimiter = new UploadRateLimiter(windowSizeMinutes, maxUploadsPerWindow)
-
-    const { allowed, currentCount } = await rateLimiter.checkAndIncrement(user.id)
-
-    if (!allowed) {
-      throw createError({
-        statusCode: 429,
-        statusMessage: `Upload rate limit exceeded. Maximum ${maxUploadsPerWindow} uploads per ${windowSizeMinutes} minutes. Current count: ${currentCount}`
-      })
-    }
-  }
-
   const storageProvider = await createStorageProvider(config.storage)
   const fileService = new FileService(storageProvider)
 
@@ -55,21 +86,19 @@ export default defineEventHandler(async (event) => {
   const fileSize = fileData.data.length
 
   // Validate file size
-  if (config.maxFileSize && fileSize > config.maxFileSize) {
+  if (fileSize > maxFileSize) {
     throw createError({
       statusCode: 413,
-      statusMessage: `File size exceeds maximum allowed size of ${formatFileSize(config.maxFileSize)}`
+      statusMessage: `File size exceeds maximum allowed size of ${formatFileSize(maxFileSize)}`
     })
   }
 
   // Validate MIME type
-  if (config.allowedMimeTypes && config.allowedMimeTypes.length > 0) {
-    if (!config.allowedMimeTypes.includes(mimeType)) {
-      throw createError({
-        statusCode: 415,
-        statusMessage: `File type '${mimeType}' is not allowed.`
-      })
-    }
+  if (!allowedMimeTypes.includes(mimeType.toLowerCase())) {
+    throw createError({
+      statusCode: 415,
+      statusMessage: `File type '${mimeType}' is not allowed.`
+    })
   }
 
   try {

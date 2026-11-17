@@ -1,0 +1,145 @@
+import type { RateLimitStore } from '~~/server/services/file/rateLimiter'
+import type { FileManagerConfig } from '~~/server/services/file/types'
+import { Buffer } from 'node:buffer'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { callRoute, stubNitroGlobals } from './support/nitroGlobals'
+
+const readMultipartFormData = vi.hoisted(() => vi.fn())
+const uploadFile = vi.hoisted(() => vi.fn())
+const requireAuth = vi.hoisted(() => vi.fn())
+const fileConfig = vi.hoisted(() => ({ value: {} as Partial<FileManagerConfig> }))
+const store = vi.hoisted(() => ({
+  reserve: vi.fn<RateLimitStore['reserve']>(),
+  read: vi.fn<RateLimitStore['read']>()
+}))
+
+vi.mock('h3', () => ({ readMultipartFormData }))
+vi.mock('~~/server/services/file/fileService', () => ({
+  FileService: class {
+    uploadFile = uploadFile
+  },
+  useFileManagerConfig: () => fileConfig.value
+}))
+vi.mock('~~/server/services/file/storage/factory', () => ({
+  createStorageProvider: async () => ({ name: 'test' })
+}))
+vi.mock('~~/server/services/file/rateLimitStores', () => ({
+  defaultRateLimitStore: () => store
+}))
+
+beforeAll(() => {
+  stubNitroGlobals()
+  vi.stubGlobal('requireAuth', requireAuth)
+  vi.stubGlobal('getRequestIP', () => '203.0.113.1')
+  vi.stubGlobal('getHeader', () => 'test-agent')
+  vi.stubGlobal('formatFileSize', (bytes: number) => `${bytes} B`)
+})
+afterAll(() => {
+  vi.unstubAllGlobals()
+})
+
+const PNG = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0x0D])
+const MAX_FILE_SIZE = 1024
+const MULTIPART = { 'content-type': 'multipart/form-data; boundary=x' }
+
+function part(data: Buffer, type: string, filename = 'avatar.png') {
+  return { name: 'file', filename, type, data }
+}
+
+async function upload(headers: Record<string, string> = { ...MULTIPART, 'content-length': '2000' }) {
+  return callRoute<{ success: boolean }>(() => import('~~/server/api/file/upload.post'), undefined, undefined, undefined, headers)
+}
+
+describe('the upload endpoint', () => {
+  beforeEach(() => {
+    fileConfig.value = {
+      maxFileSize: MAX_FILE_SIZE,
+      uploadRateLimit: { maxUploadsPerWindow: 5, windowSizeMinutes: 1 }
+    }
+    requireAuth.mockReset().mockResolvedValue({ id: 'u1' })
+    readMultipartFormData.mockReset().mockResolvedValue([part(PNG, 'image/png')])
+    uploadFile.mockReset().mockResolvedValue({ id: 'f1' })
+    store.reserve.mockReset().mockResolvedValue({ allowed: true, currentCount: 1 })
+  })
+
+  it('refuses an anonymous request before reading the body', async () => {
+    requireAuth.mockRejectedValue(Object.assign(new Error('Unauthorized'), { statusCode: 401 }))
+
+    await expect(upload()).rejects.toMatchObject({ statusCode: 401 })
+    expect(readMultipartFormData).not.toHaveBeenCalled()
+  })
+
+  it('stores a valid image', async () => {
+    await expect(upload()).resolves.toMatchObject({ success: true })
+    expect(uploadFile).toHaveBeenCalledTimes(1)
+  })
+
+  describe('before buffering the body', () => {
+    it('refuses a declared length above one file plus the multipart overhead with 413', async () => {
+      await expect(upload({ ...MULTIPART, 'content-length': String(10 * 1024 * 1024) })).rejects.toMatchObject({ statusCode: 413 })
+      expect(readMultipartFormData).not.toHaveBeenCalled()
+      expect(store.reserve).not.toHaveBeenCalled()
+    })
+
+    it('requires a declared length (411)', async () => {
+      await expect(upload({ ...MULTIPART })).rejects.toMatchObject({ statusCode: 411 })
+      expect(readMultipartFormData).not.toHaveBeenCalled()
+    })
+
+    it('requires a declared length for a chunked body (411)', async () => {
+      await expect(upload({ ...MULTIPART, 'transfer-encoding': 'chunked' })).rejects.toMatchObject({ statusCode: 411 })
+      expect(readMultipartFormData).not.toHaveBeenCalled()
+    })
+
+    it('applies the default 5 MB limit when none is configured', async () => {
+      fileConfig.value = { ...fileConfig.value, maxFileSize: undefined }
+
+      await expect(upload({ ...MULTIPART, 'content-length': String(6 * 1024 * 1024) })).rejects.toMatchObject({ statusCode: 413 })
+      expect(readMultipartFormData).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('rate limiting', () => {
+    it('refuses with 429 when the limit is reached, before reading the body', async () => {
+      store.reserve.mockResolvedValue({ allowed: false, currentCount: 5 })
+
+      await expect(upload()).rejects.toMatchObject({ statusCode: 429 })
+      expect(readMultipartFormData).not.toHaveBeenCalled()
+    })
+
+    it('answers 503 with a generic message when the limiter store is down', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      store.reserve.mockRejectedValue(new Error('store down'))
+
+      const error = await upload().catch((e: unknown) => e)
+
+      expect(error).toMatchObject({ statusCode: 503 })
+      expect((error as Error).message).not.toMatch(/count|store down/i)
+      expect(readMultipartFormData).not.toHaveBeenCalled()
+      vi.restoreAllMocks()
+    })
+
+    it('counts the attempt even when the body turns out to be invalid', async () => {
+      readMultipartFormData.mockResolvedValue(undefined)
+
+      await expect(upload()).rejects.toMatchObject({ statusCode: 400 })
+      expect(store.reserve).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  describe('after parsing', () => {
+    it('refuses a file above the maximum size with 413', async () => {
+      readMultipartFormData.mockResolvedValue([part(Buffer.alloc(MAX_FILE_SIZE + 1), 'image/png')])
+
+      await expect(upload()).rejects.toMatchObject({ statusCode: 413 })
+      expect(uploadFile).not.toHaveBeenCalled()
+    })
+
+    it('refuses a type outside the default allowed types with 415', async () => {
+      readMultipartFormData.mockResolvedValue([part(Buffer.from('%PDF-1.7'), 'application/pdf', 'doc.pdf')])
+
+      await expect(upload()).rejects.toMatchObject({ statusCode: 415 })
+      expect(uploadFile).not.toHaveBeenCalled()
+    })
+  })
+})

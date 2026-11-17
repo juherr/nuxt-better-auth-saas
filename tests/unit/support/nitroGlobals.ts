@@ -30,13 +30,17 @@ export function stubNitroGlobals() {
     Object.assign(new Error(input.statusMessage), input))
 }
 
-/** Calls a route module's default handler with an event carrying `body`, `query` and `params`. */
+/**
+ * Calls a route module's default handler with an event carrying `body`,
+ * `query`, `params` and `headers` (keys in lower case).
+ */
 export async function callRoute<T = unknown>(
   load: () => Promise<{ default: unknown }>,
   body: unknown,
   query?: Record<string, unknown>,
-  params?: Record<string, string>
+  params?: Record<string, string>,
+  headers?: Record<string, string>
 ): Promise<T> {
   const { default: handler } = await load()
-  return (handler as (event: unknown) => Promise<T>)({ body, query, params })
+  return (handler as (event: unknown) => Promise<T>)({ body, query, params, headers })
 }
