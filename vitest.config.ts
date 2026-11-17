@@ -5,7 +5,8 @@ import { defineConfig } from 'vitest/config'
 // One project per kind of test (https://nuxt.com/docs/4.x/getting-started/testing):
 // - unit: server code in plain Node, without booting Nuxt;
 // - nuxt: components mounted in the Nuxt runtime (mountSuspended);
-// - e2e: builds and starts the app, so it only runs on demand (pnpm test).
+// - e2e: builds and starts the app, or targets the running app at
+//   NUXT_TEST_APP_URL, so it only runs on demand (pnpm test).
 // Inline projects inherit this root config since Vitest 5, so the root only
 // carries what every project shares.
 export default defineConfig({
