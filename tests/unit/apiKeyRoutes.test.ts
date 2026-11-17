@@ -178,21 +178,20 @@ describe('organization API key routes', () => {
       expect(renderSql(deleteWhere.mock.calls[0]![0])).toMatchObject({ sql: '"apiKey"."id" = $1', params: ['key-1'] })
     })
 
-    it('answers the same 404 for an unknown key, an unlinked legacy key, another organization\'s key and a member, deleting nothing', async () => {
+    it.each([
+      ['an unknown key', 'key-unknown', undefined],
+      ['an unlinked legacy key', 'key-legacy', undefined],
+      ['another organization\'s key', 'key-12', { apiKeyId: 'key-12', organizationId: 'org-12' }],
+      ['a key of an organization the caller is only a member of', 'key-2', { apiKeyId: 'key-2', organizationId: 'org-2' }]
+    ])('answers the same 404 as for an unknown key for %s, deleting nothing', async (_label, keyId, link) => {
       memberships.current = { 'org-1': 'owner', 'org-2': 'member' }
-      const refusals = []
-
       findLink.mockResolvedValue(undefined)
-      refusals.push(await errorOf(deleteKey('key-unknown')))
-      refusals.push(await errorOf(deleteKey('key-legacy')))
-      findLink.mockResolvedValue({ apiKeyId: 'key-12', organizationId: 'org-12' })
-      refusals.push(await errorOf(deleteKey('key-12')))
-      findLink.mockResolvedValue({ apiKeyId: 'key-2', organizationId: 'org-2' })
-      refusals.push(await errorOf(deleteKey('key-2')))
+      const unknownKeyRefusal = await errorOf(deleteKey('key-unknown'))
 
-      for (const refusal of refusals) {
-        expect(refusal).toMatchObject({ statusCode: 404, statusMessage: (refusals[0] as any).statusMessage })
-      }
+      findLink.mockResolvedValue(link)
+      const refusal = await errorOf(deleteKey(keyId))
+
+      expect(refusal).toMatchObject({ statusCode: 404, statusMessage: (unknownKeyRefusal as any).statusMessage })
       expect(deleteFrom).not.toHaveBeenCalled()
     })
   })
