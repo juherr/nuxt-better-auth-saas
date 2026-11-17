@@ -127,8 +127,11 @@ Then apply it (`npx nuxt db migrate`, or `pnpm build`). The same migration also 
 database no longer cascades the deletion of a user to their keys, so the app deletes them in a
 `databaseHooks.user.delete.after` hook (`server/utils/auth.ts`).
 
-Verification tokens (email verification, password reset) are now stored in the database instead of
-the KV store: links sent before the upgrade stop working, and users have to request a new one.
+Single-use verification values are now written to the database as well as the KV store, and consumed
+from the database. Password reset and account deletion links issued before the deploy become
+invalid: their value only exists in the KV store, so a reset link still opens the form but the
+submit fails with `INVALID_TOKEN`, and an account deletion link fails at once. Users have to request
+a new link. Email verification and change-email links are signed tokens and keep working.
 
 ### Environment Variables
 
