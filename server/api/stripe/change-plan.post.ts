@@ -4,6 +4,7 @@ import { findOrganization, requireAuthSession, requireOrganizationRole, selectAc
 import { useDB } from '~~/server/utils/db'
 import { createStripeClient } from '~~/server/utils/stripe'
 import { sendSubscriptionUpdatedEmail } from '~~/server/utils/stripeEmails'
+import { getStripeSubscriptionPeriodEndSeconds } from '~~/server/utils/stripeSubscriptionPeriod'
 import { getPlanKeyFromId, getTierForInterval, PLAN_TIERS } from '~~/shared/utils/plans'
 
 export default defineEventHandler(async (event) => {
@@ -104,7 +105,7 @@ export default defineEventHandler(async (event) => {
         end_behavior: 'release' // Release back to regular subscription after schedule completes
       })
 
-      const periodEnd = (subscription as any).current_period_end
+      const periodEnd = getStripeSubscriptionPeriodEndSeconds(subscription)
       return {
         success: true,
         message: 'Plan change scheduled',

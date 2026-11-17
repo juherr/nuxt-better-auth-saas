@@ -20,6 +20,7 @@ import {
 } from './email'
 import { runtimeConfig } from './runtimeConfig'
 import { createStripeClient } from './stripe'
+import { getStripeSubscriptionPeriodEnd, getStripeSubscriptionPeriodEndSeconds } from './stripeSubscriptionPeriod'
 
 // ============================================================================
 // Types
@@ -124,9 +125,7 @@ function getSubscriptionInfo(subscription: any): SubscriptionInfo {
     amount: planResult?.variant.price ? `$${planResult.variant.price}` : 'See invoice',
     periodEnd: subscription.periodEnd
       ? new Date(subscription.periodEnd)
-      : (subscription as any).current_period_end
-          ? new Date((subscription as any).current_period_end * 1000)
-          : null
+      : getStripeSubscriptionPeriodEnd(subscription)
   }
 }
 
@@ -155,7 +154,7 @@ async function getStripeSubscriptionDetails(subscription: any): Promise<{
     console.log('[Stripe Email] Stripe subscription:', {
       id: stripeSub.id,
       status: stripeSub.status,
-      current_period_end: stripeSub.current_period_end,
+      current_period_end: getStripeSubscriptionPeriodEndSeconds(stripeSub),
       items: stripeSub.items.data.map(i => ({
         quantity: i.quantity,
         unit_amount: i.price?.unit_amount,
@@ -174,9 +173,7 @@ async function getStripeSubscriptionDetails(subscription: any): Promise<{
       currency
     }).format(totalAmount)
 
-    const periodEnd = stripeSub.current_period_end
-      ? new Date(stripeSub.current_period_end * 1000)
-      : null
+    const periodEnd = getStripeSubscriptionPeriodEnd(stripeSub)
 
     console.log('[Stripe Email] Calculated:', { seats, amount, periodEnd })
 
@@ -245,11 +242,7 @@ async function buildSubscriptionEmailData(organizationId: string, subscription: 
   // Get period end from various sources
   const periodEnd = subscription.periodEnd
     ? new Date(subscription.periodEnd)
-    : subscription.current_period_end
-      ? new Date(subscription.current_period_end * 1000)
-      : subscription.items?.data?.[0]?.current_period_end
-        ? new Date(subscription.items.data[0].current_period_end * 1000)
-        : null
+    : getStripeSubscriptionPeriodEnd(subscription)
 
   // Get price info from plan config
   const priceId = subscription.priceId
@@ -440,8 +433,7 @@ export async function sendSubscriptionResumedEmail(organizationId: string, subsc
 
   // Get period end from Stripe subscription or items
   const periodEnd = subInfo.periodEnd
-    || (subscription.current_period_end ? new Date(subscription.current_period_end * 1000) : null)
-    || (subscription.items?.data?.[0]?.current_period_end ? new Date(subscription.items.data[0].current_period_end * 1000) : null)
+    || getStripeSubscriptionPeriodEnd(subscription)
 
   const html = await renderSubscriptionResumed({
     name: info.owner.name,
