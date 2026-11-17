@@ -224,10 +224,8 @@ async function confirmAddSeat() {
   } catch (e: any) {
     console.error(e)
     const message = e.data?.message || e.message || 'Unknown error'
-    // Check if this is a payment-related error
-    const isPaymentError = message.toLowerCase().includes('card')
-      || message.toLowerCase().includes('payment')
-      || message.toLowerCase().includes('declined')
+    // The server answers 402 for a declined card or failed payment
+    const isPaymentError = e.statusCode === 402
     paymentError.value = isPaymentError
     toast.add({
       title: 'Failed to add seat',

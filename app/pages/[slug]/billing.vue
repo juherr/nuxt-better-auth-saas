@@ -675,7 +675,7 @@ async function confirmSeatChange() {
   } catch (e: any) {
     console.error(e)
     const errorMessage = e.data?.message || e.message || 'Unknown error'
-    const isCardError = errorMessage.toLowerCase().includes('card') || errorMessage.toLowerCase().includes('payment') || e.statusCode === 402
+    const isCardError = e.statusCode === 402
 
     if (isCardError) {
       paymentError.value = true
@@ -758,7 +758,7 @@ async function confirmPlanChange() {
   } catch (e: any) {
     console.error(e)
     const errorMessage = e.data?.message || e.message || 'Unknown error'
-    const isCardError = errorMessage.toLowerCase().includes('card') || errorMessage.toLowerCase().includes('payment') || e.statusCode === 402
+    const isCardError = e.statusCode === 402
 
     if (isCardError) {
       paymentError.value = true
