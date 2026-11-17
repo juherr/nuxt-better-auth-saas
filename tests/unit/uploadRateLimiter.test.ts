@@ -156,4 +156,11 @@ describe('the upload rate limiter on the Redis path', () => {
 
     expect(redis.eval).toHaveBeenCalledWith(expect.any(String), 1, `upload_rate_limit:user-redis-ttl:${BUCKET_START / WINDOW_MS}`, 2, 5, WINDOW_MS - 1000)
   })
+
+  it.each(['garbage', '-1', '1.5'])('rejects a corrupt counter %s on read instead of returning it', async (raw) => {
+    const redis = { eval: vi.fn(), get: vi.fn().mockResolvedValue(raw) }
+    const limiter = new UploadRateLimiter(WINDOW_MINUTES, 5, createRedisStore(redis), () => BUCKET_START)
+
+    await expect(limiter.getCurrentCount('user-redis-corrupt')).rejects.toThrow('Invalid rate limit counter')
+  })
 })

@@ -34,6 +34,18 @@ export class KeyedLock {
   }
 }
 
+/** Stored counter value, 0 when absent; throws on anything but a count. */
+const parseCounter = (key: string, raw: string | null): number => {
+  if (raw == null) {
+    return 0
+  }
+  const count = Number(raw)
+  if (!Number.isSafeInteger(count) || count < 0) {
+    throw new Error(`Invalid rate limit counter at ${key}`)
+  }
+  return count
+}
+
 export interface KvLike {
   get: (key: string) => Promise<string | null>
   set: (key: string, value: string, ttlSeconds: number) => Promise<void>
@@ -45,17 +57,7 @@ export interface KvLike {
  * eventually consistent backend such as Cloudflare KV, can still race.
  */
 export const createLockedKvStore = (kv: KvLike, lock = new KeyedLock()): RateLimitStore => {
-  const read = async (key: string) => {
-    const raw = await kv.get(key)
-    if (raw == null) {
-      return 0
-    }
-    const count = Number(raw)
-    if (!Number.isSafeInteger(count) || count < 0) {
-      throw new Error(`Invalid rate limit counter at ${key}`)
-    }
-    return count
-  }
+  const read = async (key: string) => parseCounter(key, await kv.get(key))
 
   return {
     read,
@@ -110,8 +112,7 @@ export const createRedisStore = (redis: RedisLike): RateLimitStore => ({
     return { allowed: reply[0] === 1, currentCount: reply[1] }
   },
   async read(key) {
-    const raw = await redis.get(key)
-    return raw == null ? 0 : Number(raw)
+    return parseCounter(key, await redis.get(key))
   }
 })
 
