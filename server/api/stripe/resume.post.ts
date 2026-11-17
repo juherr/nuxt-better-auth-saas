@@ -1,12 +1,14 @@
 import { eq } from 'drizzle-orm'
 import { organization as organizationTable } from '~~/server/db/schema'
-import { requireOrganizationRole, resolveOwnedSubscription } from '~~/server/utils/billing'
+import { requireAuthSession, requireOrganizationRole, resolveOwnedSubscription } from '~~/server/utils/billing'
 import { useDB } from '~~/server/utils/db'
 import { addPaymentLog, createStripeClient } from '~~/server/utils/stripe'
 import { sendSubscriptionResumedEmail } from '~~/server/utils/stripeEmails'
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody(event)
+  await requireAuthSession(event)
+
+  const body = (await readBody(event)) ?? {}
   const { subscriptionId, referenceId } = body
 
   if (!subscriptionId) {

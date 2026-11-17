@@ -1,10 +1,12 @@
 import { eq } from 'drizzle-orm'
 import { organization as organizationTable, subscription as subscriptionTable } from '~~/server/db/schema'
-import { requireOrganizationRole } from '~~/server/utils/billing'
+import { requireAuthSession, requireOrganizationRole } from '~~/server/utils/billing'
 import { useDB } from '~~/server/utils/db'
 import { createStripeClient } from '~~/server/utils/stripe'
 
 export default defineEventHandler(async (event) => {
+  await requireAuthSession(event)
+
   const query = getQuery(event)
   const organizationId = query.organizationId as string
   const limit = Math.min(Number(query.limit) || 10, 100)
@@ -19,7 +21,7 @@ export default defineEventHandler(async (event) => {
 
   const db = await useDB()
 
-  await requireOrganizationRole(event, organizationId, ['owner', 'admin', 'member'])
+  await requireOrganizationRole(event, organizationId)
 
   const org = await db.query.organization.findFirst({
     where: eq(organizationTable.id, organizationId)

@@ -42,6 +42,30 @@ describe('requireOrganizationRole', () => {
     expect(wrongRole).toMatchObject({ statusCode: 403, statusMessage: 'Forbidden' })
   })
 
+  it('accepts any membership, multi-role values included, when no role is required', async () => {
+    const { requireOrganizationRole } = await loadBilling()
+
+    for (const role of ['owner', 'admin', 'member', 'admin,member']) {
+      findMember.mockResolvedValue({ userId: 'u1', organizationId: 'org-a', role })
+      await expect(requireOrganizationRole({} as never, 'org-a')).resolves.toMatchObject({ member: { role } })
+    }
+
+    findMember.mockResolvedValue(undefined)
+    await expect(requireOrganizationRole({} as never, 'org-a'))
+      .rejects
+      .toMatchObject({ statusCode: 403, statusMessage: 'Forbidden' })
+  })
+
+  it('looks the session up once per request when the route already required it', async () => {
+    const { requireAuthSession, requireOrganizationRole } = await loadBilling()
+    const event = {} as never
+
+    await requireAuthSession(event)
+    await requireOrganizationRole(event, 'org-a', ['owner'])
+
+    expect(getAuthSession).toHaveBeenCalledTimes(1)
+  })
+
   it('returns the session and the membership when the role is allowed', async () => {
     findMember.mockResolvedValue({ userId: 'u1', organizationId: 'org-a', role: 'admin' })
     const { requireOrganizationRole } = await loadBilling()

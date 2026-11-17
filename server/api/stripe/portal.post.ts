@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { organization as organizationTable } from '~~/server/db/schema'
-import { requireOrganizationRole } from '~~/server/utils/billing'
+import { requireAuthSession, requireOrganizationRole } from '~~/server/utils/billing'
 import { useDB } from '~~/server/utils/db'
 import { runtimeConfig } from '~~/server/utils/runtimeConfig'
 import { createStripeClient } from '~~/server/utils/stripe'
@@ -25,7 +25,9 @@ function sameOriginUrl(value: unknown, baseURL: string): string | undefined {
 }
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody(event)
+  await requireAuthSession(event)
+
+  const body = (await readBody(event)) ?? {}
   const { organizationId, returnUrl } = body
 
   if (!organizationId) {
@@ -37,7 +39,7 @@ export default defineEventHandler(async (event) => {
 
   const db = await useDB()
 
-  await requireOrganizationRole(event, organizationId, ['owner', 'admin', 'member'])
+  await requireOrganizationRole(event, organizationId)
 
   const org = await db.query.organization.findFirst({
     where: eq(organizationTable.id, organizationId)

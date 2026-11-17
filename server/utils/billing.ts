@@ -13,20 +13,43 @@ export interface BillingOrganization {
   stripeCustomerId?: string | null
 }
 
+type AuthSession = NonNullable<Awaited<ReturnType<typeof getAuthSession>>>
+
+const sessionsByEvent = new WeakMap<H3Event, AuthSession>()
+
 /**
- * Requires a signed-in user holding one of `roles` in the organization.
+ * Requires a signed-in user and answers 401 otherwise. Routes call it
+ * before reading their input, so an anonymous caller never gets a 400.
+ * The session is kept for the rest of the request, so a later
+ * `requireOrganizationRole` on the same event does not look it up again.
+ */
+export async function requireAuthSession(event: H3Event): Promise<AuthSession> {
+  const known = sessionsByEvent.get(event)
+  if (known) {
+    return known
+  }
+
+  const session = await getAuthSession(event)
+  if (!session) {
+    throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
+  }
+  sessionsByEvent.set(event, session)
+  return session
+}
+
+/**
+ * Requires a signed-in user who is a member of the organization and, when
+ * `roles` is given, whose stored role is exactly one of them. Without
+ * `roles`, any membership passes, whatever its role value.
  * Anonymous callers get 401. A non-member and a member with another role
  * get the same 403, so the answer does not reveal membership.
  */
 export async function requireOrganizationRole(
   event: H3Event,
   organizationId: string,
-  roles: readonly OrgRole[]
+  roles?: readonly OrgRole[]
 ) {
-  const session = await getAuthSession(event)
-  if (!session) {
-    throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-  }
+  const session = await requireAuthSession(event)
 
   const db = await useDB()
   const member = await db.query.member.findFirst({
@@ -36,7 +59,7 @@ export async function requireOrganizationRole(
     )
   })
 
-  if (!member || !roles.includes(member.role as OrgRole)) {
+  if (!member || (roles && !roles.includes(member.role as OrgRole))) {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
 

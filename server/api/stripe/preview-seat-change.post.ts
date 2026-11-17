@@ -1,12 +1,14 @@
 import { eq } from 'drizzle-orm'
 import { organization as organizationTable, subscription as subscriptionTable } from '~~/server/db/schema'
-import { requireOrganizationRole } from '~~/server/utils/billing'
+import { requireAuthSession, requireOrganizationRole } from '~~/server/utils/billing'
 import { useDB } from '~~/server/utils/db'
 import { createStripeClient } from '~~/server/utils/stripe'
 import { getPlanKeyFromId, getTierForInterval } from '~~/shared/utils/plans'
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody(event)
+  await requireAuthSession(event)
+
+  const body = (await readBody(event)) ?? {}
   const { organizationId, seats, newInterval } = body
 
   if (!organizationId || !seats) {
