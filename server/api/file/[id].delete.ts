@@ -1,6 +1,13 @@
 import { FileService, useFileManagerConfig } from '~~/server/services/file/fileService'
 import { createStorageProvider } from '~~/server/services/file/storage/factory'
 
+const fileNotFound = () => createError({ statusCode: 404, statusMessage: 'File not found' })
+
+/**
+ * Deletes a file its caller uploaded, or any file for an admin. An unknown
+ * file and another user's file get the same 404, so that file ids cannot be
+ * probed.
+ */
 export default defineEventHandler(async (event) => {
   const config = useFileManagerConfig()
   const user = await requireAuth(event)
@@ -17,18 +24,8 @@ export default defineEventHandler(async (event) => {
 
   const file = await fileService.getFile(fileId)
 
-  if (!file) {
-    throw createError({
-      statusCode: 404,
-      statusMessage: 'File not found'
-    })
-  }
-
-  if (file.uploadedBy !== user.id && user.role !== 'admin') {
-    throw createError({
-      statusCode: 403,
-      statusMessage: 'Access denied'
-    })
+  if (!file || (file.uploadedBy !== user.id && user.role !== 'admin')) {
+    throw fileNotFound()
   }
 
   let deleted: boolean

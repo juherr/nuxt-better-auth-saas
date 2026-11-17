@@ -54,10 +54,16 @@ describe('deleting a file', () => {
     ['another user', { id: 'other', role: 'user' }],
     ['another user without a role', { id: 'other' }],
     ['another user with a non-admin role', { id: 'other', role: 'moderator' }]
-  ])('refuses %s with 403', async (_label, user) => {
+  ])('answers %s with the same 404 as a missing file', async (_label, user) => {
     requireAuth.mockResolvedValue(user)
 
-    await expect(remove()).rejects.toMatchObject({ statusCode: 403 })
+    const [denied, missing] = await Promise.all([
+      remove().catch((e: unknown) => e),
+      remove('unknown').catch((e: unknown) => e)
+    ])
+
+    expect(denied).toMatchObject({ statusCode: 404, statusMessage: 'File not found' })
+    expect(denied).toEqual(missing)
     expect(deleteFile).not.toHaveBeenCalled()
   })
 
