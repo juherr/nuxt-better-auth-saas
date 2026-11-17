@@ -103,10 +103,22 @@ Every stored file is served with its detected type. PNG, JPEG, WebP and GIF are 
   `NUXT_LOCAL_PUBLIC_PATH` (`/uploads` by default) itself, reading the files at request time, with
   `X-Content-Type-Options: nosniff` on every response. A file whose extension is not a detected
   type, such as one stored before these rules, is served as `application/octet-stream`, as an
-  attachment. The public path is fixed at build time.
+  attachment. The public path is fixed at build time: the serving route is registered from
+  `NUXT_LOCAL_PUBLIC_PATH` during the build, so setting
+  `NUXT_FILE_MANAGER_STORAGE_LOCAL_PUBLIC_PATH` at runtime would only change the URLs the app
+  hands out, not the route that serves them. Rebuild to change it.
+- Local uploads are public: the route serves any stored file to anyone holding its URL, without a
+  session. The only thing keeping a URL from being guessed is the random part of its UUIDv7 name.
+  Do not store files there that must stay private.
 - **S3 / R2**: each object is stored with its `Content-Type` and `Content-Disposition`, which the
   bucket returns as is. A bucket cannot store `X-Content-Type-Options`: add it in front of the
   bucket's public URL (a CDN response header rule, for instance).
+- Objects stored in S3 or R2 before these rules keep the `Content-Type` the client sent, and no
+  `Content-Disposition`. To bring them in line, copy each object onto itself with replaced metadata
+  (for instance `aws s3 cp s3://<bucket>/<key> s3://<bucket>/<key> --metadata-directive REPLACE
+  --content-type <detected type> --content-disposition <inline|attachment>`), or override
+  `Content-Type`, `Content-Disposition` and `X-Content-Type-Options` with CDN response header rules
+  for the old keys.
 
 Serve user content from a separate origin when you can: a dedicated domain for the bucket's public
 URL (`NUXT_CF_R2_PUBLIC_URL`, `NUXT_FILE_MANAGER_STORAGE_S3_PUBLIC_URL`), or a CDN in front of it.
