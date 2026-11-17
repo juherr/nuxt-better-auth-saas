@@ -13,6 +13,8 @@ export interface TransportCookies {
 export interface AuthClientTransportInput {
   isServer: boolean
   origin: string
+  /** Origin of the configured app URL, the one better-auth trusts; never derived from `Host`. */
+  configuredOrigin?: string
   requestHeaders?: Record<string, string | undefined>
   localFetch?: LocalFetch
   cookies?: TransportCookies
@@ -34,6 +36,19 @@ export interface AuthClientTransport {
  */
 export const FORWARDED_REQUEST_HEADERS = ['cookie', 'origin', 'referer'] as const
 
+/** Path of the only call that may carry the configured origin (see `authClientTransport`). */
+export const SET_ACTIVE_PATH = '/api/auth/organization/set-active'
+
+/**
+ * Origin of the app URL (`runtimeConfig.public.baseURL`), which the server gives better-auth as
+ * its base URL and trusted origin. Undefined when the URL is empty or invalid.
+ */
+export function configuredOrigin(baseURL: string | undefined): string | undefined {
+  if (!baseURL || !URL.canParse(baseURL))
+    return undefined
+  return new URL(baseURL).origin
+}
+
 function forwardedHeaders(requestHeaders: Record<string, string | undefined> | undefined) {
   const headers: Record<string, string> = {}
   for (const name of FORWARDED_REQUEST_HEADERS) {
@@ -49,12 +64,20 @@ function forwardedHeaders(requestHeaders: Record<string, string | undefined> | u
  * fetch. During SSR the origin comes from the inbound `Host` header, so the client never calls
  * it: every request is cut down to its path and query and dispatched in-process, and only the
  * headers in `FORWARDED_REQUEST_HEADERS` are handed over.
+ *
+ * A request without Origin and Referer (typed URL, bookmark) would get the set-active of the
+ * organization middleware refused by better-auth's origin check: that POST alone gets the
+ * configured origin. Every other call keeps the visitor's headers, so an inbound Origin or
+ * Referer is still checked, and a cross-site one still refused.
  */
 export function authClientTransport(input: AuthClientTransportInput): AuthClientTransport {
   if (!input.isServer)
     return { baseURL: input.origin, fetchOptions: { headers: undefined } }
 
   const { localFetch, cookies } = input
+  const injectOrigin = !!input.configuredOrigin
+    && !input.requestHeaders?.origin
+    && !input.requestHeaders?.referer
   return {
     baseURL: input.origin,
     fetchOptions: {
@@ -70,6 +93,8 @@ export function authClientTransport(input: AuthClientTransportInput): AuthClient
         // empty value is sent when every cookie was deleted.
         if (cookies)
           headers.cookie = cookies.header() ?? ''
+        if (injectOrigin && init?.method?.toUpperCase() === 'POST' && url.pathname === SET_ACTIVE_PATH)
+          headers.origin = input.configuredOrigin!
         const response = await localFetch(`${url.pathname}${url.search}`, {
           method: init?.method,
           headers,

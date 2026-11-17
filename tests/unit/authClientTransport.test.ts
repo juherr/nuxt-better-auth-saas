@@ -1,6 +1,6 @@
 import { createAuthClient } from 'better-auth/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { authClientTransport } from '~~/app/utils/authClientTransport'
+import { authClientTransport, configuredOrigin } from '~~/app/utils/authClientTransport'
 import { ssrCookiePort } from '~~/app/utils/ssrCookies'
 import { fakeEvent } from './support/ssrCookieEvent'
 
@@ -244,6 +244,71 @@ describe('authClientTransport', () => {
       })
     })
 
+    // A typed URL or a bookmark carries neither Origin nor Referer, so better-auth refuses the
+    // set-active of the organization middleware. Only that call gets the configured origin.
+    describe('with a configured origin', () => {
+      const CONFIGURED_ORIGIN = 'https://configured.example.test'
+
+      const configuredClient = (requestHeaders: Record<string, string | undefined>) => {
+        const localFetch = vi.fn(async (_path: string, _init?: RequestInit) => okResponse())
+        const client = createAuthClient(authClientTransport({
+          isServer: true,
+          origin: HOSTILE_ORIGIN,
+          configuredOrigin: CONFIGURED_ORIGIN,
+          requestHeaders,
+          localFetch
+        }))
+        const headersOf = (call: number) => localFetch.mock.calls[call]![1]?.headers as Record<string, string>
+        return { client, headersOf }
+      }
+
+      const withoutOriginOrReferer = { host: 'canary-host.invalid', cookie: inboundHeaders.cookie }
+
+      it('sends the configured origin with a set-active that has neither Origin nor Referer', async () => {
+        const { client, headersOf } = configuredClient(withoutOriginOrReferer)
+
+        await client.$fetch('/organization/set-active', { method: 'POST', body: { organizationId: 'org-2' } })
+
+        expect(headersOf(0).origin).toBe(CONFIGURED_ORIGIN)
+        expect(headersOf(0)).not.toHaveProperty('referer')
+      })
+
+      it('sends no origin with any other POST', async () => {
+        const { client, headersOf } = configuredClient(withoutOriginOrReferer)
+
+        await client.$fetch('/sign-out', { method: 'POST', body: {} })
+        await client.$fetch('/organization/create', { method: 'POST', body: { name: 'Acme', slug: 'acme' } })
+
+        expect(headersOf(0)).not.toHaveProperty('origin')
+        expect(headersOf(1)).not.toHaveProperty('origin')
+      })
+
+      it('sends no origin with a GET to the set-active path', async () => {
+        const { client, headersOf } = configuredClient(withoutOriginOrReferer)
+
+        await client.$fetch('/organization/set-active', { method: 'GET' })
+
+        expect(headersOf(0)).not.toHaveProperty('origin')
+      })
+
+      it('keeps an inbound Origin unchanged', async () => {
+        const { client, headersOf } = configuredClient({ ...withoutOriginOrReferer, origin: 'https://evil.example' })
+
+        await client.$fetch('/organization/set-active', { method: 'POST', body: { organizationId: 'org-2' } })
+
+        expect(headersOf(0).origin).toBe('https://evil.example')
+      })
+
+      it('adds no origin when the request carries a Referer', async () => {
+        const { client, headersOf } = configuredClient({ ...withoutOriginOrReferer, referer: 'https://evil.example/page' })
+
+        await client.$fetch('/organization/set-active', { method: 'POST', body: { organizationId: 'org-2' } })
+
+        expect(headersOf(0)).not.toHaveProperty('origin')
+        expect(headersOf(0).referer).toBe('https://evil.example/page')
+      })
+    })
+
     it('fails instead of reaching the network when no local fetch is available', async () => {
       const client = createAuthClient(authClientTransport({
         isServer: true,
@@ -253,6 +318,18 @@ describe('authClientTransport', () => {
 
       await expect(client.$fetch('/get-session')).rejects.toThrow(/in-process/)
       expect(networkFetch).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('configuredOrigin', () => {
+    it('keeps only the origin of the configured app URL', () => {
+      expect(configuredOrigin('https://app.example.test/base/')).toBe('https://app.example.test')
+    })
+
+    it('gives nothing for an empty or invalid app URL', () => {
+      expect(configuredOrigin('')).toBeUndefined()
+      expect(configuredOrigin(undefined)).toBeUndefined()
+      expect(configuredOrigin('not a url')).toBeUndefined()
     })
   })
 
