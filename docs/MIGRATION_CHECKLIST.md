@@ -279,6 +279,14 @@ reports the same skipped counts, since skipped keys are not changed.
   whose owner is no longer `owner` or `admin` of the organization, no longer appear and must be
   recreated by an owner or admin.
 
+New keys are linked when they are created. Only an `owner` or `admin` of the organization named
+in the request's `metadata.organizationId` may create one. Creating the key and linking it are
+not one transaction: if the link cannot be written, the request fails without returning the key,
+and the stored key stays unlisted with no one holding its plaintext (it fails closed). The API key plugin's own
+`/api-key/get`, `/api-key/list`, `/api-key/update` and `/api-key/delete` endpoints are disabled:
+keys are listed and revoked through `/api/organization/api-keys`, which check the caller's role
+in the key's organization.
+
 ---
 
 ## Deployment

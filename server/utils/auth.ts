@@ -8,6 +8,7 @@ import { and, eq } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
 import * as schema from '~~/server/db/schema'
 import { ac, admin, member, owner } from '~~/shared/utils/permissions'
+import { createdApiKeyId, isApiKeyManagerRole, parseLegacyOrganizationId } from './apiKeyMetadata'
 import { logAuditEvent } from './auditLogger'
 import { getDB } from './db'
 import { cacheClient, getResendClient } from './drivers'
@@ -28,9 +29,20 @@ const emailSender = () => `${runtimeConfig.public.appName} <${runtimeConfig.publ
  * resumed through /api/stripe/cancel and /api/stripe/resume, which check
  * that the subscription belongs to the caller's organization; the billing
  * plugin's own endpoints for the same actions do not, so they are off.
+ * Organization API keys are listed and revoked through
+ * /api/organization/api-keys, which check the caller's role in the key's
+ * organization; the API key plugin's get, list, update and delete
+ * endpoints only check that the caller created the key, so they are off.
  * Paths are relative to the /api/auth base path.
  */
-export const DISABLED_AUTH_PATHS: readonly string[] = ['/subscription/cancel', '/subscription/restore']
+export const DISABLED_AUTH_PATHS: readonly string[] = [
+  '/subscription/cancel',
+  '/subscription/restore',
+  '/api-key/get',
+  '/api-key/list',
+  '/api-key/update',
+  '/api-key/delete'
+]
 
 /**
  * Answers 404 for a disabled endpoint. `disabledPaths` compares the raw
@@ -84,6 +96,58 @@ async function refuseForeignSubscriptionUpgrade(ctx: AuthMiddlewareContext) {
   })
   if (!isSubscriptionOwnedByReference(rows, referenceId)) {
     throw new APIError('NOT_FOUND')
+  }
+}
+
+/**
+ * An API key belongs to the organization its metadata names, so only an
+ * owner or admin of that organization may create it. Runs before the
+ * endpoint validates its body. Anonymous callers get 401; a missing
+ * organization, a non-member and a member with another role all get the
+ * same 403. Server-side calls without a session are refused as well.
+ */
+async function requireApiKeyCreationRights(ctx: AuthMiddlewareContext) {
+  const session = await getSessionFromCtx(ctx)
+  if (!session) {
+    throw new APIError('UNAUTHORIZED')
+  }
+  const forbidden = () => new APIError('FORBIDDEN', { message: 'You cannot create API keys for this organization' })
+  const organizationId = parseLegacyOrganizationId(ctx.body?.metadata)
+  if (!organizationId) {
+    throw forbidden()
+  }
+  const membership = await ctx.context.adapter.findOne<{ role: string }>({
+    model: 'member',
+    where: [
+      { field: 'organizationId', value: organizationId },
+      { field: 'userId', value: session.user.id }
+    ]
+  })
+  if (!isApiKeyManagerRole(membership?.role)) {
+    throw forbidden()
+  }
+}
+
+/**
+ * Records the organization of a key the endpoint just created. The
+ * creation and this insert are not one transaction. When the insert
+ * fails, the answer becomes an error so the plaintext key never reaches
+ * the client: the key row stays unlisted and no one holds its plaintext, which
+ * fails closed. `returned` carries the plaintext key: read its id only,
+ * and never log or serialize it.
+ */
+async function linkCreatedApiKey(ctx: AuthMiddlewareContext) {
+  const apiKeyId = createdApiKeyId(ctx.context.returned)
+  const organizationId = parseLegacyOrganizationId(ctx.body?.metadata)
+  if (!apiKeyId || !organizationId) {
+    return
+  }
+  try {
+    await getDB().insert(schema.apiKeyOrganization).values({ apiKeyId, organizationId })
+  } catch (error) {
+    // The insert holds ids only, so its error cannot carry the plaintext.
+    console.error(`Failed to link API key ${apiKeyId} to its organization:`, error)
+    throw new APIError('INTERNAL_SERVER_ERROR', { message: 'The API key could not be created' })
   }
 }
 
@@ -447,6 +511,9 @@ export const createBetterAuth = () => betterAuth({
       if (ctx.path === '/subscription/upgrade') {
         await refuseForeignSubscriptionUpgrade(ctx)
       }
+      if (ctx.path === '/api-key/create') {
+        await requireApiKeyCreationRights(ctx)
+      }
     }),
     after: createAuthMiddleware(async (ctx) => {
       const ipAddress = ctx.getHeader('x-forwarded-for')
@@ -509,6 +576,9 @@ export const createBetterAuth = () => betterAuth({
             status: 'success'
           })
         }
+      }
+      if (ctx.path === '/api-key/create') {
+        await linkCreatedApiKey(ctx)
       }
     })
   },

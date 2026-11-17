@@ -38,7 +38,27 @@ export type ApiKeyBackfillOutcome
     | 'skipped-unknown-org'
     | 'skipped-not-manager'
 
-const API_KEY_MANAGER_ROLES: readonly string[] = ['owner', 'admin']
+/**
+ * Organization roles that may create, list and revoke the organization's
+ * API keys. The stored role must match exactly: a role list or another
+ * casing does not count.
+ */
+export const API_KEY_MANAGER_ROLES = ['owner', 'admin'] as const
+
+export function isApiKeyManagerRole(role: string | null | undefined): boolean {
+  return typeof role === 'string' && (API_KEY_MANAGER_ROLES as readonly string[]).includes(role)
+}
+
+/**
+ * The id of the key an API key creation returned, or null when it
+ * returned an error or anything without a usable id. Reads the id only:
+ * the same object carries the plaintext key, which must not be kept.
+ */
+export function createdApiKeyId(returned: unknown): string | null {
+  if (!isRecord(returned) || returned instanceof Error)
+    return null
+  return typeof returned.id === 'string' && returned.id !== '' ? returned.id : null
+}
 
 /**
  * Decides what the backfill does with one legacy API key. Legacy metadata
@@ -58,7 +78,7 @@ export function decideApiKeyBackfill(input: {
     return 'skipped-invalid'
   if (!input.organizationExists)
     return 'skipped-unknown-org'
-  if (input.ownerRole === null || !API_KEY_MANAGER_ROLES.includes(input.ownerRole))
+  if (!isApiKeyManagerRole(input.ownerRole))
     return 'skipped-not-manager'
   return 'link'
 }

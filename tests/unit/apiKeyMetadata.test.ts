@@ -1,5 +1,6 @@
+import { APIError } from 'better-auth/api'
 import { describe, expect, it } from 'vitest'
-import { decideApiKeyBackfill, parseLegacyOrganizationId } from '~~/server/utils/apiKeyMetadata'
+import { createdApiKeyId, decideApiKeyBackfill, isApiKeyManagerRole, parseLegacyOrganizationId } from '~~/server/utils/apiKeyMetadata'
 
 describe('parseLegacyOrganizationId', () => {
   it.each([
@@ -68,5 +69,43 @@ describe('decideApiKeyBackfill', () => {
     ['holding a differently cased role', 'Owner']
   ])('skips a key whose owner is %s', (_label, ownerRole) => {
     expect(decideApiKeyBackfill({ ...linkable, ownerRole })).toBe('skipped-not-manager')
+  })
+})
+
+describe('isApiKeyManagerRole', () => {
+  it.each(['owner', 'admin'])('lets the exact role %s manage API keys', (role) => {
+    expect(isApiKeyManagerRole(role)).toBe(true)
+  })
+
+  it.each([
+    ['an ordinary member', 'member'],
+    ['no membership', null],
+    ['no role', undefined],
+    ['a role list', 'owner,admin'],
+    ['a differently cased role', 'Admin']
+  ])('refuses %s', (_label, role) => {
+    expect(isApiKeyManagerRole(role)).toBe(false)
+  })
+})
+
+describe('createdApiKeyId', () => {
+  it('reads the id of a created key', () => {
+    expect(createdApiKeyId({ id: 'key-1', key: 'plaintext', name: 'ci' })).toBe('key-1')
+  })
+
+  it('ignores an error answer, whatever it carries', () => {
+    const error = Object.assign(new APIError('BAD_REQUEST'), { id: 'key-1' })
+    expect(createdApiKeyId(error)).toBeNull()
+  })
+
+  it.each([
+    ['nothing', undefined],
+    ['null', null],
+    ['an object without id', { key: 'plaintext' }],
+    ['a blank id', { id: '' }],
+    ['a numeric id', { id: 1 }],
+    ['a string', 'key-1']
+  ])('ignores %s', (_label, returned) => {
+    expect(createdApiKeyId(returned)).toBeNull()
   })
 })
