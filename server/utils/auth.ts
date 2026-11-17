@@ -630,7 +630,7 @@ export const createBetterAuth = () => betterAuth({
   ]
 })
 
-let _auth: ReturnType<typeof betterAuth>
+let _auth: ReturnType<typeof createBetterAuth>
 
 if (isAuthSchemaCommand) {
   _auth = createBetterAuth()
