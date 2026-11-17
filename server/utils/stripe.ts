@@ -52,7 +52,8 @@ export const createStripeClient = () => {
       statusMessage: 'Billing is not configured'
     })
   }
-  return new Stripe(runtimeConfig.stripeSecretKey!)
+  // The SDK's pinned version (node_modules/stripe/esm/apiVersion.js), which it also sends when omitted.
+  return new Stripe(runtimeConfig.stripeSecretKey!, { apiVersion: Stripe.API_VERSION })
 }
 
 export const ensureStripeCustomer = async (organizationId: string) => {
