@@ -122,6 +122,28 @@ describe('organization API key routes', () => {
       expect(where.params).toEqual(['org-1'])
     })
 
+    it('answers display fields only, never the key hash, owner or metadata', async () => {
+      selectedRows.current = [{
+        id: 'key-1',
+        name: 'ci',
+        start: 'abcdef',
+        prefix: null,
+        enabled: true,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+        lastRequest: null,
+        expiresAt: null,
+        key: 'hashed-secret',
+        userId: 'user-1',
+        metadata: '{"organizationId":"org-1"}'
+      }]
+      const displayFields = ['createdAt', 'enabled', 'expiresAt', 'id', 'lastRequest', 'name', 'prefix', 'start']
+
+      const [listed] = await listKeys('org-1')
+
+      expect(Object.keys(selectQueries[0]!.columns).sort()).toEqual(displayFields)
+      expect(Object.keys(listed as object).sort()).toEqual(displayFields)
+    })
+
     it('lists a key only through its organization link, so an unlinked legacy key is never listed', async () => {
       await listKeys('org-1')
 

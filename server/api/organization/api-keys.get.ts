@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { apiKey, apiKeyOrganization } from '~~/server/db/schema'
 import { requireApiKeyManager } from '~~/server/utils/apiKeyAccess'
+import { toApiKeyDto } from '~~/server/utils/apiKeyDto'
 import { requireAuthSession } from '~~/server/utils/billing'
 import { useDB } from '~~/server/utils/db'
 
@@ -17,7 +18,7 @@ export default defineEventHandler(async (event) => {
   // A key is listed only through its exact organization link. Legacy keys
   // that were not backfilled have no link and are never listed.
   const db = await useDB()
-  return db
+  const rows = await db
     .select({
       id: apiKey.id,
       name: apiKey.name,
@@ -31,4 +32,6 @@ export default defineEventHandler(async (event) => {
     .from(apiKey)
     .innerJoin(apiKeyOrganization, eq(apiKeyOrganization.apiKeyId, apiKey.id))
     .where(eq(apiKeyOrganization.organizationId, organizationId))
+
+  return rows.map(toApiKeyDto)
 })
