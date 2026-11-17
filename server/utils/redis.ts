@@ -3,10 +3,11 @@ import type { Redis } from 'ioredis'
 type Env = Record<string, string | undefined>
 
 /**
- * Redis URL NuxtHub picks for its KV driver, with the same precedence as
- * `resolveKVConfig` in `@nuxthub/core` 0.10 (`dist/module.mjs`): `REDIS_URL`,
- * else a `KV_URL` that starts with `rediss://`. Upstash REST variables are
- * not a Redis URL and are ignored here.
+ * Redis URL NuxtHub would pick for its KV driver, with the same Redis URL
+ * selection as `resolveKVConfig` in `@nuxthub/core` 0.10
+ * (`dist/module.mjs`): `REDIS_URL`, else a `KV_URL` that starts with
+ * `rediss://`. Unlike NuxtHub, it ignores an explicit `hub.kv` driver and
+ * the Upstash REST variables, which NuxtHub checks first.
  */
 export const resolveRedisUrl = (env: Env): string | null => {
   if (env.REDIS_URL) {
@@ -23,28 +24,40 @@ export const resolveRedisUrl = (env: Env): string | null => {
 // instead of hanging it.
 const COMMAND_TIMEOUT_MS = 2000
 
+/**
+ * Redis client with the application's timeouts and error listener.
+ * ioredis is only loaded here, when a URL is actually used.
+ */
+export const createRedisClient = async (url: string): Promise<Redis> => {
+  const { Redis } = await import('ioredis')
+  const client = new Redis(url, {
+    maxRetriesPerRequest: 1,
+    connectTimeout: COMMAND_TIMEOUT_MS,
+    commandTimeout: COMMAND_TIMEOUT_MS
+  })
+  client.on('error', (error) => {
+    console.error('Redis client error:', error.message)
+  })
+  return client
+}
+
 let redisClient: Promise<Redis | null> | undefined
 
 /**
  * Shared Redis client built from the run environment, or null when no
- * Redis URL is set. ioredis is only loaded when a URL is present.
+ * Redis URL is set.
  */
 export const getRedisClient = (): Promise<Redis | null> => {
   redisClient ??= (async () => {
     const url = resolveRedisUrl(process.env)
-    if (!url) {
-      return null
-    }
-    const { Redis } = await import('ioredis')
-    const client = new Redis(url, {
-      maxRetriesPerRequest: 1,
-      connectTimeout: COMMAND_TIMEOUT_MS,
-      commandTimeout: COMMAND_TIMEOUT_MS
-    })
-    client.on('error', (error) => {
-      console.error('Redis client error:', error.message)
-    })
-    return client
+    return url ? createRedisClient(url) : null
   })()
   return redisClient
+}
+
+/** Test-only: closes the shared client and lets the next call build a new one. */
+export const resetRedisClient = async (): Promise<void> => {
+  const client = await redisClient
+  redisClient = undefined
+  await client?.quit()
 }

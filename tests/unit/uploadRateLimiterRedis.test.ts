@@ -1,8 +1,9 @@
+import type { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
-import { Redis } from 'ioredis'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { UploadRateLimiter } from '~~/server/services/file/rateLimiter'
 import { createRedisStore } from '~~/server/services/file/rateLimitStores'
+import { createRedisClient, resetRedisClient } from '~~/server/utils/redis'
 
 // Runs against a real Redis given by REDIS_URL. CI provides one: there the
 // suite fails instead of skipping when the variable is missing.
@@ -13,11 +14,17 @@ const WINDOW_MINUTES = 10
 const WINDOW_MS = WINDOW_MINUTES * 60 * 1000
 
 describe.skipIf(!redisUrl && !inCi)('the upload rate limiter against Redis', () => {
-  const redis = redisUrl ? new Redis(redisUrl, { maxRetriesPerRequest: 1, commandTimeout: 2000 }) : null
+  // The client the application builds, with its timeouts and listeners.
+  let redis: Redis | null = null
   const prefix = `rl-test-${randomUUID()}`
+
+  beforeAll(async () => {
+    redis = redisUrl ? await createRedisClient(redisUrl) : null
+  })
 
   afterAll(async () => {
     await redis?.quit()
+    await resetRedisClient()
   })
 
   const connected = () => {
@@ -73,5 +80,18 @@ describe.skipIf(!redisUrl && !inCi)('the upload rate limiter against Redis', () 
     expect(await limiter.checkAndIncrement(userId, 3)).toEqual({ allowed: false, currentCount: 3 })
     expect(await limiter.checkAndIncrement(userId, 2)).toEqual({ allowed: true, currentCount: 5 })
     expect(await limiter.getCurrentCount(userId)).toBe(5)
+  })
+
+  it('goes through Redis when the limiter is built without a store, as in the upload route', async () => {
+    const client = connected()
+    const userId = `${prefix}-default`
+
+    const result = await new UploadRateLimiter(WINDOW_MINUTES, 5).checkAndIncrement(userId)
+
+    expect(result).toEqual({ allowed: true, currentCount: 1 })
+    const keys = await client.keys(`upload_rate_limit:${userId}:*`)
+    expect(keys).toHaveLength(1)
+    expect(await client.get(keys[0]!)).toBe('1')
+    await client.del(...keys)
   })
 })
