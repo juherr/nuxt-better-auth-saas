@@ -133,6 +133,12 @@ invalid: their value only exists in the KV store, so a reset link still opens th
 submit fails with `INVALID_TOKEN`, and an account deletion link fails at once. Users have to request
 a new link. Email verification and change-email links are signed tokens and keep working.
 
+An organization whose Stripe customer has a subscription that is not canceled (active, trialing,
+past due…) can no longer be deleted: the Stripe plugin refuses with
+`ORGANIZATION_HAS_ACTIVE_SUBSCRIPTION`, and the settings page says so. Canceling from the billing
+page keeps the subscription active until the end of the period, so deletion only works after that.
+The check calls Stripe, so a Stripe outage also blocks deleting an organization that has a customer.
+
 ### Environment Variables
 
 **Important:** Set `NUXT_APP_URL` to your production URL for Better Auth to work correctly.

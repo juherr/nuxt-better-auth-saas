@@ -1,0 +1,30 @@
+{
+  "en": {
+    "dangerZone": {
+      "errors": {
+        "activeSubscription": "This organization still has an active subscription. Cancel it and wait for the current billing period to end before deleting the organization."
+      }
+    }
+  },
+  "zh-CN": {
+    "dangerZone": {
+      "errors": {
+        "activeSubscription": "该组织仍有有效的订阅。请先取消订阅，并等待当前计费周期结束后再删除该组织。"
+      }
+    }
+  },
+  "ja": {
+    "dangerZone": {
+      "errors": {
+        "activeSubscription": "この組織にはまだ有効なサブスクリプションがあります。サブスクリプションを解約し、現在の請求期間が終了してから組織を削除してください。"
+      }
+    }
+  },
+  "fr": {
+    "dangerZone": {
+      "errors": {
+        "activeSubscription": "Cette organisation a encore un abonnement actif. Résiliez-le et attendez la fin de la période de facturation en cours avant de supprimer l'organisation."
+      }
+    }
+  }
+}
