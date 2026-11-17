@@ -2,7 +2,7 @@ import type { H3Event } from 'h3'
 import type { User } from '~~/shared/utils/types'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { APIError, createAuthMiddleware, getOAuthState } from 'better-auth/api'
+import { APIError, createAuthMiddleware, getOAuthState, getSessionFromCtx } from 'better-auth/api'
 import { admin as adminPlugin, apiKey, openAPI, organization } from 'better-auth/plugins'
 import { and, eq } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
@@ -39,6 +39,50 @@ export const DISABLED_AUTH_PATHS: readonly string[] = ['/subscription/cancel', '
  */
 export function refuseDisabledEndpoint(endpointPath: string) {
   if (DISABLED_AUTH_PATHS.includes(endpointPath)) {
+    throw new APIError('NOT_FOUND')
+  }
+}
+
+type AuthMiddlewareContext = Parameters<Parameters<typeof createAuthMiddleware>[0]>[0]
+
+/**
+ * Whether the subscription rows found for a subscription id all belong to
+ * the reference (user or organization) the request acts for. No row means
+ * no subscription to act on.
+ */
+export function isSubscriptionOwnedByReference(rows: readonly { referenceId: string }[], referenceId: string) {
+  return rows.length > 0 && rows.every(row => row.referenceId === referenceId)
+}
+
+/**
+ * The billing plugin's upgrade endpoint authorizes the reference it acts
+ * for, but loads a subscription named in the body by its id alone. Before
+ * the endpoint runs, check that the subscription it will load belongs to
+ * that reference, matching rows exactly as the plugin does, and answer the
+ * same generic 404 otherwise. Requests that name no subscription and
+ * anonymous requests are left to the endpoint.
+ */
+async function refuseForeignSubscriptionUpgrade(ctx: AuthMiddlewareContext) {
+  const subscriptionId = ctx.body?.subscriptionId
+  if (!subscriptionId) {
+    return
+  }
+  const session = await getSessionFromCtx(ctx)
+  if (!session) {
+    return
+  }
+  if (typeof subscriptionId !== 'string') {
+    throw new APIError('NOT_FOUND')
+  }
+  const referenceId = ctx.body.referenceId || session.user.id
+  const rows = await ctx.context.adapter.findMany<{ referenceId: string }>({
+    model: 'subscription',
+    where: [
+      { field: 'id', value: subscriptionId, connector: 'OR' },
+      { field: 'stripeSubscriptionId', value: subscriptionId, connector: 'OR' }
+    ]
+  })
+  if (!isSubscriptionOwnedByReference(rows, referenceId)) {
     throw new APIError('NOT_FOUND')
   }
 }
@@ -400,6 +444,9 @@ export const createBetterAuth = () => betterAuth({
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
       refuseDisabledEndpoint(ctx.path)
+      if (ctx.path === '/subscription/upgrade') {
+        await refuseForeignSubscriptionUpgrade(ctx)
+      }
     }),
     after: createAuthMiddleware(async (ctx) => {
       const ipAddress = ctx.getHeader('x-forwarded-for')

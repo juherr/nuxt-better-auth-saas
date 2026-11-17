@@ -29,6 +29,13 @@ vi.mock('~~/server/utils/email', () => ({
 }))
 vi.mock('~~/server/utils/stripeEmails', () => ({}))
 vi.mock('~~/server/utils/subscription-handlers', () => ({ removeExcessMembersOnExpiration: vi.fn() }))
+// Real requests reach the before hook without a session; the hook resolves it
+// itself. Keep the real behaviour when a test provides one, and answer
+// "anonymous" otherwise instead of calling the real session endpoint.
+vi.mock('better-auth/api', async importOriginal => ({
+  ...await importOriginal<typeof import('better-auth/api')>(),
+  getSessionFromCtx: vi.fn(async (ctx: any) => ctx.context?.session ?? null)
+}))
 
 vi.stubGlobal('createError', (input: { statusCode: number, statusMessage: string }) =>
   Object.assign(new Error(input.statusMessage), input))
@@ -109,6 +116,91 @@ describe('optional services', () => {
 
       await expect(options.hooks.before({ path: '/subscription/cancel' })).rejects.toMatchObject({ statusCode: 404 })
       await expect(options.hooks.before({ path: '/subscription/upgrade' })).resolves.toBeUndefined()
+    })
+
+    describe('upgrading a named subscription', () => {
+      const session = { user: { id: 'user-1' }, session: { id: 'session-1' } }
+
+      function upgradeRequest(body: Record<string, unknown> | undefined, rows: Array<{ referenceId: string }>, withSession = true) {
+        const findMany = vi.fn(async () => rows)
+        return {
+          findMany,
+          ctx: {
+            path: '/subscription/upgrade',
+            body,
+            context: { session: withSession ? session : null, adapter: { findMany } }
+          }
+        }
+      }
+
+      it('decides ownership only when every matching row belongs to the reference', async () => {
+        const { isSubscriptionOwnedByReference } = await import('~~/server/utils/auth')
+
+        expect(isSubscriptionOwnedByReference([{ referenceId: 'org-1' }], 'org-1')).toBe(true)
+        expect(isSubscriptionOwnedByReference([{ referenceId: 'org-1' }, { referenceId: 'org-1' }], 'org-1')).toBe(true)
+        expect(isSubscriptionOwnedByReference([], 'org-1')).toBe(false)
+        expect(isSubscriptionOwnedByReference([{ referenceId: 'org-2' }], 'org-1')).toBe(false)
+        expect(isSubscriptionOwnedByReference([{ referenceId: 'org-1' }, { referenceId: 'org-2' }], 'org-1')).toBe(false)
+      })
+
+      it('answers 404 and stops before the endpoint when the subscription belongs to another reference', async () => {
+        const options = await authOptions()
+        const { ctx } = upgradeRequest({ plan: 'pro', referenceId: 'org-1', subscriptionId: 'sub-a' }, [{ referenceId: 'org-2' }])
+
+        await expect(options.hooks.before(ctx)).rejects.toMatchObject({ statusCode: 404 })
+      })
+
+      it('answers 404 when no subscription matches the id', async () => {
+        const options = await authOptions()
+        const { ctx } = upgradeRequest({ plan: 'pro', referenceId: 'org-1', subscriptionId: 'sub-unknown' }, [])
+
+        await expect(options.hooks.before(ctx)).rejects.toMatchObject({ statusCode: 404 })
+      })
+
+      it('looks the subscription up the way the billing plugin does', async () => {
+        const options = await authOptions()
+        const { ctx, findMany } = upgradeRequest({ plan: 'pro', referenceId: 'org-1', subscriptionId: 'sub-a' }, [{ referenceId: 'org-1' }])
+
+        await expect(options.hooks.before(ctx)).resolves.toBeUndefined()
+        expect(findMany).toHaveBeenCalledWith({
+          model: 'subscription',
+          where: [
+            { field: 'id', value: 'sub-a', connector: 'OR' },
+            { field: 'stripeSubscriptionId', value: 'sub-a', connector: 'OR' }
+          ]
+        })
+      })
+
+      it('lets the upgrade through when the subscription belongs to the user, the default reference', async () => {
+        const options = await authOptions()
+        const { ctx } = upgradeRequest({ plan: 'pro', subscriptionId: 'sub-a' }, [{ referenceId: 'user-1' }])
+
+        await expect(options.hooks.before(ctx)).resolves.toBeUndefined()
+      })
+
+      it('lets an upgrade without a subscription id through without any lookup', async () => {
+        const options = await authOptions()
+        const { ctx, findMany } = upgradeRequest({ plan: 'pro', referenceId: 'org-1' }, [{ referenceId: 'org-2' }])
+
+        await expect(options.hooks.before(ctx)).resolves.toBeUndefined()
+        expect(findMany).not.toHaveBeenCalled()
+      })
+
+      it('leaves an anonymous request to the endpoint\'s own session check', async () => {
+        const options = await authOptions()
+        const { ctx, findMany } = upgradeRequest({ plan: 'pro', subscriptionId: 'sub-a' }, [{ referenceId: 'org-2' }], false)
+
+        await expect(options.hooks.before(ctx)).resolves.toBeUndefined()
+        expect(findMany).not.toHaveBeenCalled()
+      })
+
+      it('does not check subscriptions on other endpoints', async () => {
+        const options = await authOptions()
+        const { ctx, findMany } = upgradeRequest({ subscriptionId: 'sub-a' }, [{ referenceId: 'org-2' }])
+
+        await expect(options.hooks.before({ ...ctx, path: '/subscription/list' })).resolves.toBeUndefined()
+        expect(findMany).not.toHaveBeenCalled()
+      })
     })
 
     it('answers 503 instead of crashing when a client is requested without a key', async () => {
