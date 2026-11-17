@@ -23,6 +23,11 @@ describe.skipIf(!redisUrl && !inCi)('the upload rate limiter against Redis', () 
   })
 
   afterAll(async () => {
+    // Every test key embeds the prefix: drop them all, whatever passed.
+    const keys = await redis?.keys(`upload_rate_limit:${prefix}-*`) ?? []
+    if (keys.length > 0) {
+      await redis!.del(...keys)
+    }
     await redis?.quit()
     await resetRedisClient()
   })
