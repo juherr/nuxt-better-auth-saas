@@ -14,7 +14,7 @@ Multiple API calls on every page load:
 ### Solution
 
 #### 1. Unified Page Data Endpoint
-Created `/api/organization/page-data` that returns:
+Created `/api/organization/full-data` that returns:
 ```json
 {
   "organization": { /* full org with members, invitations */ },
@@ -23,7 +23,7 @@ Created `/api/organization/page-data` that returns:
 ```
 
 #### 2. Shared Cache Strategy
-- Layout and billing page use the **same cache key**: `layout-data-${slug}`
+- Layout and billing page use the **same cache key**: `layout-org-${slug}`
 - Layout fetches once, billing reuses the cached data
 - **Result:** 1 call instead of 3
 
@@ -37,25 +37,25 @@ Created `/api/organization/page-data` that returns:
 ### On Initial Page Load (Billing):
 ```
 1. /api/organization/list (cached as 'user-organizations')
-2. /api/organization/page-data (cached as 'layout-data-{slug}')
+2. /api/organization/full-data (cached as 'layout-org-{slug}')
 ```
 
 ### On Subsequent Navigation:
 ```
 1. Uses cached 'user-organizations' (no call)
-2. Uses cached 'layout-data-{slug}' (no call)
+2. Uses cached 'layout-org-{slug}' (no call)
 ```
 
 ### On Organization Switch:
 ```
 1. Uses cached 'user-organizations' (no call)
-2. /api/organization/page-data (new slug, new cache entry)
+2. /api/organization/full-data (new slug, new cache entry)
 ```
 
 ## Files Modified
 
 ### Server
-- ✅ `/server/api/organization/page-data.get.ts` - New unified endpoint
+- ✅ `/server/api/organization/full-data.get.ts` - Unified endpoint, reads the database directly
 
 ### App
 - ✅ `/app/layouts/dashboard.vue` - Uses unified endpoint
@@ -89,7 +89,7 @@ These are intentional and necessary:
    - Used by: Middleware, OrganizationSwitcher
    - Purpose: List all user's organizations for switching
 
-2. **`/api/organization/page-data`** - Cached per slug
+2. **`/api/organization/full-data`** - Cached per slug
    - Used by: Layout, Billing page
    - Purpose: Get current org + subscriptions
 
@@ -101,7 +101,7 @@ These are intentional and necessary:
 ## Cache Keys
 
 - `user-organizations` - List of all user's orgs
-- `layout-data-${slug}` - Current org + subscriptions per slug
+- `layout-org-${slug}` - Current org + subscriptions per slug
 
 ## Testing
 
