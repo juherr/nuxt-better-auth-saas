@@ -10,9 +10,9 @@
   non-members and wrong roles; wrappers `requireApiKeyManager`, `requireOwnedSubscription`. Map 403 to 404
   when the resource's existence must not leak (`api/organization/api-keys/[id].delete.ts`).
 - `/api/admin*` is guarded once by `middleware/1.auth.ts` (admin role); admin routes add no check.
-- DB: `const db = await useDB()` in routes; `getDB()` (sync) only outside routes (auth hooks, audit) and
-  built without schema: query builder only, no `db.query.*` (#22).
-  Tables from `~~/server/db/schema`, Drizzle `db.query.<table>.findFirst` with `eq`/`and`.
+- DB: `const db = await useDB()` in routes — tables from `~~/server/db/schema`, Drizzle
+  `db.query.<table>.findFirst` with `eq`/`and`. `getDB()` (sync) only outside routes (auth hooks, audit);
+  it is built without schema: query builder only, no `db.query.*` (#22).
 - Errors: `throw createError({ statusCode, statusMessage })`; reusable ones as factories
   (`const keyNotFound = () => createError(...)`).
 - Validation: zod via `getValidatedQuery(event, schema.parse)` in admin routes (`utils/query.ts` filters);
