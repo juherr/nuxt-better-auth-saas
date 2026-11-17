@@ -139,6 +139,28 @@ configured database. It answers `503` with `{ "status": "error" }` when no datab
 when the query fails, or when it does not answer within 2 seconds, and logs the cause on the server
 only. Use it as the readiness probe of a load balancer or a container.
 
+### Reverse proxy
+
+Set the public URL explicitly: `NUXT_APP_URL` at build time, or `NUXT_PUBLIC_BASE_URL` when the
+server starts. The server passes it to Better Auth as `baseURL` and adds it to the trusted origins
+(`server/utils/auth.ts`), and builds the links of emails and of the Stripe portal from it. When it
+is empty, Better Auth (1.4.1) falls back to the `BETTER_AUTH_URL` environment variable, then to
+the `X-Forwarded-Host` and `X-Forwarded-Proto` headers of a request, then to that request's URL,
+and keeps the first value it derives for the life of the process.
+
+Nitro (h3 1.15) derives the origin of a request with `getRequestURL`: the host comes from the
+`Host` header, and `X-Forwarded-Host` is read only when a caller passes `xForwardedHost: true`
+(off by default). The protocol is `https` when `X-Forwarded-Proto` is `https`, unless a caller
+passes `xForwardedProto: false`. Nuxt's `useRequestURL()` uses these defaults.
+
+Only trust `X-Forwarded-*` headers set by your own proxy:
+
+- do not expose the Node port directly; let only the proxy reach it;
+- have the proxy overwrite `X-Forwarded-Host`, `X-Forwarded-Proto` and `X-Forwarded-For` with its
+  own values rather than append to what the client sent (the server records `X-Forwarded-For`
+  as received as the IP address of auth events);
+- forward only the public hostname in `Host`, and reject requests for other hosts.
+
 ### Supported configurations
 
 | Configuration | What works | What is disabled |
