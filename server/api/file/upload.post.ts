@@ -106,7 +106,7 @@ export default defineEventHandler(async (event) => {
     const file = await fileService.uploadFile(
       fileData.data,
       fileData.filename!,
-      content.type.mimeType,
+      content.type,
       user.id,
       getRequestIP(event),
       getHeader(event, 'user-agent')

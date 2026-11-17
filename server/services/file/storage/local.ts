@@ -1,7 +1,7 @@
 import type { Buffer } from 'node:buffer'
 import type { StorageProvider } from '../types'
 import { promises as fs } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, resolve, sep } from 'node:path'
 
 export class LocalStorageProvider implements StorageProvider {
   name = 'local'
@@ -13,11 +13,24 @@ export class LocalStorageProvider implements StorageProvider {
     this.publicPath = publicPath
   }
 
-  async upload(file: Buffer, fileName: string): Promise<{ path: string, url?: string }> {
-    const filePath = join(this.uploadDir, fileName)
-    const dir = dirname(filePath)
+  /**
+   * Absolute path of `path` inside the upload directory.
+   *
+   * @throws {Error} when `path` resolves to the directory itself or outside it.
+   */
+  private resolveInside(path: string): string {
+    const root = resolve(this.uploadDir)
+    const filePath = resolve(root, path)
+    if (!filePath.startsWith(root + sep)) {
+      throw new Error('Storage path is outside the upload directory')
+    }
+    return filePath
+  }
 
-    await fs.mkdir(dir, { recursive: true })
+  async upload(file: Buffer, fileName: string): Promise<{ path: string, url?: string }> {
+    const filePath = this.resolveInside(fileName)
+
+    await fs.mkdir(dirname(filePath), { recursive: true })
     await fs.writeFile(filePath, file)
 
     return {
@@ -27,7 +40,7 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async delete(path: string): Promise<void> {
-    const filePath = join(this.uploadDir, path)
+    const filePath = this.resolveInside(path)
     try {
       await fs.unlink(filePath)
     } catch (error) {
@@ -41,9 +54,10 @@ export class LocalStorageProvider implements StorageProvider {
     return `${this.publicPath}/${path}`
   }
 
+  /** @throws {Error} when `path` is outside the upload directory. */
   async exists(path: string): Promise<boolean> {
+    const filePath = this.resolveInside(path)
     try {
-      const filePath = join(this.uploadDir, path)
       await fs.access(filePath)
       return true
     } catch {

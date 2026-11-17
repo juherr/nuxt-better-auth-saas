@@ -141,7 +141,7 @@ describe('the upload endpoint', () => {
     it('stores the type detected from the bytes', async () => {
       await upload()
 
-      expect(uploadFile.mock.calls[0]![2]).toBe('image/png')
+      expect(uploadFile.mock.calls[0]![2]).toEqual({ mimeType: 'image/png', extension: 'png' })
     })
 
     it.each([
