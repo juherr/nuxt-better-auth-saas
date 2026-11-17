@@ -6,6 +6,23 @@
   a freshly resolved lockfile can fail `pnpm install --frozen-lockfile` in CI until the next day.
 - Build scripts of dependencies are allow-listed in `pnpm-workspace.yaml` (`allowBuilds`).
 
+## Run
+- `cp .env.example .env` → `pnpm db:generate` (writes the gitignored `server/db/migrations`) →
+  `pnpm dev` (applies migrations on start; `npx nuxt db migrate` applies them alone).
+- Target is picked by `NUXT_NITRO_PRESET`: `node-server` (default; `pnpm build && pnpm serve`, see
+  `docs/SELF_HOSTING_NODE.md`) or `cloudflare-module` (`pnpm preview:cf`, `pnpm deploy`, `wrangler.example.jsonc`).
+- KV (sessions) driver is baked in at **build** time: Redis when `REDIS_URL` is set, the `KV` binding on
+  Cloudflare, else `fs-lite` under `.data/kv`; `NUXT_REDIS_URL` is read by nothing. The upload rate limiter reads `REDIS_URL` at run time.
+- Without Stripe keys, billing routes answer 503 "Billing is not configured" instead of failing.
+
+## Layout
+- `app/` Nuxt UI front (pages, components, composables; i18n: `app/i18n/global.json` + per-component
+  SFC `<i18n src="./i18n.json">`).
+- `server/api/**` routes (admin, organization, stripe, file, health) · `server/utils/` auth (better-auth
+  factory in `auth.ts`), billing, Stripe, drivers · `server/db/schema/` Drizzle schema (pg).
+- `shared/utils/` code shared by app and server (e.g. `permissions.ts` access control).
+- `emails/*.tsx` React Email templates rendered by `server/utils/email.ts`.
+
 ## Checks
 - `pnpm lint --max-warnings=0` — also the husky pre-commit hook; never `--no-verify`.
 - `pnpm test:unit` (node project) · `pnpm test:ci` (unit + nuxt components, what CI runs) ·
