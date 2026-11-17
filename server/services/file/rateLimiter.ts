@@ -41,12 +41,24 @@ export const fixedWindowBucket = (nowMs: number, windowMs: number) => {
 export class UploadRateLimiter {
   private readonly windowMs: number
 
+  /**
+   * @throws {RangeError} when `windowSizeMinutes` is not a positive finite
+   * number (fractions are allowed: runtime config may set 0.5), or when
+   * `maxUploadsPerWindow` is not a positive integer. Either would
+   * otherwise make every reservation fail and refuse all uploads.
+   */
   constructor(
     windowSizeMinutes: number,
     private readonly maxUploadsPerWindow: number,
     private readonly store: RateLimitStore = defaultRateLimitStore(),
     private readonly now: () => number = Date.now
   ) {
+    if (!Number.isFinite(windowSizeMinutes) || windowSizeMinutes <= 0) {
+      throw new RangeError('windowSizeMinutes must be a positive number')
+    }
+    if (!Number.isSafeInteger(maxUploadsPerWindow) || maxUploadsPerWindow <= 0) {
+      throw new RangeError('maxUploadsPerWindow must be a positive integer')
+    }
     this.windowMs = windowSizeMinutes * 60 * 1000
   }
 

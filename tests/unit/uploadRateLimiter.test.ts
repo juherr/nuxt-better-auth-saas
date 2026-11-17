@@ -164,3 +164,19 @@ describe('the upload rate limiter on the Redis path', () => {
     await expect(limiter.getCurrentCount('user-redis-corrupt')).rejects.toThrow('Invalid rate limit counter')
   })
 })
+
+describe('the upload rate limiter configuration', () => {
+  const store: RateLimitStore = { reserve: vi.fn(), read: vi.fn() }
+
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])('rejects a window of %s minutes', (minutes) => {
+    expect(() => new UploadRateLimiter(minutes, 5, store)).toThrow(RangeError)
+  })
+
+  it.each([0, -1, 2.5, Number.NaN, Number.POSITIVE_INFINITY])('rejects a limit of %s uploads', (max) => {
+    expect(() => new UploadRateLimiter(WINDOW_MINUTES, max, store)).toThrow(RangeError)
+  })
+
+  it('accepts a fractional window, which runtime config can supply', () => {
+    expect(() => new UploadRateLimiter(0.5, 5, store)).not.toThrow()
+  })
+})
