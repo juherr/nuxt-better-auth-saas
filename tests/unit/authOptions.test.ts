@@ -7,6 +7,8 @@ const db = vi.hoisted(() => {
   const where = vi.fn(async () => [])
   return { where, delete: vi.fn(() => ({ where })) }
 })
+const settledUpgrade = { context: { body: { plan: 'pro', customerType: 'organization', referenceId: 'org-1', seats: 3 } } }
+const checkoutSeatsOverride = vi.hoisted(() => vi.fn())
 
 vi.mock('better-auth', async importOriginal => ({
   ...await importOriginal<typeof import('better-auth')>(),
@@ -20,9 +22,46 @@ vi.mock('~~/server/utils/db', () => ({ getDB: () => db }))
 vi.mock('~~/server/utils/drivers', () => ({ cacheClient: {}, getResendClient: () => undefined }))
 vi.mock('~~/server/utils/auditLogger', () => ({ logAuditEvent: vi.fn() }))
 vi.mock('~~/server/utils/emails', () => ({}))
+vi.mock('~~/server/utils/stripe', () => ({
+  checkoutSeatsOverride,
+  createStripeClient: vi.fn(),
+  isStripeConfigured: () => false,
+  resolveUpgradeReferenceId: () => 'org-1',
+  setupStripe: vi.fn()
+}))
+// The before hook resolves the session itself: read it from the context.
+vi.mock('better-auth/api', async importOriginal => ({
+  ...await importOriginal<typeof import('better-auth/api')>(),
+  getSessionFromCtx: vi.fn(async (ctx: any) => ctx.context?.session ?? null)
+}))
 
 const { createBetterAuth } = await import('~~/server/utils/auth')
 const options = createBetterAuth() as any
+
+// authStorage.test.ts covers the values of authStorageOptions; these check
+// that createBetterAuth passes them on, since hub:kv cannot consume or count
+// atomically.
+describe('the better-auth storage options', () => {
+  it('stores verification values in the database', () => {
+    expect(options.verification?.storeInDatabase).toBe(true)
+  })
+
+  it('stores rate-limit counters in the database', () => {
+    expect(options.rateLimit?.storage).toBe('database')
+  })
+})
+
+describe('the before hook', () => {
+  it('hands an upgrade the body the checkout seats override settles', async () => {
+    checkoutSeatsOverride.mockResolvedValue(settledUpgrade)
+    const session = { user: { id: 'user-1' }, session: { id: 'session-1' } }
+
+    const result = await options.hooks.before({ path: '/subscription/upgrade', body: { plan: 'pro' }, context: { session } })
+
+    expect(result).toEqual(settledUpgrade)
+    expect(checkoutSeatsOverride).toHaveBeenCalledWith(expect.objectContaining({ body: { plan: 'pro' } }), session)
+  })
+})
 
 describe('the user delete hook', () => {
   beforeEach(() => {
