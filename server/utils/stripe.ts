@@ -213,9 +213,54 @@ export const syncSubscriptionQuantity = async (organizationId: string) => {
   }
 }
 
+/**
+ * Seats billed at checkout: members plus pending invitations, at least one.
+ */
+export const resolveCheckoutSeats = async (organizationId: string) => {
+  const db = await useDB()
+  const organization = await db.query.organization.findFirst({
+    where: eq(organizationTable.id, organizationId),
+    with: {
+      members: true,
+      invitations: true
+    }
+  })
+  if (!organization)
+    return 1
+  const memberCount = organization.members.length
+  const inviteCount = organization.invitations.filter(i => i.status === 'pending').length
+  const count = memberCount + inviteCount
+  console.log('[Stripe] Calculated Quantity:', count, 'Members:', memberCount, 'Invites:', inviteCount, 'Org:', organizationId)
+  return count > 0 ? count : 1
+}
+
+/**
+ * Better Auth `hooks.before` handler that sets the seats of an organization
+ * checkout on the server, so the client cannot choose them.
+ *
+ * @better-auth/stripe 1.7 builds the plan line item quantity from
+ * `ctx.body.seats` and drops `line_items` returned by
+ * `getCheckoutSessionParams` (dist/index.mjs, upgradeSubscription).
+ * A before hook returning `{ context: { body } }` replaces the request body
+ * (better-auth dist/api/dispatch.mjs, runBeforeHooks).
+ */
+export const checkoutSeatsOverride = async (ctx: { path?: string, body?: any }) => {
+  const body = ctx.body
+  if (ctx.path !== '/subscription/upgrade' || body?.customerType !== 'organization' || !body.referenceId)
+    return undefined
+  const seats = await resolveCheckoutSeats(body.referenceId)
+  return { context: { body: { ...body, seats } } }
+}
+
 export const setupStripe = () => stripe({
   stripeClient: createStripeClient(),
   stripeWebhookSecret: runtimeConfig.stripeWebhookSecret,
+  // Organization subscriptions bill `organization.stripeCustomerId`; 1.7
+  // rejects `customerType: 'organization'` without this option.
+  // https://better-auth.com/docs/plugins/stripe
+  organization: {
+    enabled: true
+  },
   onEvent: async (event) => {
     // Handle payment_intent.payment_failed - send email when card is declined
     if (event.type === 'payment_intent.payment_failed') {
@@ -285,51 +330,28 @@ export const setupStripe = () => stripe({
 
       return false
     },
-    getCheckoutSessionParams: async ({ session, plan }, ctx) => {
-      // Try to find referenceId from the request body or session
-      let customerId
+    getCheckoutSessionParams: async ({ session }, ctx) => {
       const body = ctx?.body as any
       const activeOrganizationId = (session as any)?.activeOrganizationId
 
       const targetOrgId = body?.referenceId || activeOrganizationId
-      let quantity = 1
 
-      if (targetOrgId) {
-        const db = await useDB()
-        // We need to look up the org by ID
-        const organization = await db.query.organization.findFirst({
-          where: eq(organizationTable.id, targetOrgId),
-          with: {
-            members: true,
-            invitations: true
-          }
-        })
-        if (organization) {
-          if (organization.stripeCustomerId) {
-            customerId = organization.stripeCustomerId
-          }
-          // Calculate quantity: Members + Pending Invites
-          // Default to 1 if count is 0 (should be at least 1 owner)
-          const memberCount = organization.members.length
-          const inviteCount = organization.invitations.filter(i => i.status === 'pending').length
-          const count = memberCount + inviteCount
-          quantity = count > 0 ? count : 1
-          console.log('[Stripe] Calculated Quantity:', quantity, 'Members:', memberCount, 'Invites:', inviteCount, 'Org:', targetOrgId)
-        }
-      }
-
-      // Build checkout params
+      // The plugin sets `customer` (organization.stripeCustomerId with
+      // customerType 'organization') and `line_items` (seats from the body,
+      // see checkoutSeatsOverride) itself and drops ours since 1.7.
       const params: any = {
-        customer: customerId, // Explicitly set the Org's customer ID
         allow_promotion_codes: true,
-        line_items: [{
-          price: plan.priceId,
-          quantity
-        }],
         tax_id_collection: {
           enabled: true
         },
         billing_address_collection: 'required',
+        // 1.7 defaults to { address: 'auto' } for organization customers;
+        // Stripe asks for name 'auto' to collect tax IDs from an existing
+        // customer (https://docs.stripe.com/tax/checkout/tax-ids).
+        customer_update: {
+          name: 'auto',
+          address: 'auto'
+        },
         metadata: {
           // Ensure metadata is preserved/set
           ...(body?.metadata || {}),

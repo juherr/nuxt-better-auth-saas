@@ -98,15 +98,15 @@ async function handleUpgrade() {
       planId = `${planId}-no-trial`
     }
 
-    await client.subscription.upgrade({
+    await client.subscription.upgrade(buildOrganizationUpgrade({
       plan: planId,
-      referenceId: props.organizationId,
+      organizationId: props.organizationId,
       metadata: {
         quantity: 1
       },
       successUrl: `${window.location.origin}/${orgSlug}/billing?upgraded=true`,
       cancelUrl: `${window.location.href}`
-    })
+    }))
 
     emit('upgraded')
   } catch (e: any) {

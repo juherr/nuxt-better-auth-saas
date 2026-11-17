@@ -6,7 +6,8 @@ definePageMeta({
   layout: false
 })
 const { t } = useI18n()
-const { loggedIn, subscription, payment } = useAuth()
+const { loggedIn, subscription, payment, useActiveOrganization } = useAuth()
+const activeOrg = useActiveOrganization()
 const localePath = useLocalePath()
 const runtimeConfig = useRuntimeConfig()
 const billingPeriod = ref('monthly')
@@ -45,11 +46,17 @@ const plans = [
         return
       }
       if (payment == 'stripe') {
-        const result = await subscription.upgrade({
+        const request = {
           plan: `pro-${billingPeriod.value}`,
           successUrl: localePath('/'),
           cancelUrl: localePath('/pricing')
-        })
+        }
+        // Bill the active organization, as the base did through
+        // getCheckoutSessionParams; without one, keep a user subscription.
+        const organizationId = activeOrg.value?.data?.id
+        const result = await subscription.upgrade(organizationId
+          ? buildOrganizationUpgrade({ ...request, organizationId })
+          : request)
         console.log(result)
       }
     }

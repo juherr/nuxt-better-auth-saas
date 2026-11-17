@@ -18,7 +18,7 @@ import { getDB } from './db'
 import { getResendClient } from './drivers'
 import { renderDeleteAccount, renderResetPassword, renderTeamInvite, renderVerifyEmail } from './email'
 import { runtimeConfig } from './runtimeConfig'
-import { createStripeClient, isStripeConfigured, setupStripe } from './stripe'
+import { checkoutSeatsOverride, createStripeClient, isStripeConfigured, setupStripe } from './stripe'
 
 console.log(`Base URL is ${runtimeConfig.public.baseURL}`)
 console.log('Schema keys:', Object.keys(schema))
@@ -519,6 +519,7 @@ export const createBetterAuth = () => betterAuth({
       if (ctx.path === '/api-key/create') {
         await requireApiKeyCreationRights(ctx)
       }
+      return checkoutSeatsOverride(ctx)
     }),
     after: createAuthMiddleware(async (ctx) => {
       const ipAddress = ctx.getHeader('x-forwarded-for')
