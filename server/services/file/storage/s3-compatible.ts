@@ -1,6 +1,26 @@
 import type { Buffer } from 'node:buffer'
 import type { StorageProvider } from '../types'
 import { AwsClient } from 'aws4fetch'
+import { contentDisposition } from '../servingHeaders'
+
+// eslint-disable-next-line no-control-regex
+const UNSAFE_KEY_CHARACTERS = /[\\\u0000-\u001F\u007F]/
+
+/**
+ * Object key `key` unchanged when every segment is a plain name, so the
+ * request URL cannot be normalized out of the bucket.
+ *
+ * @throws {Error} on an empty key, a leading `/`, a backslash, a control
+ * character, or an empty, `.` or `..` segment.
+ */
+export const assertStorageKey = (key: string): string => {
+  const unsafe = UNSAFE_KEY_CHARACTERS.test(key)
+    || key.split('/').some(segment => segment === '' || segment === '.' || segment === '..')
+  if (unsafe) {
+    throw new Error('Storage key is outside the bucket')
+  }
+  return key
+}
 
 export class S3CompatibleStorageProvider implements StorageProvider {
   name = ''
@@ -66,16 +86,22 @@ export class S3CompatibleStorageProvider implements StorageProvider {
     }
   }
 
+  private objectUrl(key: string) {
+    return `${this.endpoint}/${this.bucketName}/${assertStorageKey(key)}`
+  }
+
+  /** Stores `file` with its detected `mimeType` and the matching disposition. */
   async upload(file: Buffer, fileName: string, mimeType: string): Promise<{ path: string, url?: string }> {
     this.ensureInitialized()
 
-    const url = `${this.endpoint}/${this.bucketName}/${fileName}`
+    const url = this.objectUrl(fileName)
 
     const response = await this.client!.fetch(url, {
       method: 'PUT',
       body: new Uint8Array(file),
       headers: {
-        'Content-Type': mimeType
+        'Content-Type': mimeType,
+        'Content-Disposition': contentDisposition(mimeType)
       }
     })
 
@@ -92,7 +118,7 @@ export class S3CompatibleStorageProvider implements StorageProvider {
   async delete(path: string): Promise<void> {
     this.ensureInitialized()
 
-    const url = `${this.endpoint}/${this.bucketName}/${path}`
+    const url = this.objectUrl(path)
 
     const response = await this.client!.fetch(url, {
       method: 'DELETE'
@@ -115,12 +141,12 @@ export class S3CompatibleStorageProvider implements StorageProvider {
     return `https://${this.bucketName}.s3.amazonaws.com/${path}`
   }
 
+  /** @throws {Error} when `path` is not a safe object key. */
   async exists(path: string): Promise<boolean> {
     this.ensureInitialized()
+    const url = this.objectUrl(path)
 
     try {
-      const url = `${this.endpoint}/${this.bucketName}/${path}`
-
       const response = await this.client!.fetch(url, {
         method: 'HEAD'
       })
