@@ -9,6 +9,7 @@ import { v7 as uuidv7 } from 'uuid'
 import * as schema from '~~/server/db/schema'
 import { ac, admin, member, owner } from '~~/shared/utils/permissions'
 import { createdApiKeyId, isApiKeyManagerRole, parseLegacyOrganizationId } from './apiKeyMetadata'
+import { deleteOrganizationApiKeys } from './apiKeyOrganization'
 import { logAuditEvent } from './auditLogger'
 import { getDB } from './db'
 import { cacheClient, getResendClient } from './drivers'
@@ -593,6 +594,13 @@ export const createBetterAuth = () => betterAuth({
         member
       },
       enableMetadata: true,
+      organizationHooks: {
+        // Runs before the plugin deletes the organization row, whose
+        // cascade would otherwise leave its keys enabled and unrevocable.
+        beforeDeleteOrganization: async ({ organization }) => {
+          await deleteOrganizationApiKeys(getDB(), organization.id)
+        }
+      },
       async sendInvitationEmail({ email, inviter, organization, invitation }) {
         const resend = getResendClient()
         if (resend) {

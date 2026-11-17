@@ -287,6 +287,11 @@ and the stored key stays unlisted with no one holding its plaintext (it fails cl
 keys are listed and revoked through `/api/organization/api-keys`, which check the caller's role
 in the key's organization.
 
+Deleting an organization through better-auth deletes its API keys first (the organization
+plugin's `beforeDeleteOrganization` hook), so no key outlives its organization. If that deletion
+fails, the organization is not deleted. An organization row removed directly in the database
+skips the hook: its links go with it, and its keys stay enabled with no organization.
+
 ---
 
 ## Deployment

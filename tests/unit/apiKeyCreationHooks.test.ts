@@ -1,4 +1,7 @@
+import type { SQL, Table } from 'drizzle-orm'
 import { APIError } from 'better-auth/api'
+import { getTableName } from 'drizzle-orm'
+import { PgDialect } from 'drizzle-orm/pg-core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const runtimeConfig = vi.hoisted(() => ({
@@ -18,12 +21,14 @@ const runtimeConfig = vi.hoisted(() => ({
 const betterAuth = vi.hoisted(() => vi.fn((options: any) => ({ options, api: {} })))
 const insertValues = vi.hoisted(() => vi.fn(async (_row: unknown) => undefined))
 const insert = vi.hoisted(() => vi.fn((_table: unknown) => ({ values: insertValues })))
+const deleteWhere = vi.hoisted(() => vi.fn(async (_where: unknown) => undefined))
+const deleteFrom = vi.hoisted(() => vi.fn((_table: unknown) => ({ where: deleteWhere })))
 const logAuditEvent = vi.hoisted(() => vi.fn())
 
 vi.mock('~~/server/utils/runtimeConfig', () => ({ runtimeConfig }))
 vi.mock('better-auth', () => ({ betterAuth }))
 vi.mock('better-auth/adapters/drizzle', () => ({ drizzleAdapter: vi.fn(() => ({})) }))
-vi.mock('~~/server/utils/db', () => ({ getDB: vi.fn(() => ({ insert })), useDB: vi.fn(async () => ({})) }))
+vi.mock('~~/server/utils/db', () => ({ getDB: vi.fn(() => ({ insert, delete: deleteFrom })), useDB: vi.fn(async () => ({})) }))
 vi.mock('~~/server/utils/auditLogger', () => ({ logAuditEvent }))
 vi.mock('~~/server/utils/email', () => ({}))
 vi.mock('~~/server/utils/stripeEmails', () => ({}))
@@ -38,6 +43,7 @@ vi.mock('better-auth/api', async importOriginal => ({
 vi.stubGlobal('createError', (input: { statusCode: number, statusMessage: string }) =>
   Object.assign(new Error(input.statusMessage), input))
 
+const dialect = new PgDialect()
 const PLAINTEXT_KEY = 'canary-plaintext-key'
 const session = { user: { id: 'user-1' }, session: { id: 'session-1' } }
 
@@ -222,6 +228,25 @@ describe('creating an API key', () => {
       const options = await authOptions()
 
       await expect(options.hooks.before({ path })).rejects.toMatchObject({ statusCode: 404 })
+    })
+  })
+
+  describe('deleting an organization', () => {
+    it('deletes the organization\'s API keys before the organization goes', async () => {
+      deleteFrom.mockClear()
+      deleteWhere.mockClear()
+      const options = await authOptions()
+      const organizationPlugin = options.plugins.find((plugin: { id: string }) => plugin.id === 'organization')
+
+      await organizationPlugin.options.organizationHooks.beforeDeleteOrganization({
+        organization: { id: 'org-1' },
+        user: session.user
+      })
+
+      // Modules are reset between tests, so compare the table by its name.
+      expect(deleteFrom).toHaveBeenCalledTimes(1)
+      expect(getTableName(deleteFrom.mock.calls[0]![0] as Table)).toBe('apiKey')
+      expect(dialect.sqlToQuery(deleteWhere.mock.calls[0]![0] as SQL).params).toEqual(['org-1'])
     })
   })
 })
