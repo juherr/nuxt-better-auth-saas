@@ -5,6 +5,7 @@ import { RateLimitUnavailableError, UploadRateLimiter } from '~~/server/services
 import { createStorageProvider } from '~~/server/services/file/storage/factory'
 import {
   checkDeclaredBodyLength,
+  MAX_FILES_PER_UPLOAD,
   maxUploadBodySize,
   resolveAllowedMimeTypes,
   resolveMaxFileSize
@@ -63,25 +64,22 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Limit to single file upload
-  const validFiles = formData.filter(fileData => fileData.data && fileData.filename)
-  if (validFiles.length > 1) {
+  const validFiles = formData.filter(
+    (part): part is typeof part & { filename: string } => Boolean(part.data && part.filename)
+  )
+  if (validFiles.length > MAX_FILES_PER_UPLOAD) {
     throw createError({
       statusCode: 400,
       statusMessage: 'Only one file can be uploaded at a time'
     })
   }
-  if (validFiles.length === 0) {
+  const fileData = validFiles[0]
+  if (!fileData) {
     throw createError({
       statusCode: 400,
       statusMessage: 'No files provided'
     })
   }
-
-  const storageProvider = await createStorageProvider(config.storage)
-  const fileService = new FileService(storageProvider)
-
-  const fileData = validFiles[0]!
 
   const fileSize = fileData.data.length
 
@@ -102,10 +100,13 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  const storageProvider = await createStorageProvider(config.storage)
+  const fileService = new FileService(storageProvider)
+
   try {
     const file = await fileService.uploadFile(
       fileData.data,
-      fileData.filename!,
+      fileData.filename,
       content.type,
       user.id,
       getRequestIP(event),

@@ -1,7 +1,7 @@
 import type { PlanInterval, PlanKey } from '~~/shared/utils/plans'
 import { eq } from 'drizzle-orm'
-import { organization as organizationTable, subscription as subscriptionTable } from '~~/server/db/schema'
-import { requireAuthSession, requireOrganizationRole, selectActiveSubscription } from '~~/server/utils/billing'
+import { subscription as subscriptionTable } from '~~/server/db/schema'
+import { findOrganization, requireAuthSession, requireOrganizationRole, selectActiveSubscription } from '~~/server/utils/billing'
 import { useDB } from '~~/server/utils/db'
 import { createStripeClient } from '~~/server/utils/stripe'
 import { getPlanByStripePriceId, getTierForInterval, PLAN_TIERS } from '~~/shared/utils/plans'
@@ -25,9 +25,7 @@ export default defineEventHandler(async (event) => {
   // Verify ownership
   await requireOrganizationRole(event, organizationId, ['owner'])
 
-  const org = await db.query.organization.findFirst({
-    where: eq(organizationTable.id, organizationId)
-  })
+  const org = await findOrganization(db, organizationId)
 
   if (!org?.stripeCustomerId) {
     throw createError({ statusCode: 404, statusMessage: 'Organization or Stripe Customer not found' })

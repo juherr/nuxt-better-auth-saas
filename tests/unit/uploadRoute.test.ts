@@ -1,8 +1,8 @@
 import type { RateLimitStore } from '~~/server/services/file/rateLimiter'
 import type { FileManagerConfig } from '~~/server/services/file/types'
 import { Buffer } from 'node:buffer'
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { callRoute, stubNitroGlobals } from './support/nitroGlobals'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { callRoute, stubNitroGlobals, stubRequestContext } from './support/nitroGlobals'
 
 const readMultipartFormData = vi.hoisted(() => vi.fn())
 const uploadFile = vi.hoisted(() => vi.fn())
@@ -30,8 +30,7 @@ vi.mock('~~/server/services/file/rateLimitStores', () => ({
 beforeAll(() => {
   stubNitroGlobals()
   vi.stubGlobal('requireAuth', requireAuth)
-  vi.stubGlobal('getRequestIP', () => '203.0.113.1')
-  vi.stubGlobal('getHeader', () => 'test-agent')
+  stubRequestContext()
   vi.stubGlobal('formatFileSize', (bytes: number) => `${bytes} B`)
 })
 afterAll(() => {
@@ -84,25 +83,23 @@ describe('the upload endpoint', () => {
       expect(store.reserve).not.toHaveBeenCalled()
     })
 
-    it('requires a declared length (411)', async () => {
-      await expect(upload({ ...MULTIPART })).rejects.toMatchObject({ statusCode: 411 })
-      expect(readMultipartFormData).not.toHaveBeenCalled()
-    })
+    it.each([
+      ['requires a declared length (411)', { ...MULTIPART }, 411, {}],
+      ['requires a declared length for a chunked body (411)', { ...MULTIPART, 'transfer-encoding': 'chunked' }, 411, {}],
+      ['applies the default 5 MB limit when none is configured', { ...MULTIPART, 'content-length': String(6 * 1024 * 1024) }, 413, { maxFileSize: undefined }]
+    ] as const)('%s', async (_title, headers, statusCode, config: Partial<FileManagerConfig>) => {
+      fileConfig.value = { ...fileConfig.value, ...config }
 
-    it('requires a declared length for a chunked body (411)', async () => {
-      await expect(upload({ ...MULTIPART, 'transfer-encoding': 'chunked' })).rejects.toMatchObject({ statusCode: 411 })
-      expect(readMultipartFormData).not.toHaveBeenCalled()
-    })
-
-    it('applies the default 5 MB limit when none is configured', async () => {
-      fileConfig.value = { ...fileConfig.value, maxFileSize: undefined }
-
-      await expect(upload({ ...MULTIPART, 'content-length': String(6 * 1024 * 1024) })).rejects.toMatchObject({ statusCode: 413 })
+      await expect(upload(headers)).rejects.toMatchObject({ statusCode })
       expect(readMultipartFormData).not.toHaveBeenCalled()
     })
   })
 
   describe('rate limiting', () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
     it('refuses with 429 when the limit is reached, before reading the body', async () => {
       store.reserve.mockResolvedValue({ allowed: false, currentCount: 5 })
 
@@ -119,7 +116,6 @@ describe('the upload endpoint', () => {
       expect(error).toMatchObject({ statusCode: 503 })
       expect((error as Error).message).not.toMatch(/count|store down/i)
       expect(readMultipartFormData).not.toHaveBeenCalled()
-      vi.restoreAllMocks()
     })
 
     it('counts the attempt even when the body turns out to be invalid', async () => {

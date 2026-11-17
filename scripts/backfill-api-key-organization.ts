@@ -8,15 +8,15 @@
 // Keys left without an organization cannot be listed nor revoked by anyone.
 // By default the script prints the ids of those that remain enabled; with
 // --disable-unlinked it disables them after linking.
-import type { ApiKeyBackfillOutcome } from '../server/utils/apiKeyMetadata.ts'
+import type { ApiKeyBackfillOutcome } from '../server/utils/apiKeyBackfill.ts'
 import process from 'node:process'
 import pg from 'pg'
 import {
   decideApiKeyBackfill,
   describeUnlinkedApiKeys,
-  parseApiKeyBackfillArgs,
-  parseLegacyOrganizationId
-} from '../server/utils/apiKeyMetadata.ts'
+  parseApiKeyBackfillArgs
+} from '../server/utils/apiKeyBackfill.ts'
+import { parseLegacyOrganizationId } from '../server/utils/apiKeyMetadata.ts'
 
 interface LegacyApiKeyRow {
   id: string

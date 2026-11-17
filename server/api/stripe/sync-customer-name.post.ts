@@ -1,6 +1,4 @@
-import { eq } from 'drizzle-orm'
-import { organization as organizationTable } from '~~/server/db/schema'
-import { requireAuthSession, requireOrganizationRole } from '~~/server/utils/billing'
+import { findOrganization, requireAuthSession, requireOrganizationRole } from '~~/server/utils/billing'
 import { useDB } from '~~/server/utils/db'
 import { syncStripeCustomerName } from '~~/server/utils/stripe'
 
@@ -19,9 +17,7 @@ export default defineEventHandler(async (event) => {
   await requireOrganizationRole(event, organizationId, ['owner'])
 
   const db = await useDB()
-  const org = await db.query.organization.findFirst({
-    where: eq(organizationTable.id, organizationId)
-  })
+  const org = await findOrganization(db, organizationId)
 
   if (!org) {
     throw createError({ statusCode: 404, message: 'Organization not found' })

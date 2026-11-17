@@ -64,12 +64,8 @@ export class LocalStorageProvider implements StorageProvider {
     this.publicPath = publicPath
   }
 
-  private resolveInside(path: string): Promise<string> {
-    return resolveRealInside(this.uploadDir, path)
-  }
-
   async upload(file: Buffer, fileName: string): Promise<{ path: string, url?: string }> {
-    const filePath = await this.resolveInside(fileName)
+    const filePath = await resolveRealInside(this.uploadDir, fileName)
 
     await fs.mkdir(dirname(filePath), { recursive: true })
     await fs.writeFile(filePath, file)
@@ -81,7 +77,7 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async delete(path: string): Promise<void> {
-    const filePath = await this.resolveInside(path)
+    const filePath = await resolveRealInside(this.uploadDir, path)
     try {
       await fs.unlink(filePath)
     } catch (error) {
@@ -97,7 +93,7 @@ export class LocalStorageProvider implements StorageProvider {
 
   /** @throws {Error} when `path` is outside the upload directory. */
   async exists(path: string): Promise<boolean> {
-    const filePath = await this.resolveInside(path)
+    const filePath = await resolveRealInside(this.uploadDir, path)
     try {
       await fs.access(filePath)
       return true

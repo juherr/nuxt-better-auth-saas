@@ -1,10 +1,7 @@
-import type { SQL } from 'drizzle-orm'
-import { PgDialect } from 'drizzle-orm/pg-core'
 import { describe, expect, it, vi } from 'vitest'
 import { apiKey } from '~~/server/db/schema'
 import { deleteOrganizationApiKeys } from '~~/server/utils/apiKeyOrganization'
-
-const dialect = new PgDialect()
+import { renderSql } from './support/sql'
 
 function fakeDB() {
   const where = vi.fn(async (_condition: unknown) => undefined)
@@ -20,7 +17,7 @@ describe('deleteOrganizationApiKeys', () => {
 
     expect(deleteFrom).toHaveBeenCalledTimes(1)
     expect(deleteFrom).toHaveBeenCalledWith(apiKey)
-    const query = dialect.sqlToQuery(where.mock.calls[0]![0] as SQL)
+    const query = renderSql(where.mock.calls[0]![0])
     expect(query.sql).toBe(
       '"apiKey"."id" in (select "api_key_id" from "api_key_organization"'
       + ' where "api_key_organization"."organization_id" = $1)'

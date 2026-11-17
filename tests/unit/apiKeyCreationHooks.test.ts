@@ -1,8 +1,9 @@
-import type { SQL, Table } from 'drizzle-orm'
+import type { Table } from 'drizzle-orm'
 import { APIError } from 'better-auth/api'
 import { getTableName } from 'drizzle-orm'
-import { PgDialect } from 'drizzle-orm/pg-core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nitroCreateError } from './support/nitroGlobals'
+import { renderSql } from './support/sql'
 
 const runtimeConfig = vi.hoisted(() => ({
   preset: 'cloudflare-module',
@@ -40,10 +41,8 @@ vi.mock('better-auth/api', async importOriginal => ({
   getSessionFromCtx: vi.fn(async (ctx: any) => ctx.context?.session ?? null)
 }))
 
-vi.stubGlobal('createError', (input: { statusCode: number, statusMessage: string }) =>
-  Object.assign(new Error(input.statusMessage), input))
+vi.stubGlobal('createError', nitroCreateError)
 
-const dialect = new PgDialect()
 const PLAINTEXT_KEY = 'canary-plaintext-key'
 const session = { user: { id: 'user-1' }, session: { id: 'session-1' } }
 
@@ -257,7 +256,7 @@ describe('creating an API key', () => {
       // Modules are reset between tests, so compare the table by its name.
       expect(deleteFrom).toHaveBeenCalledTimes(1)
       expect(getTableName(deleteFrom.mock.calls[0]![0] as Table)).toBe('apiKey')
-      expect(dialect.sqlToQuery(deleteWhere.mock.calls[0]![0] as SQL).params).toEqual(['org-1'])
+      expect(renderSql(deleteWhere.mock.calls[0]![0]).params).toEqual(['org-1'])
     })
   })
 })

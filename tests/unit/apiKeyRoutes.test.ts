@@ -1,7 +1,7 @@
 import type { SQL } from 'drizzle-orm'
-import { PgDialect } from 'drizzle-orm/pg-core'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { callRoute, stubNitroGlobals } from './support/nitroGlobals'
+import { renderSql } from './support/sql'
 
 const getAuthSession = vi.hoisted(() => vi.fn())
 const memberships = vi.hoisted(() => ({ current: {} as Record<string, string> }))
@@ -26,12 +26,9 @@ vi.mock('~~/server/utils/db', () => ({
 
 beforeAll(stubNitroGlobals)
 
-const dialect = new PgDialect()
-const render = (condition: unknown) => dialect.sqlToQuery(condition as SQL)
-
 /** Answers a membership lookup from `memberships`, keyed by the exact organization id queried. */
 function memberLookup({ where }: { where: SQL }) {
-  const [organizationId = '', userId] = render(where).params as string[]
+  const [organizationId = '', userId] = renderSql(where).params as string[]
   const role = memberships.current[organizationId]
   return Promise.resolve(role ? { organizationId, userId, role } : undefined)
 }
@@ -117,7 +114,7 @@ describe('organization API key routes', () => {
       await listKeys('org-1')
 
       const [query] = selectQueries
-      const where = render(query!.where)
+      const where = renderSql(query!.where)
       expect(where.sql).toBe('"api_key_organization"."organization_id" = $1')
       expect(where.params).toEqual(['org-1'])
     })
@@ -149,8 +146,8 @@ describe('organization API key routes', () => {
 
       const [query] = selectQueries
       expect(query!.join?.kind).toBe('inner')
-      expect(render(query!.join!.on).sql).toBe('"api_key_organization"."api_key_id" = "apiKey"."id"')
-      expect(render(query!.where).sql).not.toMatch(/metadata|like/i)
+      expect(renderSql(query!.join!.on).sql).toBe('"api_key_organization"."api_key_id" = "apiKey"."id"')
+      expect(renderSql(query!.where).sql).not.toMatch(/metadata|like/i)
     })
   })
 
@@ -166,7 +163,7 @@ describe('organization API key routes', () => {
     it('finds the key\'s organization by the exact key id', async () => {
       await errorOf(deleteKey('key-1'))
 
-      expect(render(findLink.mock.calls[0]![0].where)).toMatchObject({
+      expect(renderSql(findLink.mock.calls[0]![0].where)).toMatchObject({
         sql: '"api_key_organization"."api_key_id" = $1',
         params: ['key-1']
       })
@@ -178,24 +175,23 @@ describe('organization API key routes', () => {
 
       await expect(deleteKey('key-1')).resolves.toEqual({ success: true })
       expect(deleteFrom).toHaveBeenCalledTimes(1)
-      expect(render(deleteWhere.mock.calls[0]![0])).toMatchObject({ sql: '"apiKey"."id" = $1', params: ['key-1'] })
+      expect(renderSql(deleteWhere.mock.calls[0]![0])).toMatchObject({ sql: '"apiKey"."id" = $1', params: ['key-1'] })
     })
 
-    it('answers the same 404 for an unknown key, an unlinked legacy key, another organization\'s key and a member, deleting nothing', async () => {
+    it.each([
+      ['an unknown key', 'key-unknown', undefined],
+      ['an unlinked legacy key', 'key-legacy', undefined],
+      ['another organization\'s key', 'key-12', { apiKeyId: 'key-12', organizationId: 'org-12' }],
+      ['a key of an organization the caller is only a member of', 'key-2', { apiKeyId: 'key-2', organizationId: 'org-2' }]
+    ])('answers the same 404 as for an unknown key for %s, deleting nothing', async (_label, keyId, link) => {
       memberships.current = { 'org-1': 'owner', 'org-2': 'member' }
-      const refusals = []
-
       findLink.mockResolvedValue(undefined)
-      refusals.push(await errorOf(deleteKey('key-unknown')))
-      refusals.push(await errorOf(deleteKey('key-legacy')))
-      findLink.mockResolvedValue({ apiKeyId: 'key-12', organizationId: 'org-12' })
-      refusals.push(await errorOf(deleteKey('key-12')))
-      findLink.mockResolvedValue({ apiKeyId: 'key-2', organizationId: 'org-2' })
-      refusals.push(await errorOf(deleteKey('key-2')))
+      const unknownKeyRefusal = await errorOf(deleteKey('key-unknown'))
 
-      for (const refusal of refusals) {
-        expect(refusal).toMatchObject({ statusCode: 404, statusMessage: (refusals[0] as any).statusMessage })
-      }
+      findLink.mockResolvedValue(link)
+      const refusal = await errorOf(deleteKey(keyId))
+
+      expect(refusal).toMatchObject({ statusCode: 404, statusMessage: (unknownKeyRefusal as any).statusMessage })
       expect(deleteFrom).not.toHaveBeenCalled()
     })
   })

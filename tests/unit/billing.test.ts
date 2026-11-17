@@ -3,6 +3,7 @@ import { PgDialect } from 'drizzle-orm/pg-core'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { stubNitroGlobals } from './support/nitroGlobals'
 import { fakeSubscription, stripeSubscriptionsFake } from './support/stripeSubscriptionsFake'
+import { selectionCases } from './support/subscriptionSelectionCases'
 
 const getAuthSession = vi.hoisted(() => vi.fn())
 const findMember = vi.hoisted(() => vi.fn())
@@ -17,7 +18,11 @@ beforeAll(stubNitroGlobals)
 const loadBilling = () => import('~~/server/utils/billing')
 
 describe('requireOrganizationRole', () => {
+  // A fresh event per test: the session is cached per event object.
+  let event: never
+
   beforeEach(() => {
+    event = {} as never
     getAuthSession.mockReset().mockResolvedValue({ user: { id: 'u1' } })
     findMember.mockReset().mockResolvedValue({ userId: 'u1', organizationId: 'org-a', role: 'owner' })
   })
@@ -26,7 +31,7 @@ describe('requireOrganizationRole', () => {
     getAuthSession.mockResolvedValue(null)
     const { requireOrganizationRole } = await loadBilling()
 
-    await expect(requireOrganizationRole({} as never, 'org-a', ['owner']))
+    await expect(requireOrganizationRole(event, 'org-a', ['owner']))
       .rejects
       .toMatchObject({ statusCode: 401 })
     expect(findMember).not.toHaveBeenCalled()
@@ -36,32 +41,33 @@ describe('requireOrganizationRole', () => {
     const { requireOrganizationRole } = await loadBilling()
 
     findMember.mockResolvedValue(undefined)
-    const nonMember = await requireOrganizationRole({} as never, 'org-a', ['owner']).catch(e => e)
+    const nonMember = await requireOrganizationRole(event, 'org-a', ['owner']).catch(e => e)
 
     findMember.mockResolvedValue({ userId: 'u1', organizationId: 'org-a', role: 'member' })
-    const wrongRole = await requireOrganizationRole({} as never, 'org-a', ['owner']).catch(e => e)
+    const wrongRole = await requireOrganizationRole(event, 'org-a', ['owner']).catch(e => e)
 
     expect(nonMember).toMatchObject({ statusCode: 403, statusMessage: 'Forbidden' })
     expect(wrongRole).toMatchObject({ statusCode: 403, statusMessage: 'Forbidden' })
   })
 
-  it('accepts any membership, multi-role values included, when no role is required', async () => {
+  it.each(['owner', 'admin', 'member', 'admin,member'])('accepts the role "%s" when no role is required', async (role) => {
+    findMember.mockResolvedValue({ userId: 'u1', organizationId: 'org-a', role })
     const { requireOrganizationRole } = await loadBilling()
 
-    for (const role of ['owner', 'admin', 'member', 'admin,member']) {
-      findMember.mockResolvedValue({ userId: 'u1', organizationId: 'org-a', role })
-      await expect(requireOrganizationRole({} as never, 'org-a')).resolves.toMatchObject({ member: { role } })
-    }
+    await expect(requireOrganizationRole(event, 'org-a')).resolves.toMatchObject({ member: { role } })
+  })
 
+  it('refuses a non-member with 403 when no role is required', async () => {
     findMember.mockResolvedValue(undefined)
-    await expect(requireOrganizationRole({} as never, 'org-a'))
+    const { requireOrganizationRole } = await loadBilling()
+
+    await expect(requireOrganizationRole(event, 'org-a'))
       .rejects
       .toMatchObject({ statusCode: 403, statusMessage: 'Forbidden' })
   })
 
   it('looks the session up once per request when the route already required it', async () => {
     const { requireAuthSession, requireOrganizationRole } = await loadBilling()
-    const event = {} as never
 
     await requireAuthSession(event)
     await requireOrganizationRole(event, 'org-a', ['owner'])
@@ -73,7 +79,7 @@ describe('requireOrganizationRole', () => {
     findMember.mockResolvedValue({ userId: 'u1', organizationId: 'org-a', role: 'admin' })
     const { requireOrganizationRole } = await loadBilling()
 
-    const result = await requireOrganizationRole({} as never, 'org-a', ['owner', 'admin'])
+    const result = await requireOrganizationRole(event, 'org-a', ['owner', 'admin'])
 
     expect(result.session).toEqual({ user: { id: 'u1' } })
     expect(result.member).toMatchObject({ organizationId: 'org-a', role: 'admin' })
@@ -222,10 +228,18 @@ describe('selectActiveSubscription', () => {
     findRows.mockReset().mockResolvedValue([])
   })
 
-  it('finds the active subscription listed after a canceled one', async () => {
-    const stripe = stripeWith({ pages: [[fakeSubscription('sub_old', 'canceled'), fakeSubscription('sub_new', 'active')]] })
+  it.each(selectionCases)('selects the subscription for $name', async (selectionCase) => {
+    findRows.mockResolvedValue(selectionCase.localRows)
+    const { pages, elsewhere = [] } = selectionCase.stripe
 
-    await expect(select(stripe)).resolves.toMatchObject({ id: 'sub_new' })
+    const outcome = select(stripeWith(selectionCase.stripe))
+
+    if ('selected' in selectionCase.expected) {
+      const { selected } = selectionCase.expected
+      await expect(outcome).resolves.toBe([...pages.flat(), ...elsewhere].find(sub => sub.id === selected))
+    } else {
+      await expect(outcome).rejects.toMatchObject(selectionCase.expected)
+    }
   })
 
   it('prefers the local record of the active subscription over a canceled one', async () => {
@@ -236,18 +250,6 @@ describe('selectActiveSubscription', () => {
     expect(stripe.subscriptions.retrieve).toHaveBeenCalledWith('sub_new')
     expect(stripe.subscriptions.retrieve).not.toHaveBeenCalledWith('sub_old')
     expect(stripe.subscriptions.list).not.toHaveBeenCalled()
-  })
-
-  it('selects a trialing subscription', async () => {
-    const stripe = stripeWith({ pages: [[fakeSubscription('sub_trial', 'trialing')]] })
-
-    await expect(select(stripe)).resolves.toMatchObject({ id: 'sub_trial', status: 'trialing' })
-  })
-
-  it('answers 400 when no subscription is active or trialing', async () => {
-    const stripe = stripeWith({ pages: [[fakeSubscription('sub_old', 'canceled')]] })
-
-    await expect(select(stripe)).rejects.toMatchObject({ statusCode: 400, statusMessage: 'No active subscription found' })
   })
 
   it('answers 409 when several subscriptions are active, without picking one', async () => {
@@ -262,22 +264,6 @@ describe('selectActiveSubscription', () => {
 
     await expect(select(stripe)).rejects.toMatchObject({ statusCode: 409 })
     expect(stripe.subscriptions.list).not.toHaveBeenCalled()
-  })
-
-  it('finds the active subscription on the second page of the list', async () => {
-    const stripe = stripeWith({ pages: [[fakeSubscription('sub_old', 'canceled')], [fakeSubscription('sub_page2', 'active')]] })
-
-    await expect(select(stripe)).resolves.toMatchObject({ id: 'sub_page2' })
-  })
-
-  it('ignores a local record billed to another customer and falls back to the list', async () => {
-    findRows.mockResolvedValue([row('sub_foreign')])
-    const stripe = stripeWith({
-      pages: [[fakeSubscription('sub_own', 'active')]],
-      elsewhere: [fakeSubscription('sub_foreign', 'active', 'cus_b')]
-    })
-
-    await expect(select(stripe)).resolves.toMatchObject({ id: 'sub_own' })
   })
 
   it('ignores a local record whose Stripe subscription is no longer active', async () => {

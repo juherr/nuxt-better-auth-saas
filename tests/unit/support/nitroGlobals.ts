@@ -5,13 +5,18 @@ export interface HttpErrorInput {
   statusMessage: string
 }
 
+/** Stand-in for h3's `createError`: an `Error` carrying the input fields. */
+export const nitroCreateError = (input: HttpErrorInput) =>
+  Object.assign(new Error(input.statusMessage), input)
+
 /**
  * Nitro auto-imports these h3 helpers in server code; unit tests run in plain
  * Node, so stand in with the same shapes. `defineEventHandler` and
  * `defineNitroPlugin` return their argument. `readBody` returns `event.body`,
  * `getQuery` returns `event.query` and `getRouterParam` reads `event.params`.
  * `getRequestHeader` reads `event.headers`, `setResponseHeader` writes
- * `event.responseHeaders` and `getResponseStatus` reads `event.node.res.statusCode`.
+ * `event.responseHeaders`, `getResponseStatus` reads `event.node.res.statusCode`
+ * and `setResponseStatus` writes `event.status`.
  */
 export function stubNitroGlobals() {
   vi.stubGlobal('defineEventHandler', (handler: unknown) => handler)
@@ -26,8 +31,22 @@ export function stubNitroGlobals() {
   })
   vi.stubGlobal('getResponseStatus', (event: { node?: { res?: { statusCode?: number } } }) =>
     event?.node?.res?.statusCode ?? 200)
-  vi.stubGlobal('createError', (input: HttpErrorInput) =>
-    Object.assign(new Error(input.statusMessage), input))
+  vi.stubGlobal('setResponseStatus', (event: { status?: number }, code: number) => {
+    event.status = code
+  })
+  vi.stubGlobal('createError', nitroCreateError)
+}
+
+export const TEST_IP = '203.0.113.1'
+export const TEST_AGENT = 'test-agent'
+
+/**
+ * Opt-in stand-ins for the request metadata routes record: `getRequestIP`
+ * answers `TEST_IP` and `getHeader` answers `TEST_AGENT`.
+ */
+export function stubRequestContext() {
+  vi.stubGlobal('getRequestIP', () => TEST_IP)
+  vi.stubGlobal('getHeader', () => TEST_AGENT)
 }
 
 /**
