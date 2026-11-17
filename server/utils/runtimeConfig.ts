@@ -1,6 +1,8 @@
 import type { NitroRuntimeConfig } from 'nitropack/types'
 import type { FileManagerConfig, StorageProviderType } from '~~/server/services/file/types'
 import { config } from 'dotenv'
+// Relative: nuxt.config.ts imports this file before the `~~` alias exists.
+import { DEFAULT_ALLOWED_MIME_TYPES, DEFAULT_MAX_FILE_SIZE } from '../services/file/uploadPolicy'
 
 declare module '@nuxt/schema' {
   interface RuntimeConfig {
@@ -72,6 +74,10 @@ export const generateRuntimeConfig = (preset = 'node-server') => ({
         publicUrl: ''
       }
     },
+    // Runtime: NUXT_FILE_MANAGER_MAX_FILE_SIZE (bytes) and
+    // NUXT_FILE_MANAGER_ALLOWED_MIME_TYPES (comma-separated)
+    maxFileSize: DEFAULT_MAX_FILE_SIZE,
+    allowedMimeTypes: [...DEFAULT_ALLOWED_MIME_TYPES],
     uploadRateLimit: {
       maxUploadsPerWindow: 100,
       windowSizeMinutes: 1

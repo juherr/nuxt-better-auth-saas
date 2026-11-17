@@ -143,10 +143,12 @@ export default defineNuxtConfig({
         jsxImportSource: 'react'
       }
     },
-    publicAssets: process.env.NUXT_APP_STORAGE === 'local'
+    // Local uploads go through a handler, not `publicAssets`: those only
+    // serve the files present at build time and cannot set headers per type.
+    handlers: process.env.NUXT_APP_STORAGE === 'local'
       ? [{
-          dir: resolve(process.env.NUXT_LOCAL_UPLOAD_DIR || './uploads'),
-          baseURL: process.env.NUXT_LOCAL_PUBLIC_PATH || '/uploads'
+          route: `${process.env.NUXT_LOCAL_PUBLIC_PATH || '/uploads'}/**`,
+          handler: resolve('./server/handlers/localUploads.ts')
         }]
       : undefined
   },

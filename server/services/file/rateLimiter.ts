@@ -10,6 +10,17 @@ export interface RateLimitResult {
 }
 
 /**
+ * The rate limit store could not answer. Distinct from a refusal so callers
+ * can report an outage (503) instead of a reached limit (429).
+ */
+export class RateLimitUnavailableError extends Error {
+  constructor(options?: { cause?: unknown }) {
+    super('Rate limiter unavailable', options)
+    this.name = 'RateLimitUnavailableError'
+  }
+}
+
+/**
  * Backend of the rate limiter. Each implementation must make `reserve`
  * atomic for one key: either add `amount` and allow, or refuse without
  * consuming anything.
@@ -69,9 +80,11 @@ export class UploadRateLimiter {
 
   /**
    * Reserves `incrementBy` uploads for `userId` in the current window, or
-   * refuses without consuming any. Fails closed: a store error refuses.
+   * refuses without consuming any. Fails closed: a store error throws
+   * rather than allowing.
    *
    * @throws {RangeError} when `incrementBy` is not a positive integer.
+   * @throws {RateLimitUnavailableError} when the store errors.
    */
   async checkAndIncrement(userId: string, incrementBy: number = 1): Promise<RateLimitResult> {
     if (!Number.isSafeInteger(incrementBy) || incrementBy <= 0) {
@@ -83,7 +96,7 @@ export class UploadRateLimiter {
       return await this.store.reserve(key, incrementBy, this.maxUploadsPerWindow, remainingMs)
     } catch (error) {
       console.error('Rate limiter error:', error)
-      return { allowed: false, currentCount: 0 }
+      throw new RateLimitUnavailableError({ cause: error })
     }
   }
 

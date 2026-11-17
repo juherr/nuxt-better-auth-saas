@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { UploadRateLimiter } from '~~/server/services/file/rateLimiter'
+import { RateLimitUnavailableError, UploadRateLimiter } from '~~/server/services/file/rateLimiter'
 import { createRedisStore } from '~~/server/services/file/rateLimitStores'
 import { createRedisClient, logRedisConnectionState, resolveRedisUrl } from '~~/server/utils/redis'
 
@@ -29,9 +29,7 @@ describe('the production Redis client', () => {
       const limiter = new UploadRateLimiter(10, 5, createRedisStore(client))
       const startedAt = Date.now()
 
-      const result = await limiter.checkAndIncrement('user-redis-unreachable')
-
-      expect(result).toEqual({ allowed: false, currentCount: 0 })
+      await expect(limiter.checkAndIncrement('user-redis-unreachable')).rejects.toThrow(RateLimitUnavailableError)
       expect(Date.now() - startedAt).toBeLessThan(5000)
     } finally {
       client.disconnect()

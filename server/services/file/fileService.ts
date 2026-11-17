@@ -1,11 +1,11 @@
 import type { Buffer } from 'node:buffer'
+import type { DetectedType } from './contentSniffer'
 import type { StorageProvider } from './types'
-import { extname } from 'node:path'
-import { format } from 'date-fns'
 import { and, desc, eq } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
 import { file as fileTable } from '~~/server/db/schema'
 import { logAuditEvent } from '~~/server/utils/auditLogger'
+import { buildStorageName, sanitizeDisplayName } from './fileNames'
 
 export const useFileManagerConfig = () => {
   const config = useRuntimeConfig().fileManager
@@ -34,34 +34,30 @@ const getFileTypeFromMimeType = (mimeType: string) => {
 
 export class FileService {
   private storage: StorageProvider
+  private now: () => Date
 
-  constructor(storage: StorageProvider) {
+  constructor(storage: StorageProvider, now: () => Date = () => new Date()) {
     this.storage = storage
+    this.now = now
   }
 
-  private generateFileName(originalName: string): string {
-    const fileId = uuidv7()
-    const ext = extname(originalName)
-
-    const dateFolder = format(new Date(), 'yyyy-MM-dd')
-
-    const fileName = `${fileId}${ext}`
-
-    // YYYY-MM-DD/uuid.ext
-    return `${dateFolder}/${fileName}`
-  }
-
+  /**
+   * Stores `fileBuffer` under `yyyy-MM-dd/<uuidv7>.<extension>`, from the
+   * detected type. The client filename is kept only as display metadata.
+   */
   async uploadFile(
     fileBuffer: Buffer,
-    originalName: string,
-    mimeType: string,
+    clientFileName: string,
+    detectedType: DetectedType,
     uploadedBy?: string,
     ipAddress?: string,
     userAgent?: string
   ): Promise<FileRecord> {
     const db = await useDB()
     const fileId = uuidv7()
-    const fileName = this.generateFileName(originalName)
+    const fileName = buildStorageName(this.now(), uuidv7(), detectedType.extension)
+    const originalName = sanitizeDisplayName(clientFileName)
+    const { mimeType } = detectedType
     const fileType = getFileTypeFromMimeType(mimeType)
 
     try {

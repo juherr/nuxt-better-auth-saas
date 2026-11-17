@@ -1,6 +1,6 @@
 import type { RateLimitStore } from '~~/server/services/file/rateLimiter'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { UploadRateLimiter } from '~~/server/services/file/rateLimiter'
+import { RateLimitUnavailableError, UploadRateLimiter } from '~~/server/services/file/rateLimiter'
 import { createLockedKvStore, createRedisStore, KeyedLock } from '~~/server/services/file/rateLimitStores'
 import { cacheClient } from '~~/server/utils/drivers'
 // Same module as the aliased `hub:kv`, imported by path for its test helpers.
@@ -80,31 +80,31 @@ describe('the upload rate limiter on the in-process path', () => {
     expect(kvSetCalls).toEqual([])
   })
 
-  it('fails closed when the store errors', async () => {
+  it('fails closed with a distinct error when the store errors', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.spyOn(cacheClient, 'get').mockRejectedValueOnce(new Error('kv down'))
 
-    expect(await limiter(5).checkAndIncrement('user-error')).toEqual({ allowed: false, currentCount: 0 })
+    await expect(limiter(5).checkAndIncrement('user-error')).rejects.toThrow(RateLimitUnavailableError)
   })
 
   it('fails closed on a corrupt counter', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     await cacheClient.set(`upload_rate_limit:user-corrupt:${BUCKET_START / WINDOW_MS}`, 'garbage', 60)
 
-    expect((await limiter(5).checkAndIncrement('user-corrupt')).allowed).toBe(false)
+    await expect(limiter(5).checkAndIncrement('user-corrupt')).rejects.toThrow(RateLimitUnavailableError)
   })
 
   it('lets the next request for a key through after a store error', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.spyOn(cacheClient, 'get').mockRejectedValueOnce(new Error('kv down'))
 
-    const [failed, next] = await Promise.all([
+    const [failed, next] = await Promise.allSettled([
       limiter(5).checkAndIncrement('user-recover'),
       limiter(5).checkAndIncrement('user-recover')
     ])
 
-    expect(failed.allowed).toBe(false)
-    expect(next).toEqual({ allowed: true, currentCount: 1 })
+    expect(failed).toMatchObject({ status: 'rejected', reason: expect.any(RateLimitUnavailableError) })
+    expect(next).toEqual({ status: 'fulfilled', value: { allowed: true, currentCount: 1 } })
   })
 
   it('propagates store errors from getCurrentCount instead of reading 0', async () => {
@@ -136,7 +136,7 @@ describe('the per-key lock', () => {
 })
 
 describe('the upload rate limiter on the Redis path', () => {
-  it('fails closed when Redis errors', async () => {
+  it('fails closed with a distinct error when Redis errors', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const redis = {
       eval: vi.fn().mockRejectedValue(new Error('Command timed out')),
@@ -144,7 +144,7 @@ describe('the upload rate limiter on the Redis path', () => {
     }
     const limiter = new UploadRateLimiter(WINDOW_MINUTES, 5, createRedisStore(redis))
 
-    expect(await limiter.checkAndIncrement('user-redis-down')).toEqual({ allowed: false, currentCount: 0 })
+    await expect(limiter.checkAndIncrement('user-redis-down')).rejects.toThrow(RateLimitUnavailableError)
     vi.restoreAllMocks()
   })
 
