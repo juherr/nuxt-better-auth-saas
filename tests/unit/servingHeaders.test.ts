@@ -41,10 +41,27 @@ describe('the headers an uploaded file is served with', () => {
   })
 
   it.each([
+    ['legacy/photo.jpeg', 'image/jpeg'],
+    ['legacy/photo.JPEG', 'image/jpeg'],
+    ['legacy/photo.jpe', 'image/jpeg']
+  ])('types the legacy JPEG name %s as JPEG', (name, type) => {
+    expect(typeOfStorageName(name)).toBe(type)
+  })
+
+  it('shows a legacy .jpeg name inline as JPEG', () => {
+    expect(servingHeaders(typeOfStorageName('x.jpeg'))).toEqual({
+      'Content-Type': 'image/jpeg',
+      'Content-Disposition': 'inline',
+      'X-Content-Type-Options': 'nosniff'
+    })
+  })
+
+  it.each([
     ['a legacy HTML name', 'legacy.html'],
     ['a legacy SVG name', 'legacy.svg'],
     ['a name without extension', '2026-03-02/abc'],
-    ['a dot file', '.png']
+    ['a dot file', '.png'],
+    ['an object property name as extension', 'abc.constructor']
   ])('serves %s as opaque bytes', (_label, name) => {
     expect(typeOfStorageName(name)).toBe('application/octet-stream')
   })
