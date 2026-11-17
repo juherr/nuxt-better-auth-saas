@@ -16,18 +16,26 @@ const write: Record<LogLevel, (line: string) => void> = {
   error: line => console.error(line)
 }
 
+// nginx's convention for a request the client closed before the response completed.
+const CLIENT_CLOSED_REQUEST = 499
+
 /**
- * Access log: one line per request once the response is sent, plus an
- * `x-request-id` response header. See server/utils/accessLog.ts for what a
- * line contains; headers and bodies are never logged.
+ * Access log: one line per request, plus an `x-request-id` response header.
+ * See server/utils/accessLog.ts for what a line contains; headers and bodies
+ * are never logged.
  *
- * The line is written on the response's `finish` event rather than Nitro's
- * `afterResponse` hook: h3 skips `onAfterResponse` when Nitro's error handler
- * has sent an error response (h3 `toNodeListener`, `if (event.handled) return`),
- * so thrown 4xx/5xx would go unlogged. `finish` fires on both presets: on
- * `node-server` from the real `ServerResponse`, on `cloudflare-module` from
- * the `node-mock-http` response Nitro's `localFetch` builds (its `end()` emits
- * `finish`). The listener is skipped if a runtime ever lacks `on`.
+ * No single signal fires for every request, so the line is written by the
+ * first of three, and only once:
+ * - the response's `finish` event: the only one after Nitro's error handler
+ *   has sent an error response, since h3 `toNodeListener` then returns on
+ *   `event.handled` before `onAfterResponse` (h3 1.15.4);
+ * - Nitro's `afterResponse` hook (server/plugins/accessLog.ts): the only one
+ *   for a streamed body on `cloudflare-module`, where h3 `sendStream` never
+ *   ends a response without a socket and node-mock-http drops its listeners;
+ * - the response's `close` event: the only one when a Node client
+ *   disconnects first, logged with status 499. node-mock-http emits `close`
+ *   before `finish`, so a completed response (`writableFinished`) keeps its
+ *   real status.
  */
 export default defineEventHandler((event) => {
   const start = performance.now()
@@ -44,11 +52,12 @@ export default defineEventHandler((event) => {
   // Captured now: h3 rewrites the path as the request goes through its layers.
   const { method, path } = event
   const res = event.node?.res
-  if (typeof res?.on !== 'function') {
-    return
-  }
-  res.on('finish', () => {
-    const status = getResponseStatus(event)
+  let written = false
+  const writeOnce = (status: number) => {
+    if (written) {
+      return
+    }
+    written = true
     const level = accessLogLevel(status)
     if (!shouldLog(level, parseLogLevel(runtimeConfig.logLevel))) {
       return
@@ -59,5 +68,12 @@ export default defineEventHandler((event) => {
       parseLogFormat(runtimeConfig.logFormat)
     )
     write[level](line)
-  })
+  }
+
+  event.context.writeAccessLog = () => writeOnce(getResponseStatus(event))
+  if (typeof res?.on !== 'function') {
+    return
+  }
+  res.on('finish', () => writeOnce(getResponseStatus(event)))
+  res.on('close', () => writeOnce(res.writableFinished ? getResponseStatus(event) : CLIENT_CLOSED_REQUEST))
 })

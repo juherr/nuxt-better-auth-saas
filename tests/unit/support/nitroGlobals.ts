@@ -7,13 +7,15 @@ export interface HttpErrorInput {
 
 /**
  * Nitro auto-imports these h3 helpers in server code; unit tests run in plain
- * Node, so stand in with the same shapes. `readBody` returns `event.body`,
+ * Node, so stand in with the same shapes. `defineEventHandler` and
+ * `defineNitroPlugin` return their argument. `readBody` returns `event.body`,
  * `getQuery` returns `event.query` and `getRouterParam` reads `event.params`.
  * `getRequestHeader` reads `event.headers`, `setResponseHeader` writes
  * `event.responseHeaders` and `getResponseStatus` reads `event.node.res.statusCode`.
  */
 export function stubNitroGlobals() {
   vi.stubGlobal('defineEventHandler', (handler: unknown) => handler)
+  vi.stubGlobal('defineNitroPlugin', (plugin: unknown) => plugin)
   vi.stubGlobal('readBody', async (event: { body?: unknown }) => event?.body)
   vi.stubGlobal('getQuery', (event: { query?: unknown }) => event?.query ?? {})
   vi.stubGlobal('getRouterParam', (event: { params?: Record<string, string> }, name: string) => event?.params?.[name])

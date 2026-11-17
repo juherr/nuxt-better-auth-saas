@@ -142,7 +142,8 @@ only. Use it as the readiness probe of a load balancer or a container.
 ### Access logs
 
 The server writes one line per request once the response is sent: timestamp, level, method, path,
-status, duration and request id. The path is cut at the first `?` or `#` and logged as received,
+status, duration and request id. A request whose client disconnects before the response completes
+is still logged once, with status `499`. The path is cut at the first `?` or `#` and logged as received,
 still percent-encoded, so query strings and fragments, which can carry reset tokens or OAuth codes,
 never reach the log. A secret carried in the path itself, such as the token of a password reset
 link (`/api/auth/reset-password/:token`), is replaced with a placeholder named after the route
