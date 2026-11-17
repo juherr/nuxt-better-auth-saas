@@ -4,6 +4,7 @@ import { subscription as subscriptionTable } from '~~/server/db/schema'
 import { findOrganization, requireAuthSession, requireOrganizationRole, selectActiveSubscription } from '~~/server/utils/billing'
 import { useDB } from '~~/server/utils/db'
 import { createStripeClient } from '~~/server/utils/stripe'
+import { getStripeSubscriptionPeriodEnd, getStripeSubscriptionPeriodEndSeconds } from '~~/server/utils/stripeSubscriptionPeriod'
 import { getPlanByStripePriceId, getTierForInterval, PLAN_TIERS } from '~~/shared/utils/plans'
 
 export default defineEventHandler(async (event) => {
@@ -106,11 +107,11 @@ export default defineEventHandler(async (event) => {
 
     console.log('[preview-tier-change] Full subscription keys:', Object.keys(fullSubscription))
     console.log('[preview-tier-change] billing_cycle_anchor:', (fullSubscription as any).billing_cycle_anchor)
-    console.log('[preview-tier-change] current_period_end:', (fullSubscription as any).current_period_end)
+    console.log('[preview-tier-change] current_period_end:', getStripeSubscriptionPeriodEndSeconds(fullSubscription))
     console.log('[preview-tier-change] current_period_start:', (fullSubscription as any).current_period_start)
 
     // Try billing_cycle_anchor if current_period_end doesn't exist
-    let periodEndTimestamp = (fullSubscription as any).current_period_end
+    let periodEndTimestamp = getStripeSubscriptionPeriodEndSeconds(fullSubscription)
     if (!periodEndTimestamp) {
       // Calculate next period from billing_cycle_anchor
       const anchor = (fullSubscription as any).billing_cycle_anchor
@@ -279,9 +280,7 @@ export default defineEventHandler(async (event) => {
     console.log('[preview-tier-change] Calculated:', { creditAmount, chargeAmount, netAmount, immediateCharge, isDowngrade, isUpgrade })
 
     // Period end date
-    const periodEnd = (subscription as any).current_period_end
-      ? new Date((subscription as any).current_period_end * 1000)
-      : null
+    const periodEnd = getStripeSubscriptionPeriodEnd(subscription)
 
     // Build message based on upgrade/downgrade
     let message = ''

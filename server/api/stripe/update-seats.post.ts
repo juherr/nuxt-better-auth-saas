@@ -4,6 +4,7 @@ import { findOrganization, requireAuthSession, requireOrganizationRole, selectAc
 import { useDB } from '~~/server/utils/db'
 import { createStripeClient } from '~~/server/utils/stripe'
 import { sendSubscriptionUpdatedEmail } from '~~/server/utils/stripeEmails'
+import { getStripeSubscriptionPeriodEnd } from '~~/server/utils/stripeSubscriptionPeriod'
 import { getPlanKeyFromId, getTierForInterval } from '~~/shared/utils/plans'
 
 export default defineEventHandler(async (event) => {
@@ -108,9 +109,7 @@ export default defineEventHandler(async (event) => {
   })
 
   // Update local database immediately
-  const periodEnd = updatedSubscription.current_period_end
-    ? new Date(updatedSubscription.current_period_end * 1000)
-    : undefined
+  const periodEnd = getStripeSubscriptionPeriodEnd(updatedSubscription) ?? undefined
 
   const updateData: any = {
     seats: updatedSubscription.items?.data?.[0]?.quantity || seats,
