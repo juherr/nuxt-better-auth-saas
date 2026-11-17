@@ -1,4 +1,5 @@
 import type { Redis } from 'ioredis'
+import type { EventEmitter } from 'node:events'
 
 type Env = Record<string, string | undefined>
 
@@ -25,6 +26,27 @@ export const resolveRedisUrl = (env: Env): string | null => {
 const COMMAND_TIMEOUT_MS = 2000
 
 /**
+ * Logs the first error of an outage, then stays quiet until the client is
+ * `ready` again and logs the recovery once. ioredis emits an error on every
+ * reconnection attempt, which would otherwise flood the log.
+ */
+export const logRedisConnectionState = (client: Pick<EventEmitter, 'on'>): void => {
+  let failing = false
+  client.on('error', (error: Error) => {
+    if (!failing) {
+      failing = true
+      console.error('Redis client error:', error.message)
+    }
+  })
+  client.on('ready', () => {
+    if (failing) {
+      failing = false
+      console.info('Redis client recovered')
+    }
+  })
+}
+
+/**
  * Redis client with the application's timeouts and error listener.
  * ioredis is only loaded here, when a URL is actually used.
  */
@@ -35,9 +57,7 @@ export const createRedisClient = async (url: string): Promise<Redis> => {
     connectTimeout: COMMAND_TIMEOUT_MS,
     commandTimeout: COMMAND_TIMEOUT_MS
   })
-  client.on('error', (error) => {
-    console.error('Redis client error:', error.message)
-  })
+  logRedisConnectionState(client)
   return client
 }
 

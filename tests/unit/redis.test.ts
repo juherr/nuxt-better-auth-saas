@@ -1,7 +1,8 @@
+import { EventEmitter } from 'node:events'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { UploadRateLimiter } from '~~/server/services/file/rateLimiter'
 import { createRedisStore } from '~~/server/services/file/rateLimitStores'
-import { createRedisClient, resolveRedisUrl } from '~~/server/utils/redis'
+import { createRedisClient, logRedisConnectionState, resolveRedisUrl } from '~~/server/utils/redis'
 
 describe('the Redis URL used by the rate limiter', () => {
   it.each([
@@ -36,4 +37,37 @@ describe('the production Redis client', () => {
       client.disconnect()
     }
   }, 10_000)
+})
+
+describe('the Redis client error log', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('logs the first failure of an outage and its recovery, once each', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {})
+    const client = new EventEmitter()
+    logRedisConnectionState(client)
+
+    client.emit('ready')
+    client.emit('error', new Error('connect ECONNREFUSED'))
+    client.emit('error', new Error('connect ECONNREFUSED'))
+    client.emit('error', new Error('connect ECONNREFUSED'))
+
+    expect(error).toHaveBeenCalledTimes(1)
+    expect(error).toHaveBeenCalledWith('Redis client error:', 'connect ECONNREFUSED')
+    expect(info).not.toHaveBeenCalled()
+
+    client.emit('ready')
+    client.emit('ready')
+
+    expect(info).toHaveBeenCalledTimes(1)
+    expect(info).toHaveBeenCalledWith('Redis client recovered')
+
+    client.emit('error', new Error('read ECONNRESET'))
+
+    expect(error).toHaveBeenCalledTimes(2)
+    expect(error).toHaveBeenLastCalledWith('Redis client error:', 'read ECONNRESET')
+  })
 })
