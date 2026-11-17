@@ -22,14 +22,16 @@
   factory in `auth.ts`), billing, Stripe, drivers · `server/db/schema/` Drizzle schema (pg).
 - `shared/utils/` code shared by app and server (e.g. `permissions.ts` access control).
 - `emails/*.tsx` React Email templates rendered by `server/utils/email.ts`.
+- Area conventions: `server/CLAUDE.md` (auth guards, org roles, DB, errors), `app/CLAUDE.md`
+  (useAuth, route guards, i18n, forms), `tests/CLAUDE.md`.
 
 ## Checks
 - `pnpm lint --max-warnings=0` — also the husky pre-commit hook; never `--no-verify`.
 - `pnpm test:unit` (node project) · `pnpm test:ci` (unit + nuxt components, what CI runs) ·
   the `e2e` Vitest project needs a running app and stays out of CI.
-- `pnpm typecheck` is non-blocking in CI with ~119 known errors (#11): compare `grep -c 'error TS'`
-  against main, do not require zero.
-- Unit tests stub `hub:kv` through `tests/unit/stubs/hub-kv.ts` (alias in `vitest.config.ts`).
+- `pnpm typecheck` is non-blocking in CI with known errors (#11): compare `grep -c 'error TS'`
+  against main, never add any; do not require zero.
+- Test patterns (Nitro route stubs, mocks, component mounts): `tests/CLAUDE.md`.
 - `postgres` and `ioredis` are loaded by NuxtHub, never imported: only a booted app exercises them —
   mirror the `smoke` job of `.github/workflows/ci.yml` (Postgres 16 + Redis 7, `REDIS_URL`).
 
