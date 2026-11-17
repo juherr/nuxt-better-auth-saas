@@ -33,6 +33,13 @@ export default defineEventHandler((event) => {
   const start = performance.now()
   const requestId = resolveRequestId(getRequestHeader(event, 'x-request-id'))
   setResponseHeader(event, 'x-request-id', requestId)
+  // Nuxt renders error pages through a `/__nuxt_error` sub-request that
+  // forwards the request headers and copies its response headers back
+  // (@nuxt/nitro-server runtime/handlers/error.js): forwarding the resolved
+  // id keeps one id for the request, its sub-request and the response.
+  if (event.node?.req?.headers) {
+    event.node.req.headers['x-request-id'] = requestId
+  }
 
   // Captured now: h3 rewrites the path as the request goes through its layers.
   const { method, path } = event

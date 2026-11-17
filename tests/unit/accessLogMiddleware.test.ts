@@ -16,12 +16,12 @@ interface FakeEvent {
   path: string
   headers: Record<string, string>
   responseHeaders?: Record<string, string>
-  node?: { res: EventEmitter & { statusCode: number } }
+  node?: { req: { headers: Record<string, string> }, res: EventEmitter & { statusCode: number } }
 }
 
 function fakeEvent(path: string, headers: Record<string, string> = {}): FakeEvent {
   const res = Object.assign(new EventEmitter(), { statusCode: 200 })
-  return { method: 'GET', path, headers, node: { res } }
+  return { method: 'GET', path, headers, node: { req: { headers: { ...headers } }, res } }
 }
 
 async function runMiddleware(event: FakeEvent) {
@@ -82,6 +82,14 @@ describe('the access log middleware', () => {
     await runMiddleware(event)
 
     expect(event.responseHeaders?.['x-request-id']).toMatch(/^[0-9a-f-]{36}$/)
+  })
+
+  it('passes the resolved id on to the request headers, so internal sub-requests reuse it', async () => {
+    const event = fakeEvent('/dashboard')
+
+    await runMiddleware(event)
+
+    expect(event.node!.req.headers['x-request-id']).toBe(event.responseHeaders?.['x-request-id'])
   })
 
   it('writes JSON lines when configured', async () => {
