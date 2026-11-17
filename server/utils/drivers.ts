@@ -11,6 +11,10 @@ const getDatabaseUrl = () => {
   return hyperdrive?.connectionString || runtimeConfig.databaseUrl
 }
 
+// True when a PostgreSQL connection is configured (Hyperdrive or a URL).
+// Without one, pg would silently fall back to localhost defaults.
+export const isDatabaseConfigured = () => !!getDatabaseUrl()
+
 const createPgPool = () => new pg.Pool({
   connectionString: getDatabaseUrl(),
   // A node-server process shares one pool. 90 connections from a single

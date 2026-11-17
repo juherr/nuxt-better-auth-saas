@@ -31,3 +31,36 @@ describe('the Resend client', () => {
     expect(getResendClient()).toBe(client)
   })
 })
+
+describe('isDatabaseConfigured', () => {
+  beforeEach(() => {
+    vi.resetModules()
+    delete process.env.HYPERDRIVE
+    delete (globalThis as { HYPERDRIVE?: unknown }).HYPERDRIVE
+  })
+
+  it('is true when a database URL is configured', async () => {
+    runtimeConfig.databaseUrl = 'postgres://u:p@db:5432/app'
+
+    const { isDatabaseConfigured } = await import('~~/server/utils/drivers')
+
+    expect(isDatabaseConfigured()).toBe(true)
+  })
+
+  it('is false when no database URL nor Hyperdrive binding is configured', async () => {
+    runtimeConfig.databaseUrl = ''
+
+    const { isDatabaseConfigured } = await import('~~/server/utils/drivers')
+
+    expect(isDatabaseConfigured()).toBe(false)
+  })
+
+  it('is true when only a Hyperdrive binding is available', async () => {
+    runtimeConfig.databaseUrl = ''
+    ;(globalThis as { HYPERDRIVE?: unknown }).HYPERDRIVE = { connectionString: 'postgres://u:p@hyperdrive:5432/app' }
+
+    const { isDatabaseConfigured } = await import('~~/server/utils/drivers')
+
+    expect(isDatabaseConfigured()).toBe(true)
+  })
+})

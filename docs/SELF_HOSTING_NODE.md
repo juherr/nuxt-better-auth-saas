@@ -92,10 +92,16 @@ Most settings are read from the environment (or `.env`) while `pnpm build` runs 
 the full list; the main ones are `NUXT_APP_URL`, `NUXT_APP_NAME`, `NUXT_BETTER_AUTH_SECRET`,
 `DATABASE_URL`, `NUXT_RESEND_API_KEY`, the `NUXT_STRIPE_*` keys and the OAuth client IDs.
 
-`DATABASE_URL` is required by the build itself: without it, NuxtHub falls back to a PGlite
-database, whose package is not installed, and the build fails with
-`Cannot find package '@electric-sql/pglite'`. With it, the build applies the pending migrations
-to that database (see [Database migrations](#1-database-migrations)).
+`DATABASE_URL` is optional at build time. `nuxt.config.ts` pins NuxtHub's database driver to
+`postgres-js` and sets `applyMigrationsDuringBuild` only when `DATABASE_URL` (or `POSTGRES_URL` /
+`POSTGRESQL_URL`) is set, so the build no longer falls back to PGlite:
+
+- with it, the build applies the pending migrations to that database (see
+  [Database migrations](#1-database-migrations)) and writes the URL into `.output` as the default
+  `databaseUrl`;
+- without it, the build succeeds and touches no database. Apply the migrations with
+  `npx nuxt db migrate`, which reads `POSTGRES_URL`, `POSTGRESQL_URL` or `DATABASE_URL` (not
+  `NUXT_DATABASE_URL`), and give the server its database with `NUXT_DATABASE_URL` when it starts.
 
 ---
 
@@ -124,9 +130,22 @@ values are only read at build time. Making every setting configurable at runtime
 [#10](https://github.com/HouseOfBetterAuth/nuxt-better-auth-saas/issues/10); this section will
 be updated once it lands.
 
-The server currently refuses to start without `NUXT_RESEND_API_KEY` (`Missing API key`); making
-optional services optional is tracked in
-[#11](https://github.com/HouseOfBetterAuth/nuxt-better-auth-saas/issues/11).
+Resend and Stripe are optional: the server starts without `NUXT_RESEND_API_KEY` and without
+`NUXT_STRIPE_SECRET_KEY`. Their clients are only created when a key is set (see
+[Supported configurations](#supported-configurations) for what is disabled without them).
+
+`GET /api/health` is public and answers `{ "status": "ok" }` once `select 1` succeeds on the
+configured database. It answers `503` with `{ "status": "error" }` when no database is configured,
+when the query fails, or when it does not answer within 2 seconds, and logs the cause on the server
+only. Use it as the readiness probe of a load balancer or a container.
+
+### Supported configurations
+
+| Configuration | What works | What is disabled |
+|---------------|-----------|------------------|
+| No database URL at build time | The build succeeds. | No migration is applied by the build: run `npx nuxt db migrate` with `DATABASE_URL` set, and set `NUXT_DATABASE_URL` when the server starts. Without a database at runtime, `GET /api/health` answers `503`. |
+| No `NUXT_STRIPE_SECRET_KEY` | The server starts and email/password sign-in works. | The better-auth Stripe plugin is not registered. Billing routes under `/api/stripe/` that call Stripe answer `503 Billing is not configured`. |
+| No `NUXT_RESEND_API_KEY` | The server starts; email/password sign-in works for verified accounts, such as the one `create-admin.ts` creates. | No email is sent. A new email/password account cannot be verified, so its sign-in is refused (`requireEmailVerification`); under `pnpm dev` the verification link is printed to the server log instead. A password reset request still answers success, but no email leaves and the failure is only logged. Account deletion and organization invitation emails are not sent. |
 
 ---
 
@@ -141,3 +160,18 @@ node create-admin.ts        # Node.js 22.18 or later runs TypeScript directly
 ```
 
 Running it again for an existing email only sets the role and the verified flag.
+
+---
+
+## CI
+
+`.github/workflows/ci.yml` runs on every pull request and on pushes to `main`, with throwaway
+values only (no repository secret):
+
+| Job | What it checks |
+|-----|----------------|
+| `lint` | `pnpm lint --max-warnings=0` |
+| `typecheck` | `pnpm typecheck`, non-blocking until the existing type errors are fixed |
+| `unit` | `pnpm test:unit` |
+| `build-no-secrets` | `NUXT_NITRO_PRESET=node-server pnpm build` without a database, Stripe or Resend |
+| `smoke-node` | Against `postgres:16` and `redis:7` services: `pnpm db:generate`, `pnpm build` (which applies the migrations), starts `.output/server/index.mjs`, waits for `GET /api/health`, seeds a user with `create-admin.ts`, then expects `POST /api/auth/sign-in/email` to answer `200` with a `better-auth.session_token` cookie. The server log is uploaded as an artifact when the job fails. |

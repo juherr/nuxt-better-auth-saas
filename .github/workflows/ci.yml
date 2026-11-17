@@ -1,0 +1,181 @@
+name: CI
+
+on:
+  pull_request: {}
+  push:
+    branches: [main]
+
+# Pull requests share one group per branch so a new push cancels the
+# previous run; pushes to main get one group per commit so no commit's
+# run is replaced by a newer pending one.
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint --max-warnings=0
+
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Non-blocking until the existing type errors are fixed (see #11).
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:unit
+
+  build-no-secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # No database, Stripe, Resend or other secret is set: the build
+      # must succeed without them.
+      - run: pnpm build
+        env:
+          NUXT_NITRO_PRESET: node-server
+
+  # Builds and starts the Node server against throwaway PostgreSQL and Redis
+  # services, then checks the health endpoint and an email sign-in.
+  smoke-node:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: smoke
+          POSTGRES_PASSWORD: smoke-password
+          POSTGRES_DB: smoke
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U smoke -d smoke"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    # Throwaway values only, no repository secret. NuxtHub reads
+    # DATABASE_URL and REDIS_URL at build time: the first one makes the
+    # build apply the migrations, the second one selects the Redis KV
+    # driver.
+    env:
+      NUXT_NITRO_PRESET: node-server
+      DATABASE_URL: postgres://smoke:smoke-password@localhost:5432/smoke
+      REDIS_URL: redis://localhost:6379
+      NUXT_APP_URL: http://localhost:3000
+      NUXT_BETTER_AUTH_SECRET: ci-smoke-throwaway-secret-0123456789abcdef
+      NUXT_ADMIN_EMAIL: smoke-admin@example.com
+      NUXT_ADMIN_PASSWORD: smoke-admin-password
+      PORT: 3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Generate migrations
+        run: pnpm db:generate
+      - name: Build (applies the migrations through NuxtHub)
+        run: pnpm build
+      - name: Start the server
+        run: node .output/server/index.mjs > server.log 2>&1 &
+      - name: Wait for /api/health
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -fsS "$NUXT_APP_URL/api/health"; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::/api/health never answered ok"
+          exit 1
+      - name: Seed a user
+        run: node create-admin.ts
+      - name: Sign in with email and password
+        run: |
+          status=$(curl -sS -o sign-in-body.txt -D sign-in-headers.txt \
+            -w '%{http_code}' -X POST "$NUXT_APP_URL/api/auth/sign-in/email" \
+            -H 'Content-Type: application/json' \
+            -H "Origin: $NUXT_APP_URL" \
+            -d "{\"email\":\"$NUXT_ADMIN_EMAIL\",\"password\":\"$NUXT_ADMIN_PASSWORD\"}")
+          echo "sign-in status: $status"
+          # On failure no session exists, so the headers and body hold
+          # nothing secret and are printed as they are.
+          show_response() {
+            echo "--- sign-in response headers ---"
+            cat sign-in-headers.txt
+            echo "--- sign-in response body ---"
+            cat sign-in-body.txt
+            echo
+          }
+          if [ "$status" != "200" ]; then
+            echo "::error::sign-in answered $status instead of 200"
+            show_response
+            exit 1
+          fi
+          # Without HTTPS, better-auth names the cookie without the
+          # __Secure- prefix.
+          if ! grep -qi '^set-cookie: better-auth\.session_token=' sign-in-headers.txt; then
+            echo "::error::no better-auth session cookie in the sign-in response"
+            show_response
+            exit 1
+          fi
+      - name: Upload the server log and smoke responses
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-node-server-log
+          path: |
+            server.log
+            sign-in-headers.txt
+            sign-in-body.txt
