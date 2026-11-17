@@ -123,8 +123,9 @@ The generated migration then ends with `DROP TABLE "apiKey" CASCADE`, which lose
 
 Then apply it (`npx nuxt db migrate`, or `pnpm build`). The same migration also adds
 `user.stripe_customer_id` and the `subscription` columns `cancel_at`, `canceled_at`, `ended_at`,
-`billing_interval` and `stripe_schedule_id`. API keys no longer have a foreign key to `user`: keys of
-a deleted user are not deleted with it.
+`billing_interval` and `stripe_schedule_id`. API keys no longer have a foreign key to `user`: the
+database no longer cascades the deletion of a user to their keys, so the app deletes them in a
+`databaseHooks.user.delete.after` hook (`server/utils/auth.ts`).
 
 Verification tokens (email verification, password reset) are now stored in the database instead of
 the KV store: links sent before the upgrade stop working, and users have to request a new one.
