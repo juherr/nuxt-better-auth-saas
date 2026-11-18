@@ -49,7 +49,7 @@ async function openBillingPortal() {
       </div>
       <UButton
         label="Fix Now"
-        color="red"
+        color="error"
         size="xs"
         icon="i-lucide-credit-card"
         :loading="loading"

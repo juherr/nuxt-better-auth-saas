@@ -581,7 +581,7 @@ async function handleUpgrade() {
           <UButton
             v-if="paymentError"
             label="Update Payment Method"
-            color="orange"
+            color="warning"
             variant="soft"
             icon="i-lucide-credit-card"
             :loading="portalLoading"

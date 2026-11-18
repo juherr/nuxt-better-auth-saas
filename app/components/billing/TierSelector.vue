@@ -72,7 +72,12 @@ function getButtonColor(tierKey: Exclude<PlanKey, 'free'>) {
     return 'neutral'
   if (action === 'upgrade')
     return 'primary'
-  return 'gray'
+  return 'neutral'
+}
+
+// Nuxt UI's v3 migration maps the v2 solid `gray` to neutral subtle.
+function getButtonVariant(tierKey: Exclude<PlanKey, 'free'>) {
+  return getPlanAction(tierKey) === 'downgrade' ? 'subtle' : undefined
 }
 
 function handleSelect(tierKey: Exclude<PlanKey, 'free'>) {
@@ -196,6 +201,7 @@ function getYearlySavings(tierKey: Exclude<PlanKey, 'free'>) {
           <UButton
             :label="getButtonLabel(tier.key as Exclude<PlanKey, 'free'>)"
             :color="getButtonColor(tier.key as Exclude<PlanKey, 'free'>)"
+            :variant="getButtonVariant(tier.key as Exclude<PlanKey, 'free'>)"
             :disabled="isCurrentPlan(tier.key)"
             block
             size="lg"

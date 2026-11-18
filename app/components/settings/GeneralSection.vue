@@ -138,7 +138,7 @@ function copyId() {
           <template #trailing>
             <UButton
               :icon="copied ? 'i-lucide-check' : 'i-lucide-copy'"
-              color="gray"
+              color="neutral"
               variant="ghost"
               size="xs"
               @click="copyId"
@@ -152,7 +152,7 @@ function copyId() {
           v-if="canEdit"
           type="submit"
           label="Save"
-          color="black"
+          color="neutral"
           :loading="loading"
         />
       </div>

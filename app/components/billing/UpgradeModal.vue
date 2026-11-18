@@ -387,7 +387,7 @@ async function handleUpgrade() {
       <UButton
         v-if="hasPastDueSubscription"
         label="Update Payment Method"
-        color="red"
+        color="error"
         icon="i-lucide-credit-card"
         :loading="loading"
         @click="openBillingPortal"

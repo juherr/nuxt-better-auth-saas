@@ -66,8 +66,8 @@ const columns: AdminTableColumn<any>[] = [
 
       const count = row.original.children?.length || 0
       return h(UButton, {
-        color: 'gray',
-        variant: 'solid',
+        color: 'neutral',
+        variant: 'subtle',
         size: 'xs',
         label: `Users ${count}`,
         trailingIcon: row.getIsExpanded() ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down',

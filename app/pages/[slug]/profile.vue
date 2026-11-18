@@ -348,7 +348,7 @@ watch(() => user.value?.name, (newName) => {
                 v-if="user?.image"
                 variant="ghost"
                 size="sm"
-                color="red"
+                color="error"
                 icon="i-lucide-trash-2"
                 :loading="uploadingAvatar"
                 @click="removeAvatar"
@@ -570,7 +570,7 @@ watch(() => user.value?.name, (newName) => {
 
           <template v-if="accounts.some(a => a.providerId === provider.id)">
             <UButton
-              color="red"
+              color="error"
               variant="ghost"
               size="sm"
               :loading="unlinkingAccount === provider.id"
@@ -627,7 +627,7 @@ watch(() => user.value?.name, (newName) => {
         </p>
 
         <UButton
-          color="red"
+          color="error"
           variant="outline"
           @click="showDeleteConfirm = true"
         >
@@ -670,7 +670,7 @@ watch(() => user.value?.name, (newName) => {
           Cancel
         </UButton>
         <UButton
-          color="red"
+          color="error"
           :loading="deletingAccount"
           @click="deleteAccount"
         >
