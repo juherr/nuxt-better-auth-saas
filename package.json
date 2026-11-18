@@ -31,10 +31,12 @@
   "dependencies": {
     "@better-auth/api-key": "^1.7.25",
     "@better-auth/stripe": "^1.7.25",
+    "@internationalized/date": "3.12.4",
     "@nuxt/ui": "^4.12.2",
     "@nuxthub/core": "^0.10.12",
     "@nuxtjs/i18n": "^10.6.0",
     "@nuxtjs/seo": "^6.0.1",
+    "@tanstack/vue-table": "8.21.3",
     "@vueuse/core": "^15.0.0",
     "@vueuse/integrations": "^15.0.0",
     "aws4fetch": "^1.0.20",
