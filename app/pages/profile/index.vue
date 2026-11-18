@@ -8,7 +8,7 @@ const localePath = useLocalePath()
 const { data: accounts } = await useAsyncData('/accounts', () => client.listAccounts())
 
 function hasProvider(provider: string) {
-  return accounts.value?.data?.some(account => account.provider === provider)
+  return accounts.value?.data?.some(account => account.providerId === provider)
 }
 
 const error = useRoute().query?.error
