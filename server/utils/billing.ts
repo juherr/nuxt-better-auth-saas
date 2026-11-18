@@ -6,6 +6,7 @@ import { member as memberTable, organization as organizationTable, subscription 
 import { getAuthSession } from '~~/server/utils/auth'
 import { useDB } from '~~/server/utils/db'
 import { createStripeClient } from '~~/server/utils/stripe'
+import { hasOrgRole } from '~~/shared/utils/permissions'
 
 type Database = Awaited<ReturnType<typeof useDB>>
 
@@ -47,8 +48,9 @@ export async function requireAuthSession(event: H3Event): Promise<AuthSession> {
 
 /**
  * Requires a signed-in user who is a member of the organization and, when
- * `roles` is given, whose stored role is exactly one of them. Without
- * `roles`, any membership passes, whatever its role value.
+ * `roles` is given, whose stored role, a single role or a role list such
+ * as `owner,admin`, holds at least one of them. Casing must still match.
+ * Without `roles`, any membership passes, whatever its role value.
  * Anonymous callers get 401. A non-member and a member with another role
  * get the same 403, so the answer does not reveal membership.
  */
@@ -67,7 +69,7 @@ export async function requireOrganizationRole(
     )
   })
 
-  if (!member || (roles && !roles.includes(member.role as OrgRole))) {
+  if (!member || (roles && !hasOrgRole(member.role, roles))) {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
 

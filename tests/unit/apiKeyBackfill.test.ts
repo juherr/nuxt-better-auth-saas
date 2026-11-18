@@ -13,7 +13,7 @@ describe('decideApiKeyBackfill', () => {
     ownerRole: 'owner'
   }
 
-  it.each(['owner', 'admin'])('links a key whose owner is %s of the organization', (ownerRole) => {
+  it.each(['owner', 'admin', 'owner,admin', 'member, admin'])('links a key whose owner holds "%s" in the organization', (ownerRole) => {
     expect(decideApiKeyBackfill({ ...linkable, ownerRole })).toBe('link')
   })
 
@@ -33,8 +33,8 @@ describe('decideApiKeyBackfill', () => {
   it.each([
     ['an ordinary member', 'member'],
     ['not a member', null],
-    ['holding a role list', 'owner,admin'],
-    ['holding a differently cased role', 'Owner']
+    ['holding a differently cased role', 'Owner'],
+    ['holding a role list of differently cased roles', 'Owner,Admin']
   ])('skips a key whose owner is %s', (_label, ownerRole) => {
     expect(decideApiKeyBackfill({ ...linkable, ownerRole })).toBe('skipped-not-manager')
   })

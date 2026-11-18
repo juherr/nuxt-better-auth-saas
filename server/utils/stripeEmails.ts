@@ -6,6 +6,7 @@
 import type Stripe from 'stripe'
 import { eq } from 'drizzle-orm'
 import { organization as organizationTable, user as userTable } from '~~/server/db/schema'
+import { isOwner } from '~~/shared/utils/permissions'
 import { findPlanById, findPlanByPriceId, getPlanPricing } from '~~/shared/utils/plans'
 import { useDB } from './db'
 import { getResendClient } from './drivers'
@@ -66,7 +67,7 @@ async function getOrgOwnerInfo(organizationId: string): Promise<OrgOwnerInfo | n
     return null
 
   // Find owner
-  const ownerMember = org.members.find(m => m.role === 'owner')
+  const ownerMember = org.members.find(m => isOwner(m.role))
   if (!ownerMember)
     return null
 

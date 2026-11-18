@@ -18,6 +18,7 @@ import { authStorageOptions } from './authStorage'
 import { getDB } from './db'
 import { getResendClient } from './drivers'
 import { renderDeleteAccount, renderResetPassword, renderTeamInvite, renderVerifyEmail } from './email'
+import { memberHasRoleSql } from './memberRoleSql'
 import { runtimeConfig } from './runtimeConfig'
 import { checkoutSeatsOverride, createStripeClient, isStripeConfigured, resolveUpgradeReferenceId, setupStripe } from './stripe'
 
@@ -266,7 +267,7 @@ export const createBetterAuth = () => betterAuth({
                 .innerJoin(schema.organization, eq(schema.member.organizationId, schema.organization.id))
                 .where(and(
                   eq(schema.member.userId, user.id),
-                  eq(schema.member.role, 'owner')
+                  memberHasRoleSql(schema.member.role, 'owner')
                 ))
 
               console.log('[Auth] Found owned orgs:', ownedOrgs.length)

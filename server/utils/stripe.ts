@@ -4,9 +4,11 @@ import { createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
 import { and, eq } from 'drizzle-orm'
 import Stripe from 'stripe'
 import { member as memberTable, organization as organizationTable } from '~~/server/db/schema'
+import { isOwner } from '~~/shared/utils/permissions'
 import { PAID_TIERS } from '~~/shared/utils/plans'
 import { logAuditEvent } from './auditLogger'
 import { useDB } from './db'
+import { memberHasRoleSql } from './memberRoleSql'
 import { runtimeConfig } from './runtimeConfig'
 import {
   sendPaymentFailedEmail,
@@ -77,7 +79,7 @@ export const ensureStripeCustomer = async (organizationId: string) => {
   const member = await db.query.member.findFirst({
     where: and(
       eq(memberTable.organizationId, organizationId),
-      eq(memberTable.role, 'owner')
+      memberHasRoleSql(memberTable.role, 'owner')
     ),
     with: { user: true }
   })
@@ -376,7 +378,7 @@ export const setupStripe = () => stripe({
         }
 
         // For write operations (POST, PUT, DELETE), only allow owners
-        if (member.role === 'owner') {
+        if (isOwner(member.role)) {
           // Ensure Stripe Customer exists for the Organization before allowing action
           await ensureStripeCustomer(referenceId)
           return true

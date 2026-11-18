@@ -5,6 +5,7 @@
  * - MembersInviteForm: Invite form with seat/upgrade logic
  */
 import { useClipboard } from '@vueuse/core'
+import { isAdminOrOwner, isOwner } from '~~/shared/utils/permissions'
 
 definePageMeta({
   layout: 'dashboard'
@@ -34,7 +35,7 @@ const currentUserRole = computed(() => {
 })
 
 const canManageMembers = computed(() => {
-  return currentUserRole.value === 'admin' || currentUserRole.value === 'owner'
+  return isAdminOrOwner(currentUserRole.value)
 })
 
 const isPro = computed(() => {
@@ -243,8 +244,8 @@ const roles = [
             <div class="flex items-center gap-2">
               <!-- Role Badge -->
               <UBadge
-                v-if="!canManageMembers || member.role === 'owner'"
-                :color="member.role === 'owner' ? 'primary' : 'neutral'"
+                v-if="!canManageMembers || isOwner(member.role)"
+                :color="isOwner(member.role) ? 'primary' : 'neutral'"
               >
                 {{ member.role }}
               </UBadge>
@@ -272,7 +273,7 @@ const roles = [
 
               <!-- Actions -->
               <UDropdownMenu
-                v-if="canManageMembers && member.role !== 'owner'"
+                v-if="canManageMembers && !isOwner(member.role)"
                 :items="[[{
                   label: 'Remove from team',
                   icon: 'i-lucide-user-minus',

@@ -2,6 +2,7 @@
 
 <script setup lang="ts">
 import { useDebounceFn } from '@vueuse/core'
+import { isAdminOrOwner, isOwner } from '~~/shared/utils/permissions'
 import SearchPalette from './components/SearchPalette.vue'
 import { getUserMenus } from './menu'
 
@@ -248,12 +249,12 @@ const currentUserRole = computed(() => {
 // Check if current user is owner or admin (kept for backward compatibility)
 const _canManageTeam = computed(() => {
   const role = currentUserRole.value
-  return role === 'owner' || role === 'admin'
+  return isAdminOrOwner(role)
 })
 
 // Check if current user is owner (kept for backward compatibility)
 const _isOwner = computed(() => {
-  return currentUserRole.value === 'owner'
+  return isOwner(currentUserRole.value)
 })
 
 const activeOrgSlug = computed(() => {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isAdminOrOwner } from '~~/shared/utils/permissions'
 import { getPlanKeyFromId, PLAN_TIERS } from '~~/shared/utils/plans'
 
 const { organization, session, useActiveOrganization, user } = useAuth()
@@ -71,7 +72,7 @@ const _canManageTeam = computed(() => {
   if (!activeOrg.value?.data?.members || !user.value?.id)
     return false
   const member = activeOrg.value.data.members.find((m: any) => m.userId === user.value!.id)
-  return member?.role === 'owner' || member?.role === 'admin'
+  return isAdminOrOwner(member?.role)
 })
 
 // Get the tier display name from the subscription plan
