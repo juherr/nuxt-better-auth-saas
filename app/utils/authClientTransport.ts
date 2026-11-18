@@ -1,14 +1,7 @@
+import type { SsrCookiePort } from './ssrCookies'
+
 /** Fetch that dispatches a relative path inside the server process (Nitro's `event.fetch`). */
 export type LocalFetch = (path: string, init?: RequestInit) => Promise<Response>
-
-/**
- * Cookies of the SSR render: `header()` gives the cookie to send now (inbound cookie updated by
- * the earlier calls of the render), `capture()` takes the `Set-Cookie` of each response.
- */
-export interface TransportCookies {
-  header: () => string | undefined
-  capture: (response: Response) => void
-}
 
 export interface AuthClientTransportInput {
   isServer: boolean
@@ -17,7 +10,8 @@ export interface AuthClientTransportInput {
   configuredOrigin?: string
   requestHeaders?: Record<string, string | undefined>
   localFetch?: LocalFetch
-  cookies?: TransportCookies
+  /** Cookies of the SSR render (`ssrCookiePort`): the cookie to send now, and the capture. */
+  cookies?: SsrCookiePort
 }
 
 export interface AuthClientTransport {
