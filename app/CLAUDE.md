@@ -2,7 +2,7 @@
 
 - Auth client: `useAuth()` (`composables/useAuth.ts`) — `client`, `session`, `user`, `loggedIn`,
   `organization`, `useActiveOrganization`, `subscription(s)`, `signIn`, `signUp`, `requestPasswordReset`,
-  `resetPassword`, `signOut({ redirectTo })`, `errorCodes`.
+  `resetPassword`, `signOut({ redirectTo })`.
 - Route guards: `definePageMeta({ auth: { only: 'guest' | 'user', redirectUserTo, redirectGuestTo } })`
   or `auth: false` (`middleware/auth.global.ts`); route names starting with `admin` require the admin role.
   `organization.global.ts` switches the active org from the `:slug` param.

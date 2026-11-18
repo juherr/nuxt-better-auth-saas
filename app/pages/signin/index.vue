@@ -37,6 +37,9 @@ const state = reactive<Partial<Schema>>({
 
 const loading = ref(false)
 const loadingAction = ref('')
+// Code of the 403 better-auth answers when `requireEmailVerification` is on
+// and the email is not verified. The client exposes no runtime error-code map.
+const EMAIL_NOT_VERIFIED = 'EMAIL_NOT_VERIFIED'
 const isEmailVerifyModalOpen = ref(false)
 const resendLoading = ref(false)
 let unverifiedEmail = ''
@@ -67,7 +70,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     callbackURL: redirectTo.value
   })
   if (error) {
-    if (error.code === auth.errorCodes.EMAIL_NOT_VERIFIED.code) {
+    if (error.code === EMAIL_NOT_VERIFIED) {
       unverifiedEmail = event.data.email
       isEmailVerifyModalOpen.value = true
       loading.value = false

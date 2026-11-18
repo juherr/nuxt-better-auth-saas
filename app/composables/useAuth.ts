@@ -178,7 +178,6 @@ export function useAuth() {
     requestPasswordReset: client.requestPasswordReset,
     resetPassword: client.resetPassword,
     sendVerificationEmail: client.sendVerificationEmail,
-    errorCodes: client.$ERROR_CODES,
     async signOut({ redirectTo }: { redirectTo?: RouteLocationRaw } = {}) {
       await client.signOut({
         fetchOptions: {
