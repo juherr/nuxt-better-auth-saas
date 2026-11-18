@@ -13,7 +13,8 @@
 - DB: `const db = await useDB()` in routes — tables from `~~/server/db/schema`, Drizzle
   `db.query.<table>.findFirst` with `eq`/`and`. `getDB()` (sync) only outside routes (auth hooks, audit);
   it is built without schema: query builder only, no `db.query.*` (#22).
-- Errors: `throw createError({ statusCode, statusMessage })`; reusable ones as factories
+- Errors: `throw createError({ statusCode, statusMessage })` — keep these names: h3 1.x derives
+  `message` from `statusMessage`, not `statusText` (migration in #50); reusable ones as factories
   (`const keyNotFound = () => createError(...)`).
 - Validation: zod via `getValidatedQuery(event, schema.parse)` in admin routes (`utils/query.ts` filters);
   other routes check fields by hand → 400.
