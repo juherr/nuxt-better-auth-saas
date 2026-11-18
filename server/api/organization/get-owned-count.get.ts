@@ -14,5 +14,6 @@ export default defineEventHandler(async (event) => {
     .from(member)
     .where(and(eq(member.userId, userId), memberHasRoleSql(member.role, 'owner')))
 
-  return { count: result[0].count }
+  const [row] = result
+  return { count: row?.count ?? 0 }
 })

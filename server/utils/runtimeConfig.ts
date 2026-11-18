@@ -1,4 +1,4 @@
-import type { NitroRuntimeConfig } from 'nitropack/types'
+import type { RuntimeConfig } from '@nuxt/schema'
 import type { FileManagerConfig, StorageProviderType } from '~~/server/services/file/types'
 import { config } from 'dotenv'
 // Relative: nuxt.config.ts imports this file before the `~~` alias exists.
@@ -10,7 +10,7 @@ declare module '@nuxt/schema' {
   }
 }
 
-let runtimeConfigInstance: NitroRuntimeConfig
+let runtimeConfigInstance: RuntimeConfig
 
 /**
  * Runtime configuration.
@@ -104,7 +104,7 @@ if (typeof useRuntimeConfig !== 'undefined') {
 } else {
   // for cli: npm run auth:schema
   config({ quiet: true })
-  runtimeConfigInstance = generateRuntimeConfig() as NitroRuntimeConfig
+  runtimeConfigInstance = generateRuntimeConfig() as RuntimeConfig
 }
 
 export const runtimeConfig = runtimeConfigInstance
