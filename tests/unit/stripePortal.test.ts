@@ -37,7 +37,10 @@ async function callPortal(payload: Record<string, unknown>) {
 
 function returnUrlSentToStripe() {
   expect(createPortalSession).toHaveBeenCalledTimes(1)
-  return createPortalSession.mock.calls[0][0].return_url
+  const call = createPortalSession.mock.lastCall
+  if (!call)
+    throw new Error('createPortalSession was not called')
+  return call[0].return_url
 }
 
 describe('the billing portal endpoint', () => {

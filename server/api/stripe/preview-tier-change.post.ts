@@ -4,6 +4,7 @@ import { subscription as subscriptionTable } from '~~/server/db/schema'
 import { findOrganization, requireAuthSession, requireOrganizationRole, selectActiveSubscription } from '~~/server/utils/billing'
 import { useDB } from '~~/server/utils/db'
 import { createStripeClient } from '~~/server/utils/stripe'
+import { requireSubscriptionItem } from '~~/server/utils/stripeSubscriptionItem'
 import { getStripeSubscriptionPeriodEnd, getStripeSubscriptionPeriodEndSeconds } from '~~/server/utils/stripeSubscriptionPeriod'
 import { getPlanByStripePriceId, getTierForInterval, PLAN_TIERS } from '~~/shared/utils/plans'
 
@@ -38,7 +39,8 @@ export default defineEventHandler(async (event) => {
   const subscription = await selectActiveSubscription(stripe, db, org)
 
   // Get current plan info from STRIPE (source of truth), not local DB
-  const stripePrice = subscription.items.data[0].price
+  const currentItem = requireSubscriptionItem(subscription)
+  const stripePrice = currentItem.price
   const stripePriceId = stripePrice.id
   const stripeInterval = stripePrice.recurring?.interval as 'month' | 'year' || 'month'
 
@@ -130,7 +132,7 @@ export default defineEventHandler(async (event) => {
     const periodEnd = periodEndTimestamp
       ? new Date(periodEndTimestamp * 1000)
       : null
-    const qty = subscription.items.data[0].quantity || 1
+    const qty = currentItem.quantity || 1
 
     console.log('[preview-tier-change] Scheduled downgrade - periodEnd:', periodEnd?.toISOString(), 'qty:', qty)
 
@@ -207,14 +209,14 @@ export default defineEventHandler(async (event) => {
       },
       isUpgrade,
       isDowngrade,
-      seats: subscription.items.data[0].quantity || 1,
+      seats: currentItem.quantity || 1,
       paymentMethod,
       message: 'Your trial will continue. You will be charged the new plan price when your trial ends.'
     }
   }
 
   // For active subscriptions, get proration preview from Stripe
-  const quantity = subscription.items.data[0].quantity || 1
+  const quantity = currentItem.quantity || 1
 
   try {
     // Use Stripe's invoice preview to get exact proration amounts
@@ -224,7 +226,7 @@ export default defineEventHandler(async (event) => {
       subscription: subscription.id,
       subscription_details: {
         items: [{
-          id: subscription.items.data[0].id,
+          id: currentItem.id,
           price: newPlan.priceId,
           quantity
         }],

@@ -86,7 +86,7 @@ async function getOrgOwnerInfo(organizationId: string): Promise<OrgOwnerInfo | n
       stripeCustomerId: (org as any).stripeCustomerId || null
     },
     owner: {
-      name: ownerUser.name || ownerUser.email.split('@')[0],
+      name: ownerUser.name || ownerUser.email.split('@')[0] || ownerUser.email,
       email: ownerUser.email
     }
   }

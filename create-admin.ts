@@ -121,8 +121,8 @@ async function createAdminUser() {
       // Try to find the user directly via db to update role
       const foundUsers = await db.select().from(user).where(eq(user.email, email))
 
-      if (foundUsers.length > 0) {
-        const foundUser = foundUsers[0]
+      const [foundUser] = foundUsers
+      if (foundUser) {
         await db.update(user)
           .set({ role: 'admin', emailVerified: true })
           .where(eq(user.id, foundUser.id))

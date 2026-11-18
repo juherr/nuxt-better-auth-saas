@@ -1,6 +1,6 @@
 import type { SQL } from 'drizzle-orm'
 import type { PgColumn, PgSelect } from 'drizzle-orm/pg-core'
-import { and, eq, gte, ilike, inArray, lte } from 'drizzle-orm'
+import { and, between, eq, ilike, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 
 export const filterSchema = z.array(
@@ -35,29 +35,28 @@ export function processFilters(
   const sqlFilters: SQL[] = []
 
   for (const filter of filters) {
-    if (filter.col in columns) {
-      const columnKey = filter.col as keyof typeof columns
-      const column = columns[columnKey]
-      if (filter.op === 'between') {
-        sqlFilters.push(
-          and(
-            gte(column, new Date(filter.v[0])),
-            lte(column, new Date(filter.v[1]))
-          )!
-        )
-      } else if (filter.op === 'in') {
-        sqlFilters.push(
-          inArray(column, filter.v)
-        )
-      } else if (filter.op === 'like') {
-        sqlFilters.push(
-          ilike(column, `%${filter.v}%`)
-        )
-      } else if (filter.op === 'eq') {
-        sqlFilters.push(
-          eq(column, filter.v)
-        )
-      }
+    // Own keys only: `in` would also accept `toString`, `constructor`, ...
+    const column = Object.hasOwn(columns, filter.col) ? columns[filter.col] : undefined
+    if (!column)
+      continue
+
+    if (filter.op === 'between') {
+      // Inclusive on both ends, like the `>=` / `<=` pair it replaces.
+      sqlFilters.push(
+        between(column, new Date(filter.v[0]), new Date(filter.v[1]))
+      )
+    } else if (filter.op === 'in') {
+      sqlFilters.push(
+        inArray(column, filter.v)
+      )
+    } else if (filter.op === 'like') {
+      sqlFilters.push(
+        ilike(column, `%${filter.v}%`)
+      )
+    } else if (filter.op === 'eq') {
+      sqlFilters.push(
+        eq(column, filter.v)
+      )
     }
   }
 
