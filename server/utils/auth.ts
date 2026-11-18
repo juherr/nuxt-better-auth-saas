@@ -235,9 +235,9 @@ export const createBetterAuth = () => betterAuth({
     user: {
       create: {
         before: async (user, ctx) => {
-          if (ctx.path.startsWith('/callback')) {
+          if (ctx?.path.startsWith('/callback')) {
             try {
-              const additionalData = await getOAuthState(ctx)
+              const additionalData = await getOAuthState<{ referralCode?: string }>()
               if (additionalData?.referralCode) {
                 return {
                   data: {
