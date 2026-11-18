@@ -11,5 +11,7 @@
   and zh-CN (no `fallbackLocale`, missing keys render raw — #53).
 - Forms: `z` and `zodOutput` are auto-imported from `utils/types.ts`; `schema = z.object(...)` with
   translated messages, `reactive<Partial<Schema>>`, `UForm`.
-- API calls: plain `$fetch('/api/...')`. Ignore the unused `$customFetch` plugin (`plugins/customFetch.ts`).
+- API calls: plain `$fetch('/api/...')`; during SSR pass `headers: useSsrCookieHeaders()`, not
+  `useRequestHeaders(['cookie'])`, so cookies set earlier in the render (`setActive`) are sent.
+  Ignore the unused `$customFetch` plugin (`plugins/customFetch.ts`).
 - Nuxt UI 4: `U*` components, `useToast()`; theme colors in `app.config.ts` (primary emerald, neutral slate).

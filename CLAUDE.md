@@ -4,6 +4,10 @@
 - Node 26 (`.nvmrc`), pnpm 12 via `packageManager`; run pnpm through that version, not a global shim.
 - pnpm 12 rejects versions published < 24 h ago (`minimumReleaseAge` default, kept on purpose):
   a freshly resolved lockfile can fail `pnpm install --frozen-lockfile` in CI until the next day.
+  Locally, `--config.minimum-release-age=0` passes that check without touching the lockfile: only
+  with the user's go.
+- The shell's Node may be 22: run `mise exec node@26 -- corepack pnpm <cmd>`. The husky hook runs under
+  the shell's Node and prints engine warnings (#41 moves pinning to mise).
 - Build scripts of dependencies are allow-listed in `pnpm-workspace.yaml` (`allowBuilds`).
 
 ## Run
@@ -42,6 +46,9 @@
   in better-auth `additionalFields` (`lastActiveOrganizationId`, `referralCode`, `stripeCustomerId`).
 - better-auth verification and rate limit live in the database: `hub:kv` has no atomic consume or
   increment, so the KV `getAndDelete`/`increment` throw on purpose.
+- better-auth refuses a POST without `Origin`/`Referer` (403 `MISSING_OR_NULL_ORIGIN`), as an SSR
+  in-process POST from a typed URL is; `app/utils/authClientTransport.ts` adds the configured origin
+  to `set-active` only, and only when `Sec-Fetch-Site` is `none` or `same-origin`.
 
 ## Conventions
 - Stripe: `apiVersion: Stripe.API_VERSION`; read period ends through
