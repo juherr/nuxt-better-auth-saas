@@ -8,6 +8,7 @@ import { eq } from 'drizzle-orm'
 import { organization as organizationTable, user as userTable } from '~~/server/db/schema'
 import { isOwner } from '~~/shared/utils/permissions'
 import { findPlanById, findPlanByPriceId, getPlanPricing } from '~~/shared/utils/plans'
+import { userDisplayName } from '~~/shared/utils/userDisplayName'
 import { useDB } from './db'
 import { getResendClient } from './drivers'
 import {
@@ -86,7 +87,7 @@ async function getOrgOwnerInfo(organizationId: string): Promise<OrgOwnerInfo | n
       stripeCustomerId: (org as any).stripeCustomerId || null
     },
     owner: {
-      name: ownerUser.name || ownerUser.email.split('@')[0] || ownerUser.email,
+      name: userDisplayName(ownerUser),
       email: ownerUser.email
     }
   }

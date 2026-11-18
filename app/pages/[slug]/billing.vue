@@ -162,8 +162,11 @@ const currentBillingInterval = computed<PlanInterval>(() => {
   return activeSub.value.plan.includes('year') ? 'year' : 'month'
 })
 
-// The only tier, shown monthly and yearly side by side when one tier exists
-const singleTier = computed(() => Object.values(PLAN_TIERS)[0])
+// The only tier when exactly one exists, shown monthly and yearly side by side
+const singleTier = computed(() => {
+  const tiers = Object.values(PLAN_TIERS)
+  return tiers.length === 1 ? tiers[0] : undefined
+})
 
 // Get current plan features from PLAN_TIERS
 const currentPlanFeatures = computed<string[]>(() => {
@@ -1110,7 +1113,7 @@ async function confirmPlanChange() {
 
         <!-- Single Tier: Show Monthly/Yearly side by side -->
         <div
-          v-if="Object.keys(PLAN_TIERS).length === 1 && singleTier"
+          v-if="singleTier"
           class="grid grid-cols-1 md:grid-cols-2 gap-6"
         >
           <div
