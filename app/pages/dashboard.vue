@@ -25,11 +25,12 @@ onMounted(async () => {
   // 2. Fallback: If no active org or not found in list, default to first
   const { data: orgs } = await organization.list()
 
-  if (orgs && orgs.length > 0) {
+  const first = orgs?.[0]
+  if (first) {
     // Set first org as active
-    await organization.setActive({ organizationId: orgs[0].id })
+    await organization.setActive({ organizationId: first.id })
     await fetchSession()
-    router.push(`/${orgs[0].slug}/dashboard`)
+    router.push(`/${first.slug}/dashboard`)
   } else {
     // 3. No orgs, go to onboarding
     router.push('/onboarding')

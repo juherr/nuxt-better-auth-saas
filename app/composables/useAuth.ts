@@ -1,7 +1,3 @@
-import type {
-  BetterAuthClientOptions,
-  InferSessionFromClient
-} from 'better-auth/client'
 import type { RouteLocationRaw } from 'vue-router'
 import { apiKeyClient } from '@better-auth/api-key/client'
 import { stripeClient } from '@better-auth/stripe/client'
@@ -28,6 +24,10 @@ export function useAuth() {
     plugins: [
       inferAdditionalFields({
         user: {
+          lastActiveOrganizationId: {
+            type: 'string',
+            required: false
+          },
           referralCode: {
             type: 'string',
             required: false
@@ -59,7 +59,10 @@ export function useAuth() {
   // Create global state for active organization (SSR friendly)
   const useActiveOrgState = () => useState<any>('active-org-state', () => ({ data: null }))
 
-  const session = useState<InferSessionFromClient<BetterAuthClientOptions> | null>('auth:session', () => null)
+  // The session as the server plugins shape it (organization adds activeOrganizationId).
+  type ClientSession = typeof client.$Infer.Session
+
+  const session = useState<ClientSession['session'] | null>('auth:session', () => null)
   const user = useState<User | null>('auth:user', () => null)
   const sessionFetching = import.meta.server ? ref(false) : useState('auth:sessionFetching', () => false)
 
@@ -79,7 +82,7 @@ export function useAuth() {
     // Nuxt reuses the options of the first `auth-session` registration of the render, so the
     // cookie is read when the request leaves: a `setActive` earlier in the render has changed it.
     const event = import.meta.server ? useRequestEvent() : undefined
-    const { data: sessionData } = await useFetch('/api/auth/get-session', {
+    const { data: sessionData } = await useFetch<ClientSession | null>('/api/auth/get-session', {
       headers: import.meta.server ? useRequestHeaders() : undefined,
       key: 'auth-session',
       retry: 0,
@@ -97,7 +100,9 @@ export function useAuth() {
       banReason: null,
       banned: null,
       banExpires: null,
-      stripeCustomerId: null
+      stripeCustomerId: null,
+      lastActiveOrganizationId: null,
+      referralCode: null
     }
     user.value = data?.user
       ? Object.assign({}, userDefaults, data.user)
