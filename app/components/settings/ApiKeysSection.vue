@@ -194,7 +194,7 @@ onMounted(() => {
         </div>
         <UButton
           v-if="canManage"
-          color="red"
+          color="error"
           variant="ghost"
           icon="i-lucide-trash-2"
           size="xs"
@@ -225,7 +225,8 @@ onMounted(() => {
               />
               <UButton
                 icon="i-lucide-copy"
-                color="gray"
+                color="neutral"
+                variant="subtle"
                 @click="copyKey(createdKey!)"
               />
             </div>
@@ -259,7 +260,7 @@ onMounted(() => {
             <div class="flex justify-end gap-2 pt-4">
               <UButton
                 label="Cancel"
-                color="gray"
+                color="neutral"
                 variant="ghost"
                 @click="closeModal"
               />

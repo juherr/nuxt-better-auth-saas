@@ -138,7 +138,7 @@ onMounted(() => {
       <UButton
         v-if="sessions.length > 1"
         label="Revoke all sessions except current"
-        color="red"
+        color="error"
         variant="ghost"
         size="sm"
         @click="revokeAllSessions"
@@ -201,7 +201,7 @@ onMounted(() => {
         </div>
         <UButton
           v-if="!s.isCurrent"
-          color="red"
+          color="error"
           variant="ghost"
           label="Revoke"
           size="xs"
@@ -216,7 +216,7 @@ onMounted(() => {
       >
         <UButton
           variant="link"
-          color="gray"
+          color="neutral"
           :label="showAll ? 'Show less' : `Show ${sessions.length - 4} more`"
           @click="showAll = !showAll"
         />

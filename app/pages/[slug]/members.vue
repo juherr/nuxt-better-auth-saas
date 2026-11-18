@@ -194,7 +194,7 @@ const roles = [
       <UButton
         icon="i-lucide-refresh-cw"
         variant="ghost"
-        color="gray"
+        color="neutral"
         :loading="loading"
         @click="refreshPage"
       />

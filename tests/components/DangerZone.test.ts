@@ -40,4 +40,19 @@ describe('settings danger zone', () => {
     expect(text.includes('Delete Team')).toBe(owner)
     expect(text.includes('Leave Team')).toBe(!owner)
   })
+
+  // Nuxt UI v4 styles a button only through compound variants keyed on a
+  // known colour alias: a v2 name such as `red` renders it unstyled.
+  it.each([
+    ['owner', 'Delete Team'],
+    ['member', 'Leave Team']
+  ])('for the role %s, the %s button uses the v4 error colour', async (role, label) => {
+    authState.role = role
+    const wrapper = await mountSuspended(DangerZone)
+    const button = wrapper.findAllComponents({ name: 'UButton' })
+      .find(b => b.text().includes(label))
+
+    expect(button?.props('color')).toBe('error')
+    expect(button?.classes()).toContain('text-error')
+  })
 })

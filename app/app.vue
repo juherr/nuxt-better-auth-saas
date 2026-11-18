@@ -88,8 +88,8 @@ useSeoMeta({
         Impersonating {{ user?.email }}
       </span>
       <UButton
-        color="white"
-        variant="solid"
+        color="neutral"
+        variant="outline"
         size="xs"
         :loading="stoppingImpersonation"
         class="rounded-full"

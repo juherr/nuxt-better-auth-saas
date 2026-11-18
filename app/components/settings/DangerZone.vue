@@ -130,7 +130,7 @@ async function deleteTeam() {
       </p>
 
       <UButton
-        color="red"
+        color="error"
         variant="outline"
         icon="i-lucide-log-out"
         :loading="leaveLoading"
@@ -154,7 +154,7 @@ async function deleteTeam() {
       </p>
 
       <UButton
-        color="red"
+        color="error"
         variant="outline"
         icon="i-lucide-trash-2"
         :loading="deleteLoading"

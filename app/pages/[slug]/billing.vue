@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ButtonProps } from '@nuxt/ui'
 import type { PlanInterval, PlanKey } from '~~/shared/utils/plans'
 import { getPlanKeyFromId, getPlanPricing, getTierForInterval, PLAN_TIERS, resolveUpgradePlanName } from '~~/shared/utils/plans'
 
@@ -320,7 +321,17 @@ const costBreakdown = computed(() => {
 })
 
 // Modal State
-const modal = reactive({
+interface ConfirmModal {
+  isOpen: boolean
+  title: string
+  message: string
+  confirmLabel: string
+  confirmColor: ButtonProps['color']
+  loading: boolean
+  onConfirm: () => Promise<void>
+}
+
+const modal = reactive<ConfirmModal>({
   isOpen: false,
   title: '',
   message: '',
@@ -330,7 +341,7 @@ const modal = reactive({
   onConfirm: async () => {}
 })
 
-function openModal(title: string, message: string, confirmLabel: string, confirmColor: string, onConfirm: () => Promise<void>) {
+function openModal(title: string, message: string, confirmLabel: string, confirmColor: ButtonProps['color'], onConfirm: () => Promise<void>) {
   modal.title = title
   modal.message = message
   modal.confirmLabel = confirmLabel
@@ -784,7 +795,7 @@ async function confirmPlanChange() {
         <UButton
           v-if="currentPlan !== 'free'"
           label="Manage Billing"
-          color="gray"
+          color="neutral"
           variant="ghost"
           icon="i-lucide-credit-card"
           :loading="loading"
@@ -794,7 +805,7 @@ async function confirmPlanChange() {
         <UButton
           v-if="currentPlan !== 'free' && !isCanceled"
           label="Downgrade to Free"
-          color="red"
+          color="error"
           variant="ghost"
           :loading="loading"
           class="cursor-pointer"
@@ -821,14 +832,14 @@ async function confirmPlanChange() {
               {{ currentPlan === 'free' ? 'Free Plan' : (currentPlan === 'business' ? 'Pro+ Plan' : 'Pro Plan') }}
             </h2>
             <UBadge
-              :color="currentPlan !== 'free' ? 'primary' : 'gray'"
+              :color="currentPlan !== 'free' ? 'primary' : 'neutral'"
               variant="solid"
             >
               Current plan
             </UBadge>
             <UBadge
               v-if="isCanceled"
-              color="orange"
+              color="warning"
               variant="subtle"
             >
               Cancels on {{ nextChargeDate }}
@@ -960,8 +971,8 @@ async function confirmPlanChange() {
                 </div>
                 <UButton
                   size="sm"
-                  variant="solid"
-                  color="white"
+                  variant="outline"
+                  color="neutral"
                   :disabled="targetSeats === (activeSub?.seats || 1)"
                   :loading="loading"
                   @click="initiateSeatChange"
@@ -988,7 +999,7 @@ async function confirmPlanChange() {
               <UButton
                 size="sm"
                 variant="outline"
-                color="gray"
+                color="neutral"
                 icon="i-lucide-credit-card"
                 :loading="portalLoading"
                 @click="openBillingPortal"
@@ -1292,7 +1303,7 @@ async function confirmPlanChange() {
       <template #footer>
         <UButton
           label="Cancel"
-          color="gray"
+          color="neutral"
           variant="ghost"
           :disabled="modal.loading"
           @click="modal.isOpen = false"
@@ -1341,7 +1352,7 @@ async function confirmPlanChange() {
           <div class="flex gap-2">
             <UButton
               label="Cancel"
-              color="gray"
+              color="neutral"
               variant="ghost"
               @click="showPlanChangeModal = false; paymentError = false"
             />
@@ -1355,7 +1366,7 @@ async function confirmPlanChange() {
           <UButton
             v-if="paymentError"
             label="Update Payment Method"
-            color="orange"
+            color="warning"
             variant="soft"
             icon="i-lucide-credit-card"
             :loading="portalLoading"
@@ -1397,7 +1408,7 @@ async function confirmPlanChange() {
           <div class="flex gap-2">
             <UButton
               label="Cancel"
-              color="gray"
+              color="neutral"
               variant="ghost"
               @click="showSeatChangeModal = false; paymentError = false"
             />
@@ -1411,7 +1422,7 @@ async function confirmPlanChange() {
           <UButton
             v-if="paymentError"
             label="Update Payment Method"
-            color="orange"
+            color="warning"
             variant="soft"
             icon="i-lucide-credit-card"
             :loading="portalLoading"
@@ -1508,7 +1519,7 @@ async function confirmPlanChange() {
         />
         <UButton
           label="Yes, Downgrade"
-          color="red"
+          color="error"
           :loading="loading"
           @click="confirmDowngrade"
         />

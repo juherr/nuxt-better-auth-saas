@@ -48,7 +48,7 @@ async function openBillingPortal() {
       </p>
       <div class="flex flex-col sm:flex-row gap-3">
         <UButton
-          color="red"
+          color="error"
           icon="i-lucide-credit-card"
           :loading="loading"
           @click="openBillingPortal"
@@ -58,7 +58,7 @@ async function openBillingPortal() {
         <UButton
           v-if="supportEmail"
           variant="outline"
-          color="red"
+          color="error"
           icon="i-lucide-mail"
           as="a"
           :href="`mailto:${supportEmail}?subject=Payment%20Issue`"
