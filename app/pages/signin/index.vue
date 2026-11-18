@@ -43,6 +43,9 @@ const EMAIL_NOT_VERIFIED = 'EMAIL_NOT_VERIFIED'
 const isEmailVerifyModalOpen = ref(false)
 const resendLoading = ref(false)
 let unverifiedEmail = ''
+// Bumped each time the dialog opens, so a resend started for one account
+// does not close or toast over a dialog reopened later for another one.
+let emailVerifyDialogGeneration = 0
 
 async function onSocialLogin(action: 'google' | 'github') {
   loading.value = true
@@ -72,6 +75,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
   if (error) {
     if (error.code === EMAIL_NOT_VERIFIED) {
       unverifiedEmail = event.data.email
+      emailVerifyDialogGeneration++
       isEmailVerifyModalOpen.value = true
       loading.value = false
       return
@@ -88,10 +92,14 @@ async function handleResendEmail() {
   if (resendLoading.value)
     return
   resendLoading.value = true
+  const generation = emailVerifyDialogGeneration
   const { error } = await auth.sendVerificationEmail({
     email: unverifiedEmail,
     callbackURL: redirectTo.value
   })
+  resendLoading.value = false
+  if (generation !== emailVerifyDialogGeneration)
+    return
   if (error) {
     toast.add({
       title: error.message,
@@ -105,7 +113,6 @@ async function handleResendEmail() {
   }
 
   isEmailVerifyModalOpen.value = false
-  resendLoading.value = false
 }
 </script>
 
@@ -221,7 +228,13 @@ async function handleResendEmail() {
       </div>
     </UCard>
 
-    <UModal v-model:open="isEmailVerifyModalOpen">
+    <!-- With #content, Nuxt UI renders title/description visually hidden,
+         as the dialog's accessible name and description. -->
+    <UModal
+      v-model:open="isEmailVerifyModalOpen"
+      :title="t('signIn.emailNotVerified')"
+      :description="t('signIn.emailNotVerifiedDesc')"
+    >
       <template #content>
         <UCard>
           <template #header>

@@ -1,3 +1,4 @@
+import type { VueWrapper } from '@vue/test-utils'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import SignIn from '~/pages/signin/index.vue'
@@ -6,8 +7,9 @@ import SignIn from '~/pages/signin/index.vue'
 // code is `EMAIL_NOT_VERIFIED` (api/routes/sign-in.mjs). The page must open
 // the verify-email modal on that code, and toast any other error.
 
-const { signInEmail, toastAdd } = vi.hoisted(() => ({
+const { signInEmail, sendVerificationEmail, toastAdd } = vi.hoisted(() => ({
   signInEmail: vi.fn(),
+  sendVerificationEmail: vi.fn(),
   toastAdd: vi.fn()
 }))
 
@@ -15,34 +17,105 @@ mockNuxtImport('useI18n', () => () => ({ t: (key: string) => key }))
 mockNuxtImport('useToast', () => () => ({ add: toastAdd }))
 mockNuxtImport('useAuth', () => () => ({
   signIn: { email: signInEmail, social: vi.fn() },
-  sendVerificationEmail: vi.fn()
+  sendVerificationEmail
 }))
 
-async function submit() {
-  const wrapper = await mountSuspended(SignIn)
-  await wrapper.find('input[type="email"]').setValue('jane@example.com')
-  await wrapper.find('input[type="password"]').setValue('password123')
-  await wrapper.find('form').trigger('submit')
-  await vi.waitFor(() => expect(signInEmail).toHaveBeenCalled())
+const notVerified = {
+  data: null,
+  error: { code: 'EMAIL_NOT_VERIFIED', status: 403, message: 'Email not verified' }
+}
+
+let wrapper: VueWrapper | undefined
+
+async function mount() {
+  wrapper = await mountSuspended(SignIn)
   return wrapper
+}
+
+async function submit(page: VueWrapper, email = 'jane@example.com') {
+  const calls = signInEmail.mock.calls.length
+  await page.find('input[type="email"]').setValue(email)
+  await page.find('input[type="password"]').setValue('password123')
+  await page.find('form').trigger('submit')
+  await vi.waitFor(() => expect(signInEmail).toHaveBeenCalledTimes(calls + 1))
+}
+
+function dialog() {
+  return document.body.querySelector('[role="dialog"]')
+}
+
+function dialogButton(label: string) {
+  const button = [...document.body.querySelectorAll('[role="dialog"] button')]
+    .find(b => b.textContent?.includes(label))
+  if (!button)
+    throw new Error(`no dialog button ${label}`)
+  return button as HTMLButtonElement
 }
 
 describe('sign-in page', () => {
   afterEach(() => {
+    wrapper?.unmount()
+    wrapper = undefined
     signInEmail.mockReset()
+    sendVerificationEmail.mockReset()
     toastAdd.mockReset()
-    document.body.replaceChildren()
   })
 
   it('opens the verify-email modal when the email is not verified', async () => {
-    signInEmail.mockResolvedValue({
-      data: null,
-      error: { code: 'EMAIL_NOT_VERIFIED', status: 403, message: 'Email not verified' }
-    })
+    signInEmail.mockResolvedValue(notVerified)
 
-    await submit()
+    await submit(await mount())
 
     await vi.waitFor(() => expect(document.body.textContent).toContain('signIn.emailNotVerifiedDesc'))
+    expect(toastAdd).not.toHaveBeenCalled()
+  })
+
+  it('gives the verify-email dialog an accessible name and description', async () => {
+    signInEmail.mockResolvedValue(notVerified)
+
+    await submit(await mount())
+
+    await vi.waitFor(() => expect(dialog()).not.toBeNull())
+    const labelId = dialog()!.getAttribute('aria-labelledby')
+    const descriptionId = dialog()!.getAttribute('aria-describedby')
+    expect(document.getElementById(labelId!)?.textContent?.trim()).toBe('signIn.emailNotVerified')
+    expect(document.getElementById(descriptionId!)?.textContent?.trim()).toBe('signIn.emailNotVerifiedDesc')
+  })
+
+  it('closes the dialog once its own resend request completes', async () => {
+    signInEmail.mockResolvedValue(notVerified)
+    sendVerificationEmail.mockResolvedValue({ data: { status: true }, error: null })
+
+    await submit(await mount())
+    await vi.waitFor(() => expect(dialog()).not.toBeNull())
+    dialogButton('signIn.sendEmail').click()
+
+    await vi.waitFor(() => expect(toastAdd).toHaveBeenCalledWith({ title: 'signIn.sendEmailSuccess', color: 'success' }))
+    await vi.waitFor(() => expect(dialog()).toBeNull())
+  })
+
+  it('ignores a resend that completes after the dialog was reopened for another account', async () => {
+    signInEmail.mockResolvedValue(notVerified)
+    let finishResend!: (value: unknown) => void
+    sendVerificationEmail.mockReturnValue(new Promise((resolve) => {
+      finishResend = resolve
+    }))
+
+    const page = await mount()
+    await submit(page, 'alice@example.com')
+    await vi.waitFor(() => expect(dialog()).not.toBeNull())
+    dialogButton('signIn.sendEmail').click()
+    await vi.waitFor(() => expect(sendVerificationEmail).toHaveBeenCalled())
+    dialogButton('global.page.cancel').click()
+    await vi.waitFor(() => expect(dialog()).toBeNull())
+
+    await submit(page, 'bob@example.com')
+    await vi.waitFor(() => expect(dialog()).not.toBeNull())
+
+    finishResend({ data: { status: true }, error: null })
+    await new Promise(resolve => setTimeout(resolve, 50))
+
+    expect(dialog()).not.toBeNull()
     expect(toastAdd).not.toHaveBeenCalled()
   })
 
@@ -52,7 +125,7 @@ describe('sign-in page', () => {
       error: { code: 'INVALID_EMAIL_OR_PASSWORD', status: 401, message: 'Invalid email or password' }
     })
 
-    await submit()
+    await submit(await mount())
 
     await vi.waitFor(() => expect(toastAdd).toHaveBeenCalledWith({ title: 'Invalid email or password', color: 'error' }))
     expect(document.body.textContent).not.toContain('signIn.emailNotVerifiedDesc')
