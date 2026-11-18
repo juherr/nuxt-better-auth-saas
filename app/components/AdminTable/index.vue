@@ -222,8 +222,8 @@ defineExpose({
       sticky
       class="flex-1"
       :ui="{
-        th: { padding: 'py-2' },
-        td: { padding: 'py-2' }
+        th: 'py-2',
+        td: 'py-2'
       }"
     >
       <template #[`${selectColumnId}-header`]="{ table }">

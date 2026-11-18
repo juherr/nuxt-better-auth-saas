@@ -2,7 +2,7 @@
 import { useDebounceFn } from '@vueuse/core'
 
 definePageMeta({
-  layout: 'simple'
+  layout: false
 })
 
 const { user, organization, fetchSession } = useAuth()

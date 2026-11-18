@@ -1,6 +1,12 @@
 <script setup lang="ts">
-import type { Organization } from '~~/shared/utils/types'
+import type { member } from '~~/server/db/schema'
+import type { Organization, User } from '~~/shared/utils/types'
 import { h, resolveComponent } from 'vue'
+
+// An organization as the list endpoint returns it with `members.user`
+type OrganizationRow = Organization & {
+  members?: Array<typeof member.$inferSelect & { user: User }>
+}
 
 const { t } = useI18n()
 const UButton = resolveComponent('UButton')
@@ -108,7 +114,7 @@ const columns: AdminTableColumn<any>[] = [
 ]
 
 const fetchData: FetchDataFn<any> = async ({ page, limit, sort, filter }) => {
-  const result = await $fetch<PageData<Organization>>('/api/admin/list/organization', {
+  const result = await $fetch<PageData<OrganizationRow>>('/api/admin/list/organization', {
     query: {
       page,
       limit,
