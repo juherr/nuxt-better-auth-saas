@@ -8,18 +8,22 @@ import { stripeClient } from '@better-auth/stripe/client'
 import { adminClient, inferAdditionalFields, organizationClient } from 'better-auth/client/plugins'
 import { createAuthClient } from 'better-auth/vue'
 import { ac, admin, member, owner } from '~~/shared/utils/permissions'
-import { authClientTransport, FORWARDED_REQUEST_HEADERS } from '~/utils/authClientTransport'
+import { authClientTransport, configuredOrigin, SSR_REQUEST_HEADERS } from '~/utils/authClientTransport'
+import { applySsrCookie, ssrCookiePort } from '~/utils/ssrCookies'
 
 export function useAuth() {
   const url = useRequestURL()
   const runtimeConfig = useRuntimeConfig()
   const payment = runtimeConfig.public.payment as 'stripe'
+  const requestEvent = import.meta.server ? useRequestEvent() : undefined
   const client = createAuthClient({
     ...authClientTransport({
       isServer: import.meta.server,
       origin: url.origin,
-      requestHeaders: import.meta.server ? useRequestHeaders([...FORWARDED_REQUEST_HEADERS]) : undefined,
-      localFetch: import.meta.server ? useRequestEvent()?.fetch : undefined
+      configuredOrigin: import.meta.server ? configuredOrigin(runtimeConfig.public.baseURL as string) : undefined,
+      requestHeaders: import.meta.server ? useRequestHeaders([...SSR_REQUEST_HEADERS]) : undefined,
+      localFetch: requestEvent?.fetch,
+      cookies: ssrCookiePort(requestEvent)
     }),
     plugins: [
       inferAdditionalFields({
@@ -72,10 +76,16 @@ export function useAuth() {
     sessionFetching.value = true
 
     // Use useFetch for better SSR support and hydration
+    // Nuxt reuses the options of the first `auth-session` registration of the render, so the
+    // cookie is read when the request leaves: a `setActive` earlier in the render has changed it.
+    const event = import.meta.server ? useRequestEvent() : undefined
     const { data: sessionData } = await useFetch('/api/auth/get-session', {
       headers: import.meta.server ? useRequestHeaders() : undefined,
       key: 'auth-session',
-      retry: 0
+      retry: 0,
+      onRequest: event
+        ? ({ options }) => applySsrCookie(event, options.headers)
+        : undefined
     })
 
     const data = sessionData.value
