@@ -39,7 +39,15 @@ export default defineEventHandler(async (event) => {
 
   // If currently trialing, calculate locally and return immediately (No Proration/Stripe API needed)
   if (subscription.status === 'trialing') {
-    const interval = newInterval || (subscription as any).plan.interval
+    // The legacy `plan` field is absent from current Stripe subscriptions:
+    // the billing interval lives on the item's recurring price.
+    const interval = newInterval || subscription.items.data[0]?.price.recurring?.interval
+    if (!interval) {
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Subscription price has no billing interval'
+      })
+    }
 
     // Find the correct plan config to support Legacy Pricing
     // We must check the LOCAL database to see which Plan Version (V1, V2, V3) the user is on,
