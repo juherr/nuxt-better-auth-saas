@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { PlanInterval, PlanKey } from '~~/shared/utils/plans'
-import { getPlanKeyFromId, getPlanPricing, getTierForInterval, PLAN_TIERS } from '~~/shared/utils/plans'
+import { getPlanKeyFromId, getPlanPricing, getTierForInterval, PLAN_TIERS, resolveUpgradePlanName } from '~~/shared/utils/plans'
 
 definePageMeta({
   layout: 'dashboard'
@@ -358,11 +358,7 @@ async function handleUpgradeWithTier(tierKey: Exclude<PlanKey, 'free'>) {
   selectedUpgradeTier.value = tierKey
   try {
     // Use no-trial plan if user owns multiple orgs
-    const selectedPlan = getTierForInterval(tierKey, billingInterval.value)
-    let planName = selectedPlan.id
-    if (hasUsedTrial.value) {
-      planName = `${planName}-no-trial`
-    }
+    const planName = resolveUpgradePlanName(tierKey, billingInterval.value, hasUsedTrial.value)
 
     const redirectParam = route.query.redirect ? `&redirect=${route.query.redirect}` : ''
 
