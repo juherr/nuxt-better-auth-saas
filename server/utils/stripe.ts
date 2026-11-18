@@ -5,7 +5,7 @@ import { and, eq } from 'drizzle-orm'
 import Stripe from 'stripe'
 import { member as memberTable, organization as organizationTable } from '~~/server/db/schema'
 import { isOwner } from '~~/shared/utils/permissions'
-import { PAID_TIERS } from '~~/shared/utils/plans'
+import { noTrialPlanName, PAID_TIERS } from '~~/shared/utils/plans'
 import { logAuditEvent } from './auditLogger'
 import { useDB } from './db'
 import { memberHasRoleSql } from './memberRoleSql'
@@ -487,11 +487,11 @@ export const setupStripe = () => stripe({
 
         // No-trial versions (for users who own multiple orgs)
         plans.push({
-          name: `${tier.monthly.id}-no-trial`,
+          name: noTrialPlanName(tier.monthly.id),
           priceId: tier.monthly.priceId
         })
         plans.push({
-          name: `${tier.yearly.id}-no-trial`,
+          name: noTrialPlanName(tier.yearly.id),
           priceId: tier.yearly.priceId
         })
       }

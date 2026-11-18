@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { PlanInterval, PlanKey } from '~~/shared/utils/plans'
-import { getTierForInterval, PLAN_TIERS } from '~~/shared/utils/plans'
+import { getTierForInterval, PLAN_TIERS, resolveUpgradePlanName } from '~~/shared/utils/plans'
 
 const props = defineProps<{
   open: boolean
@@ -31,11 +31,6 @@ const availableTiers = computed(() => {
 // Check if we have only one tier - if so, show monthly/yearly side by side
 const hasSingleTier = computed(() => availableTiers.value.length === 1)
 const singleTier = computed(() => hasSingleTier.value ? availableTiers.value[0] : null)
-
-// Get the selected plan config
-const selectedPlanConfig = computed(() => {
-  return getTierForInterval(selectedTier.value, selectedInterval.value)
-})
 
 // Open billing portal to fix payment
 async function openBillingPortal() {
@@ -93,10 +88,7 @@ async function handleUpgrade() {
     const orgSlug = activeOrg.value?.data?.slug || props.teamSlug || 't'
 
     // Use Better Auth subscription.upgrade with selected tier
-    let planId = selectedPlanConfig.value.id
-    if (hasUsedTrial.value) {
-      planId = `${planId}-no-trial`
-    }
+    const planId = resolveUpgradePlanName(selectedTier.value, selectedInterval.value, hasUsedTrial.value)
 
     await client.subscription.upgrade(buildOrganizationUpgrade({
       plan: planId,
