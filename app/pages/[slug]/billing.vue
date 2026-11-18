@@ -162,6 +162,9 @@ const currentBillingInterval = computed<PlanInterval>(() => {
   return activeSub.value.plan.includes('year') ? 'year' : 'month'
 })
 
+// The only tier, shown monthly and yearly side by side when one tier exists
+const singleTier = computed(() => Object.values(PLAN_TIERS)[0])
+
 // Get current plan features from PLAN_TIERS
 const currentPlanFeatures = computed<string[]>(() => {
   if (currentTierKey.value === 'free') {
@@ -1107,7 +1110,7 @@ async function confirmPlanChange() {
 
         <!-- Single Tier: Show Monthly/Yearly side by side -->
         <div
-          v-if="Object.keys(PLAN_TIERS).length === 1"
+          v-if="Object.keys(PLAN_TIERS).length === 1 && singleTier"
           class="grid grid-cols-1 md:grid-cols-2 gap-6"
         >
           <div
@@ -1131,7 +1134,7 @@ async function confirmPlanChange() {
               <!-- Plan Header -->
               <div class="mb-4">
                 <h3 class="text-xl font-bold">
-                  {{ Object.values(PLAN_TIERS)[0].name }} {{ interval === 'month' ? 'Monthly' : 'Yearly' }}
+                  {{ singleTier.name }} {{ interval === 'month' ? 'Monthly' : 'Yearly' }}
                 </h3>
                 <p class="text-sm text-muted-foreground">
                   {{ interval === 'month' ? 'Pay month-to-month' : 'Best value' }}
@@ -1141,11 +1144,11 @@ async function confirmPlanChange() {
               <!-- Price -->
               <div class="mb-4">
                 <div class="flex items-baseline gap-1">
-                  <span class="text-4xl font-bold">${{ getTierForInterval(Object.values(PLAN_TIERS)[0].key as Exclude<PlanKey, 'free'>, interval).price.toFixed(2) }}</span>
+                  <span class="text-4xl font-bold">${{ getTierForInterval(singleTier.key as Exclude<PlanKey, 'free'>, interval).price.toFixed(2) }}</span>
                   <span class="text-muted-foreground">/ {{ interval === 'year' ? 'year' : 'month' }}</span>
                 </div>
                 <p class="text-sm text-muted-foreground mt-1">
-                  + ${{ getTierForInterval(Object.values(PLAN_TIERS)[0].key as Exclude<PlanKey, 'free'>, interval).seatPrice.toFixed(2) }}/seat
+                  + ${{ getTierForInterval(singleTier.key as Exclude<PlanKey, 'free'>, interval).seatPrice.toFixed(2) }}/seat
                 </p>
                 <div
                   v-if="!hasUsedTrial"
@@ -1155,19 +1158,19 @@ async function confirmPlanChange() {
                     name="i-lucide-shield-check"
                     class="w-4 h-4 text-green-500"
                   />
-                  <span class="text-xs text-green-600 dark:text-green-400 font-medium">{{ Object.values(PLAN_TIERS)[0].trialDays }}-day free trial</span>
+                  <span class="text-xs text-green-600 dark:text-green-400 font-medium">{{ singleTier.trialDays }}-day free trial</span>
                 </div>
               </div>
 
               <!-- CTA Button -->
               <UButton
                 size="lg"
-                :label="hasUsedTrial ? `Start ${Object.values(PLAN_TIERS)[0].name} Trial` : `Start ${Object.values(PLAN_TIERS)[0].name} Trial`"
+                :label="hasUsedTrial ? `Start ${singleTier.name} Trial` : `Start ${singleTier.name} Trial`"
                 :color="billingInterval === interval ? 'primary' : 'neutral'"
                 :variant="billingInterval === interval ? 'solid' : 'outline'"
-                :loading="loading && selectedUpgradeTier === Object.values(PLAN_TIERS)[0].key"
+                :loading="loading && selectedUpgradeTier === singleTier.key"
                 class="w-full mb-4"
-                @click.stop="billingInterval = interval; handleUpgradeWithTier(Object.values(PLAN_TIERS)[0].key as Exclude<PlanKey, 'free'>)"
+                @click.stop="billingInterval = interval; handleUpgradeWithTier(singleTier.key as Exclude<PlanKey, 'free'>)"
               >
                 <template #trailing>
                   <UIcon name="i-lucide-arrow-right" />
@@ -1181,7 +1184,7 @@ async function confirmPlanChange() {
                 </p>
                 <ul class="space-y-2">
                   <li
-                    v-for="(feature, i) in Object.values(PLAN_TIERS)[0].features"
+                    v-for="(feature, i) in singleTier.features"
                     :key="i"
                     class="flex items-start gap-2 text-sm"
                   >

@@ -51,8 +51,9 @@ async function fetchInvoices(loadMore = false) {
 
     hasMore.value = response.hasMore
 
-    if (response.invoices && response.invoices.length > 0) {
-      lastInvoiceId.value = response.invoices[response.invoices.length - 1].id
+    const lastInvoice = response.invoices?.at(-1)
+    if (lastInvoice) {
+      lastInvoiceId.value = lastInvoice.id
     }
   } catch (e) {
     console.error('Failed to fetch invoices:', e)
