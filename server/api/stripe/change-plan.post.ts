@@ -114,11 +114,11 @@ export default defineEventHandler(async (event) => {
         isDowngrade: true,
         scheduledAt: periodEnd ? new Date(periodEnd * 1000).toISOString() : null
       }
-    } catch (scheduleError: any) {
-      console.error('[change-plan] Schedule error:', scheduleError.message)
+    } catch (scheduleError) {
+      console.error('[stripe/change-plan]', scheduleError)
       throw createError({
         statusCode: 500,
-        statusMessage: `Failed to schedule plan change: ${scheduleError.message}`
+        statusMessage: 'Failed to schedule plan change'
       })
     }
   }
@@ -144,7 +144,7 @@ export default defineEventHandler(async (event) => {
   try {
     updatedSub = await stripe.subscriptions.update(subscription.id, updateParams)
   } catch (stripeError: any) {
-    console.error('[change-plan] Stripe error:', stripeError.message)
+    console.error('[stripe/change-plan]', stripeError)
 
     // Check if it's a card/payment error
     if (stripeError.type === 'StripeCardError' || stripeError.code === 'card_declined') {
@@ -157,7 +157,7 @@ export default defineEventHandler(async (event) => {
     // Re-throw other errors
     throw createError({
       statusCode: 500,
-      statusMessage: stripeError.message || 'Failed to change plan'
+      statusMessage: 'Failed to change plan'
     })
   }
 

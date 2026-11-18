@@ -156,11 +156,11 @@ export default defineEventHandler(async (event) => {
         amount: l.amount
       }))
     })
-  } catch (e: any) {
-    console.error('Stripe Invoice Preview Error:', e)
+  } catch (e) {
+    console.error('[stripe/preview-seat-change]', e)
     throw createError({
       statusCode: 500,
-      statusMessage: `Failed to calculate preview. ${e.message || ''}`
+      statusMessage: 'Failed to calculate preview'
     })
   }
 

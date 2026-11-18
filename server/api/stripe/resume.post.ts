@@ -21,11 +21,11 @@ export default defineEventHandler(async (event) => {
       success: true,
       subscription
     }
-  } catch (error: any) {
-    console.error('Stripe resume error:', error)
+  } catch (error) {
+    console.error('[stripe/resume]', error)
     throw createError({
       statusCode: 500,
-      statusMessage: error.message || 'Failed to resume subscription'
+      statusMessage: 'Failed to resume subscription'
     })
   }
 })

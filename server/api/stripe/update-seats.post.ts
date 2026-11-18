@@ -85,7 +85,7 @@ export default defineEventHandler(async (event) => {
   try {
     updatedSubscription = await stripe.subscriptions.update(subscription.id, updateParams)
   } catch (stripeError: any) {
-    console.error('[update-seats] Stripe error:', stripeError.message)
+    console.error('[stripe/update-seats]', stripeError)
 
     // Check if it's a card/payment error
     if (stripeError.type === 'StripeCardError' || stripeError.code === 'card_declined') {
@@ -98,7 +98,7 @@ export default defineEventHandler(async (event) => {
     // Re-throw other errors
     throw createError({
       statusCode: 500,
-      statusMessage: stripeError.message || 'Failed to update subscription'
+      statusMessage: 'Failed to update subscription'
     })
   }
 
