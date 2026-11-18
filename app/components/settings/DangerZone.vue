@@ -53,10 +53,11 @@ async function leaveTeam() {
 
     // Refresh and redirect
     const { data: orgs } = await organization.list()
-    if (orgs && orgs.length > 0) {
-      await organization.setActive({ organizationId: orgs[0].id })
+    const [firstOrg] = orgs ?? []
+    if (firstOrg) {
+      await organization.setActive({ organizationId: firstOrg.id })
       await fetchSession()
-      window.location.href = `/${orgs[0].slug}/dashboard`
+      window.location.href = `/${firstOrg.slug}/dashboard`
     } else {
       window.location.href = '/onboarding'
     }
@@ -94,11 +95,12 @@ async function deleteTeam() {
 
     // Fetch remaining teams to determine where to redirect
     const { data: orgs } = await organization.list()
+    const [firstOrg] = orgs ?? []
 
-    if (orgs && orgs.length > 0) {
-      await organization.setActive({ organizationId: orgs[0].id })
+    if (firstOrg) {
+      await organization.setActive({ organizationId: firstOrg.id })
       await fetchSession()
-      window.location.href = `/${orgs[0].slug}/dashboard`
+      window.location.href = `/${firstOrg.slug}/dashboard`
     } else {
       window.location.href = '/onboarding'
     }
