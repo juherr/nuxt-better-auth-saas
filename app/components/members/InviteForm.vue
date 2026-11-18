@@ -7,7 +7,7 @@ import type { PlanInterval } from '~~/shared/utils/plans'
  * Usage: <MembersInviteForm :can-manage="canManageMembers" :is-pro="isPro" />
  */
 import { hasOrgRole } from '~~/shared/utils/permissions'
-import { getPlanPricing, getTierForInterval } from '~~/shared/utils/plans'
+import { getPlanPricing, getTierForInterval, resolveUpgradePlanName } from '~~/shared/utils/plans'
 
 const { canManage, isPro } = defineProps<{
   canManage?: boolean
@@ -278,11 +278,7 @@ async function handleUpgrade() {
     const { client } = getAuth()
 
     // Use no-trial plan if user owns multiple orgs
-    const selectedPlan = getTierForInterval('pro', seatInterval.value)
-    let planId = selectedPlan.id
-    if (hasUsedTrial.value) {
-      planId = `${planId}-no-trial`
-    }
+    const planId = resolveUpgradePlanName('pro', seatInterval.value, hasUsedTrial.value)
 
     const { error } = await client.subscription.upgrade(buildOrganizationUpgrade({
       plan: planId,

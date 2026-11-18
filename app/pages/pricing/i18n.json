@@ -7,6 +7,7 @@
       "yearly": "Yearly",
       "savePercent": "Save {percent}%",
       "popular": "Popular",
+      "checkoutError": "Could not start the checkout. Please try again.",
       "free": {
         "name": "Free",
         "description": "Perfect for getting started",
@@ -51,6 +52,7 @@
       "yearly": "按年付费",
       "savePercent": "节省 {percent}%",
       "popular": "热门",
+      "checkoutError": "无法开始结账，请重试。",
       "free": {
         "name": "免费版",
         "description": "完美的入门选择",
@@ -95,6 +97,7 @@
       "yearly": "年払い",
       "savePercent": "{percent}%お得",
       "popular": "人気",
+      "checkoutError": "チェックアウトを開始できませんでした。もう一度お試しください。",
       "free": {
         "name": "無料プラン",
         "description": "始めるのに最適",
@@ -139,6 +142,7 @@
       "yearly": "Annuel",
       "savePercent": "Économisez {percent}%",
       "popular": "Populaire",
+      "checkoutError": "Impossible de lancer le paiement. Veuillez réessayer.",
       "free": {
         "name": "Gratuit",
         "description": "Parfait pour commencer",

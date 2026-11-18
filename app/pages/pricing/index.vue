@@ -1,6 +1,8 @@
 <i18n src="./i18n.json"></i18n>
 
 <script setup lang="ts">
+import { getTierForInterval, resolveUpgradePlanName } from '~~/shared/utils/plans'
+
 definePageMeta({
   auth: false,
   layout: false
@@ -9,6 +11,8 @@ const { t } = useI18n()
 const { loggedIn, session, subscription, payment } = useAuth()
 const localePath = useLocalePath()
 const runtimeConfig = useRuntimeConfig()
+const { hasUsedTrial } = usePaymentStatus()
+const toast = useToast()
 const billingPeriod = ref('monthly')
 
 const plans = [
@@ -28,8 +32,8 @@ const plans = [
   {
     name: t('pricing.pro.name'),
     description: t('pricing.pro.description'),
-    price: t('pricing.pro.price', { price: 10 }),
-    yearPrice: t('pricing.pro.price', { price: 100 }),
+    price: t('pricing.pro.price', { price: getTierForInterval('pro', 'month').price }),
+    yearPrice: t('pricing.pro.price', { price: getTierForInterval('pro', 'year').price }),
     period: t('pricing.pro.period'),
     yearPeriod: t('pricing.pro.yearPeriod'),
     features: [
@@ -45,8 +49,9 @@ const plans = [
         return
       }
       if (payment == 'stripe') {
+        const interval = billingPeriod.value === 'yearly' ? 'year' : 'month'
         const request = {
-          plan: `pro-${billingPeriod.value}`,
+          plan: resolveUpgradePlanName('pro', interval, hasUsedTrial.value),
           successUrl: localePath('/'),
           cancelUrl: localePath('/pricing')
         }
@@ -54,10 +59,16 @@ const plans = [
         // getCheckoutSessionParams; without one, keep a user subscription.
         // The organization client plugin adds this field; the session type lacks it.
         const organizationId = (session.value as { activeOrganizationId?: string | null } | null)?.activeOrganizationId
-        const result = await subscription.upgrade(organizationId
-          ? buildOrganizationUpgrade({ ...request, organizationId })
-          : request)
-        console.log(result)
+        // better-fetch resolves a failed request as `{ error }` instead of throwing.
+        try {
+          const { error } = await subscription.upgrade(organizationId
+            ? buildOrganizationUpgrade({ ...request, organizationId })
+            : request)
+          if (error)
+            toast.add({ title: t('pricing.checkoutError'), color: 'error' })
+        } catch {
+          toast.add({ title: t('pricing.checkoutError'), color: 'error' })
+        }
       }
     }
   },

@@ -198,6 +198,40 @@ export function getTierForInterval(tierKey: Exclude<PlanKey, 'free'>, interval: 
 /** Get all paid tiers sorted by order */
 export const PAID_TIERS = Object.values(PLAN_TIERS).sort((a, b) => a.order - b.order)
 
+/**
+ * Name of the trial-less variant of a plan, registered alongside it with the
+ * Stripe plugin for customers who already had a trial.
+ */
+export function noTrialPlanName(planId: string): string {
+  return `${planId}-no-trial`
+}
+
+/**
+ * Plan names the Stripe plugin registers (server/utils/stripe.ts `plans`):
+ * each paid tier's monthly and yearly ids, with and without trial.
+ */
+export function registeredPlanNames(tiers: PlanTier[] = PAID_TIERS): string[] {
+  return tiers.flatMap(tier => [
+    tier.monthly.id,
+    tier.yearly.id,
+    noTrialPlanName(tier.monthly.id),
+    noTrialPlanName(tier.yearly.id)
+  ])
+}
+
+/**
+ * Plan name to send to `subscription.upgrade` for a tier and interval: the
+ * registered id, or its trial-less variant once a trial was used.
+ */
+export function resolveUpgradePlanName(
+  tierKey: Exclude<PlanKey, 'free'>,
+  interval: PlanInterval,
+  hasUsedTrial: boolean
+): string {
+  const planId = getTierForInterval(tierKey, interval).id
+  return hasUsedTrial ? noTrialPlanName(planId) : planId
+}
+
 /** Get all tier keys including free */
 export const ALL_PLAN_KEYS: PlanKey[] = ['free', ...PAID_TIERS.map(t => t.key)]
 
