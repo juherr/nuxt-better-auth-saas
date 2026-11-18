@@ -5,6 +5,7 @@
  * - MembersInviteForm: Invite form with seat/upgrade logic
  */
 import { useClipboard } from '@vueuse/core'
+import { buildInvitationUrl } from '~~/shared/utils/invitationUrl'
 import { isAdminOrOwner, isOwner } from '~~/shared/utils/permissions'
 
 definePageMeta({
@@ -60,7 +61,7 @@ onMounted(async () => {
 // ─────────────────────────────────────────────
 function getInviteLink(invitationId: string) {
   return import.meta.client
-    ? `${window.location.origin}/accept-invite/${invitationId}`
+    ? buildInvitationUrl(window.location.origin, invitationId)
     : ''
 }
 

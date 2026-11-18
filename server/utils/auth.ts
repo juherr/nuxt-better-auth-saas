@@ -8,6 +8,7 @@ import { admin as adminPlugin, openAPI, organization } from 'better-auth/plugins
 import { and, eq } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
 import * as schema from '~~/server/db/schema'
+import { buildInvitationUrl } from '~~/shared/utils/invitationUrl'
 import { ac, admin, member, owner } from '~~/shared/utils/permissions'
 import { createdApiKeyId, isApiKeyManagerRole, parseRequestedOrganizationId } from './apiKeyMetadata'
 import { deleteOrganizationApiKeys } from './apiKeyOrganization'
@@ -631,7 +632,7 @@ export const createBetterAuth = () => betterAuth({
         const resend = getResendClient()
         if (resend) {
           const inviterName = inviter.user.name || inviter.user.email.split('@')[0]
-          const inviteUrl = `${runtimeConfig.public.baseURL}/invite/${invitation.id}`
+          const inviteUrl = buildInvitationUrl(runtimeConfig.public.baseURL, invitation.id)
           const html = await renderTeamInvite(inviterName, organization.name, inviteUrl)
           await resend.emails.send({
             from: emailSender(),
