@@ -19,7 +19,16 @@ vi.mock('~~/server/utils/runtimeConfig', () => ({
   runtimeConfig: { public: { baseURL: 'https://saas.example.test' } }
 }))
 vi.mock('~~/server/utils/db', () => ({ getDB: () => db }))
-vi.mock('~~/server/utils/drivers', () => ({ cacheClient: {}, getResendClient: () => undefined }))
+const resend = vi.hoisted(() => ({ emails: { send: vi.fn() } }))
+const getResendClient = vi.hoisted(() => vi.fn((): unknown => undefined))
+const renderTeamInvite = vi.hoisted(() => vi.fn(async () => '<html></html>'))
+vi.mock('~~/server/utils/drivers', () => ({ cacheClient: {}, getResendClient }))
+vi.mock('~~/server/utils/email', () => ({
+  renderDeleteAccount: vi.fn(),
+  renderResetPassword: vi.fn(),
+  renderTeamInvite,
+  renderVerifyEmail: vi.fn()
+}))
 vi.mock('~~/server/utils/auditLogger', () => ({ logAuditEvent: vi.fn() }))
 vi.mock('~~/server/utils/emails', () => ({}))
 vi.mock('~~/server/utils/stripe', () => ({
@@ -60,6 +69,23 @@ describe('the before hook', () => {
 
     expect(result).toEqual(settledUpgrade)
     expect(checkoutSeatsOverride).toHaveBeenCalledWith(expect.objectContaining({ body: { plan: 'pro' } }), session)
+  })
+})
+
+describe('the invitation email', () => {
+  it('links to the accept-invite page', async () => {
+    getResendClient.mockReturnValueOnce(resend)
+    const organizationPlugin = options.plugins.find((plugin: any) => plugin.id === 'organization')
+
+    await organizationPlugin.options.sendInvitationEmail({
+      email: 'invitee@example.test',
+      inviter: { user: { name: 'Ada', email: 'ada@example.test' } },
+      organization: { name: 'Acme' },
+      invitation: { id: 'inv-1' }
+    })
+
+    expect(renderTeamInvite).toHaveBeenCalledWith('Ada', 'Acme', 'https://saas.example.test/accept-invite/inv-1')
+    expect(resend.emails.send).toHaveBeenCalledTimes(1)
   })
 })
 
