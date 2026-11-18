@@ -145,15 +145,7 @@ export class FileService {
       return false
     }
 
-    try {
-      await this.storage.delete(file.path)
-    } catch (error) {
-      console.error('Failed to delete file from storage:', error)
-    }
-
-    await db.delete(fileTable).where(eq(fileTable.id, id))
-
-    await logAuditEvent({
+    const audit = (status: 'success' | 'failure', error?: unknown) => logAuditEvent({
       userId,
       category: 'file',
       action: 'delete',
@@ -161,14 +153,28 @@ export class FileService {
       targetId: id,
       ipAddress,
       userAgent,
-      status: 'success',
+      status,
       details: JSON.stringify({
         originalName: file.originalName,
         fileName: file.fileName,
         mimeType: file.mimeType,
-        size: file.size
+        size: file.size,
+        ...(error === undefined ? {} : { error: error instanceof Error ? error.message : 'Unknown error' })
       })
     })
+
+    // A stored file that is already gone counts as deleted (the providers
+    // ignore a missing file); any other failure keeps the row so that the
+    // deletion can be retried instead of orphaning the stored bytes.
+    try {
+      await this.storage.delete(file.path)
+    } catch (error) {
+      await audit('failure', error)
+      throw error
+    }
+
+    await db.delete(fileTable).where(eq(fileTable.id, id))
+    await audit('success')
 
     return true
   }

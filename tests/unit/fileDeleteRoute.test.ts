@@ -54,10 +54,16 @@ describe('deleting a file', () => {
     ['another user', { id: 'other', role: 'user' }],
     ['another user without a role', { id: 'other' }],
     ['another user with a non-admin role', { id: 'other', role: 'moderator' }]
-  ])('refuses %s with 403', async (_label, user) => {
+  ])('answers %s with the same 404 as a missing file', async (_label, user) => {
     requireAuth.mockResolvedValue(user)
 
-    await expect(remove()).rejects.toMatchObject({ statusCode: 403 })
+    const [denied, missing] = await Promise.all([
+      remove().catch((e: unknown) => e),
+      remove('unknown').catch((e: unknown) => e)
+    ])
+
+    expect(denied).toMatchObject({ statusCode: 404, statusMessage: 'File not found' })
+    expect(denied).toEqual(missing)
     expect(deleteFile).not.toHaveBeenCalled()
   })
 
@@ -67,6 +73,19 @@ describe('deleting a file', () => {
     await expect(remove()).rejects.toMatchObject({ statusCode: 401 })
     expect(getFile).not.toHaveBeenCalled()
     expect(deleteFile).not.toHaveBeenCalled()
+  })
+
+  it('answers a generic 500 when the stored file cannot be deleted', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const failure = new Error('EACCES: permission denied, unlink \'/srv/uploads/a.png\'')
+    deleteFile.mockRejectedValue(failure)
+
+    const error = await remove().catch((e: unknown) => e)
+
+    expect(error).toMatchObject({ statusCode: 500, statusMessage: 'File deletion failed' })
+    expect((error as Error).message).not.toMatch(/EACCES|srv/)
+    expect(consoleError).toHaveBeenCalledWith('[file/delete]', failure)
+    consoleError.mockRestore()
   })
 
   it('answers 404 for an unknown file', async () => {

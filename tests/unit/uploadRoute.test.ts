@@ -126,6 +126,31 @@ describe('the upload endpoint', () => {
     })
   })
 
+  describe('when storing fails', () => {
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('answers a generic 500 without echoing an internal error', async () => {
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const internal = new Error('ENOSPC: no space left on device, open \'/srv/uploads/x.png\'')
+      uploadFile.mockRejectedValue(internal)
+
+      const error = await upload().catch((e: unknown) => e)
+
+      expect(error).toMatchObject({ statusCode: 500, statusMessage: 'Upload failed' })
+      expect((error as Error).message).not.toMatch(/ENOSPC|srv/)
+      expect(consoleError).toHaveBeenCalledWith('[file/upload]', internal)
+    })
+
+    it('passes an error that already carries a status through unchanged', async () => {
+      const httpError = Object.assign(new Error('Service Unavailable'), { statusCode: 503, statusMessage: 'Service Unavailable' })
+      uploadFile.mockRejectedValue(httpError)
+
+      await expect(upload()).rejects.toBe(httpError)
+    })
+  })
+
   describe('after parsing', () => {
     it('refuses a file above the maximum size with 413', async () => {
       readMultipartFormData.mockResolvedValue([part(Buffer.alloc(MAX_FILE_SIZE + 1), 'image/png')])

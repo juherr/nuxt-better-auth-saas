@@ -1,9 +1,12 @@
 import type { Buffer } from 'node:buffer'
 import type { StorageProvider } from '../types'
-import { promises as fs } from 'node:fs'
+import { constants, promises as fs } from 'node:fs'
 import { basename, dirname, join, resolve, sep } from 'node:path'
 
 const outsideError = () => new Error('Storage path is outside the upload directory')
+
+/** Open flags for a new file; fails on an existing name or a link there. */
+const CREATE_NEW_NO_FOLLOW = constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW
 
 /**
  * Absolute path of `path` inside `directory`.
@@ -68,7 +71,18 @@ export class LocalStorageProvider implements StorageProvider {
     const filePath = await resolveRealInside(this.uploadDir, fileName)
 
     await fs.mkdir(dirname(filePath), { recursive: true })
-    await fs.writeFile(filePath, file)
+    // The directory may have been swapped for a link since the first check.
+    await resolveRealInside(this.uploadDir, fileName)
+
+    // Storage names are unique per upload (FileService: date + UUIDv7), so
+    // the final name must not exist yet, and a link planted there is never
+    // followed.
+    const handle = await fs.open(filePath, CREATE_NEW_NO_FOLLOW)
+    try {
+      await handle.writeFile(file)
+    } finally {
+      await handle.close()
+    }
 
     return {
       path: fileName,
