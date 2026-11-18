@@ -10,6 +10,7 @@ import { v7 as uuidv7 } from 'uuid'
 import * as schema from '~~/server/db/schema'
 import { buildInvitationUrl } from '~~/shared/utils/invitationUrl'
 import { ac, admin, member, owner } from '~~/shared/utils/permissions'
+import { userDisplayName } from '~~/shared/utils/userDisplayName'
 import { createdApiKeyId, isApiKeyManagerRole, parseRequestedOrganizationId } from './apiKeyMetadata'
 import { deleteOrganizationApiKeys } from './apiKeyOrganization'
 import { logAuditEvent } from './auditLogger'
@@ -202,7 +203,7 @@ export const createBetterAuth = () => betterAuth({
           console.warn('Resend is not configured: account deletion email not sent')
           return
         }
-        const name = user.name || (user.email.split('@')[0] ?? user.email)
+        const name = userDisplayName(user)
         const html = await renderDeleteAccount(name, url)
         const response = await resend.emails.send({
           from: emailSender(),
@@ -382,7 +383,7 @@ export const createBetterAuth = () => betterAuth({
     enabled: true,
     requireEmailVerification: true,
     sendResetPassword: async ({ user, url }) => {
-      const name = user.name || (user.email.split('@')[0] ?? user.email)
+      const name = userDisplayName(user)
       const html = await renderResetPassword(name, url)
       const resend = getResendClient()
       if (!resend) {
@@ -434,7 +435,7 @@ export const createBetterAuth = () => betterAuth({
         if (!resend) {
           throw new Error('Resend is not configured')
         }
-        const name = user.name || (user.email.split('@')[0] ?? user.email)
+        const name = userDisplayName(user)
         const html = await renderVerifyEmail(name, url)
         const response = await resend.emails.send({
           from: emailSender(),
@@ -589,7 +590,7 @@ export const createBetterAuth = () => betterAuth({
       async sendInvitationEmail({ email, inviter, organization, invitation }) {
         const resend = getResendClient()
         if (resend) {
-          const inviterName = inviter.user.name || (inviter.user.email.split('@')[0] ?? inviter.user.email)
+          const inviterName = userDisplayName(inviter.user)
           const inviteUrl = buildInvitationUrl(runtimeConfig.public.baseURL, invitation.id)
           const html = await renderTeamInvite(inviterName, organization.name, inviteUrl)
           await resend.emails.send({
