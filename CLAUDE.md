@@ -6,8 +6,9 @@
   a freshly resolved lockfile can fail `pnpm install --frozen-lockfile` in CI until the next day.
   Locally, `--config.minimum-release-age=0` passes that check without touching the lockfile: only
   with the user's go.
-- The shell's Node may be 22: run `mise exec node@26 -- corepack pnpm <cmd>`. The husky hook runs under
-  the shell's Node and prints engine warnings (#41 moves pinning to mise).
+- The shell's Node may be 22: run `mise exec node@26 -- corepack pnpm <cmd>`. Node ≥ 25 ships no
+  Corepack: install it once for Node 26 with `mise exec node@26 -- npm install -g corepack`. The husky
+  hook runs under the shell's Node and prints engine warnings (#41 moves pinning to mise).
 - Build scripts of dependencies are allow-listed in `pnpm-workspace.yaml` (`allowBuilds`).
 
 ## Run
