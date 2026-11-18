@@ -4,6 +4,7 @@ import { findOrganization, requireAuthSession, requireOrganizationRole, selectAc
 import { useDB } from '~~/server/utils/db'
 import { createStripeClient } from '~~/server/utils/stripe'
 import { sendSubscriptionUpdatedEmail } from '~~/server/utils/stripeEmails'
+import { requireSubscriptionItem } from '~~/server/utils/stripeSubscriptionItem'
 import { getStripeSubscriptionPeriodEndSeconds } from '~~/server/utils/stripeSubscriptionPeriod'
 import { getPlanKeyFromId, getTierForInterval, PLAN_TIERS } from '~~/shared/utils/plans'
 
@@ -43,7 +44,8 @@ export default defineEventHandler(async (event) => {
     where: eq(subscriptionTable.stripeSubscriptionId, subscription.id)
   })
 
-  const currentPriceId = subscription.items.data[0].price.id
+  const currentItem = requireSubscriptionItem(subscription)
+  const currentPriceId = currentItem.price.id
 
   // Get user's current tier (pro, business, etc.)
   const currentTierKey = getPlanKeyFromId(localSub?.plan)
@@ -75,7 +77,7 @@ export default defineEventHandler(async (event) => {
     (targetTier.order === currentTier.order && newInterval === 'month' && currentInterval === 'year')
   )
 
-  const quantity = subscription.items.data[0].quantity
+  const quantity = currentItem.quantity
 
   // All plan tier downgrades are scheduled at period end (no credit)
   // This prevents revenue loss - users keep features until renewal
@@ -89,11 +91,19 @@ export default defineEventHandler(async (event) => {
       })
 
       // Update the schedule to change plan at next phase (period end)
+      // A schedule created from a subscription opens with its current phase.
+      // Without one, the catch below answers the same 500 it answers today.
       const currentPhase = schedule.phases[0]
+      if (!currentPhase) {
+        throw createError({
+          statusCode: 500,
+          statusMessage: 'Subscription schedule has no current phase'
+        })
+      }
       await stripe.subscriptionSchedules.update(schedule.id, {
         phases: [
           {
-            items: [{ price: subscription.items.data[0].price.id, quantity }],
+            items: [{ price: currentPriceId, quantity }],
             start_date: currentPhase.start_date,
             end_date: currentPhase.end_date
           },
@@ -126,7 +136,7 @@ export default defineEventHandler(async (event) => {
   // Build update params for upgrades only
   const updateParams: any = {
     items: [{
-      id: subscription.items.data[0].id,
+      id: currentItem.id,
       price: newPriceId,
       quantity
     }],

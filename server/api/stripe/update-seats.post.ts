@@ -4,6 +4,7 @@ import { findOrganization, requireAuthSession, requireOrganizationRole, selectAc
 import { useDB } from '~~/server/utils/db'
 import { createStripeClient } from '~~/server/utils/stripe'
 import { sendSubscriptionUpdatedEmail } from '~~/server/utils/stripeEmails'
+import { requireSubscriptionItem } from '~~/server/utils/stripeSubscriptionItem'
 import { getStripeSubscriptionPeriodEnd } from '~~/server/utils/stripeSubscriptionPeriod'
 import { getPlanKeyFromId, getTierForInterval } from '~~/shared/utils/plans'
 
@@ -53,8 +54,9 @@ export default defineEventHandler(async (event) => {
     newPriceId = getTierForInterval(effectiveTierKey, newInterval).priceId
   }
 
-  const subscriptionItemId = subscription.items.data[0].id
-  const currentSeats = subscription.items.data[0].quantity || 1
+  const currentItem = requireSubscriptionItem(subscription)
+  const subscriptionItemId = currentItem.id
+  const currentSeats = currentItem.quantity || 1
   const isDowngrade = seats < currentSeats
 
   // Update subscription params
@@ -149,7 +151,7 @@ export default defineEventHandler(async (event) => {
 
   // Send updated email for seat/plan changes
   if (updatedSubscription.status === 'active') {
-    const previousSeats = subscription.items.data[0].quantity
+    const previousSeats = currentItem.quantity
     const newSeats = updatedSubscription.items.data[0].quantity
     await sendSubscriptionUpdatedEmail(organizationId, updatedSubscription, previousSeats, newSeats)
   }

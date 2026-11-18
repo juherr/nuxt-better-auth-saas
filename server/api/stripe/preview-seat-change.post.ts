@@ -3,6 +3,7 @@ import { subscription as subscriptionTable } from '~~/server/db/schema'
 import { findOrganization, requireAuthSession, requireOrganizationRole, selectActiveSubscription } from '~~/server/utils/billing'
 import { useDB } from '~~/server/utils/db'
 import { createStripeClient } from '~~/server/utils/stripe'
+import { requireSubscriptionItem } from '~~/server/utils/stripeSubscriptionItem'
 import { getPlanKeyFromId, getTierForInterval } from '~~/shared/utils/plans'
 
 export default defineEventHandler(async (event) => {
@@ -122,8 +123,8 @@ export default defineEventHandler(async (event) => {
     newPriceId = planConfig.priceId
   }
 
-  const subscriptionItemId = subscription.items.data[0].id
-  const currentItem = subscription.items.data[0]
+  const currentItem = requireSubscriptionItem(subscription)
+  const subscriptionItemId = currentItem.id
   const priceId = newPriceId || currentItem.price.id
   const currentSeats = currentItem.quantity || 1
   const isDowngrade = seats < currentSeats
