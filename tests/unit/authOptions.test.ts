@@ -89,6 +89,33 @@ describe('the invitation email', () => {
   })
 })
 
+describe('the organization create hook', () => {
+  const organization = { name: 'Acme', slug: 'acme' }
+  const organizationHooks = () => options.plugins.find((plugin: any) => plugin.id === 'organization').options.organizationHooks
+
+  // A database hook cannot see the creator; the plugin hook receives it.
+  it('runs in the organization plugin, not as database hooks', () => {
+    expect(organizationHooks().beforeCreateOrganization).toBeTypeOf('function')
+    expect(Object.keys(options.databaseHooks).sort()).toEqual(['session', 'user'])
+  })
+
+  it('copies the creator\'s referral code onto the organization', async () => {
+    const user = { id: 'user-1', email: 'ada@example.test', referralCode: 'REF-42' }
+
+    const result = await organizationHooks().beforeCreateOrganization({ organization, user })
+
+    expect(result).toEqual({ data: { ...organization, referralCode: 'REF-42' } })
+  })
+
+  it('leaves the organization unchanged for a creator without a referral code', async () => {
+    const user = { id: 'user-1', email: 'ada@example.test', referralCode: null }
+
+    const result = await organizationHooks().beforeCreateOrganization({ organization, user })
+
+    expect(result).toBeUndefined()
+  })
+})
+
 describe('the user delete hook', () => {
   beforeEach(() => {
     db.delete.mockClear()

@@ -375,56 +375,6 @@ export const createBetterAuth = () => betterAuth({
           }
         }
       }
-    },
-    organization: {
-      create: {
-        before: async (org, ctx) => {
-          const session = ctx.session || ctx.context?.session
-          if (session?.user?.id) {
-            const db = getDB()
-            const user = await db.query.user.findFirst({
-              where: eq(schema.user.id, session.user.id)
-            })
-            if (user?.referralCode) {
-              return {
-                data: {
-                  ...org,
-                  referralCode: user.referralCode
-                }
-              }
-            }
-          }
-        }
-      },
-      update: {
-        before: async (org: any) => {
-          console.log('[Auth Hook] Organization Update Payload:', JSON.stringify(org, null, 2))
-        }
-      }
-    },
-    member: {
-      create: {
-        after: async (_member: any) => {
-          // await syncSubscriptionQuantity(member.organizationId)
-        }
-      },
-      delete: {
-        after: async (_member: any) => {
-          // await syncSubscriptionQuantity(member.organizationId)
-        }
-      }
-    },
-    invitation: {
-      create: {
-        after: async (_invitation: any) => {
-          // await syncSubscriptionQuantity(invitation.organizationId)
-        }
-      },
-      delete: {
-        after: async (_invitation: any) => {
-          // await syncSubscriptionQuantity(invitation.organizationId)
-        }
-      }
     }
   },
   ...authStorageOptions,
@@ -617,6 +567,14 @@ export const createBetterAuth = () => betterAuth({
       },
       enableMetadata: true,
       organizationHooks: {
+        // The plugin hands over the creator as read from the session, which
+        // keeps referralCode (an additional user field returned by default),
+        // so no lookup is needed.
+        beforeCreateOrganization: async ({ organization, user }) => {
+          if (user.referralCode) {
+            return { data: { ...organization, referralCode: user.referralCode } }
+          }
+        },
         // Runs before the plugin deletes the organization row, whose
         // cascade would otherwise leave its keys enabled and unrevocable.
         beforeDeleteOrganization: async ({ organization }) => {
