@@ -116,6 +116,16 @@ describe('the organization create hook', () => {
   })
 })
 
+describe('the user create hook', () => {
+  // better-auth passes a null context when a user is created outside an
+  // endpoint (internalAdapter calls, the admin seed).
+  it('leaves the user unchanged when there is no endpoint context', async () => {
+    const result = await options.databaseHooks.user.create.before({ id: 'user-1', email: 'a@example.test' }, null)
+
+    expect(result).toBeUndefined()
+  })
+})
+
 describe('the user delete hook', () => {
   beforeEach(() => {
     db.delete.mockClear()

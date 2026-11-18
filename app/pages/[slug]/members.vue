@@ -47,8 +47,9 @@ const isPro = computed(() => {
 onMounted(async () => {
   if (!session.value?.activeOrganizationId) {
     const { data } = await organization.list()
-    if (data && data.length > 0) {
-      await organization.setActive({ organizationId: data[0].id })
+    const first = data?.[0]
+    if (first) {
+      await organization.setActive({ organizationId: first.id })
       await fetchSession()
     } else {
       navigateTo('/onboarding')

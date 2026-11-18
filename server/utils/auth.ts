@@ -202,7 +202,7 @@ export const createBetterAuth = () => betterAuth({
           console.warn('Resend is not configured: account deletion email not sent')
           return
         }
-        const name = user.name || user.email.split('@')[0]
+        const name = user.name || (user.email.split('@')[0] ?? user.email)
         const html = await renderDeleteAccount(name, url)
         const response = await resend.emails.send({
           from: emailSender(),
@@ -235,9 +235,9 @@ export const createBetterAuth = () => betterAuth({
     user: {
       create: {
         before: async (user, ctx) => {
-          if (ctx.path.startsWith('/callback')) {
+          if (ctx?.path.startsWith('/callback')) {
             try {
-              const additionalData = await getOAuthState(ctx)
+              const additionalData = await getOAuthState<{ referralCode?: string }>()
               if (additionalData?.referralCode) {
                 return {
                   data: {
@@ -344,14 +344,14 @@ export const createBetterAuth = () => betterAuth({
 
           // 3. Fallback to first organization
           if (!activeOrgId) {
-            const members = await db
+            const [firstMember] = await db
               .select()
               .from(schema.member)
               .where(eq(schema.member.userId, session.userId))
               .limit(1)
 
-            if (members.length > 0)
-              activeOrgId = members[0].organizationId
+            if (firstMember)
+              activeOrgId = firstMember.organizationId
           }
 
           if (activeOrgId) {
@@ -382,7 +382,7 @@ export const createBetterAuth = () => betterAuth({
     enabled: true,
     requireEmailVerification: true,
     sendResetPassword: async ({ user, url }) => {
-      const name = user.name || user.email.split('@')[0]
+      const name = user.name || (user.email.split('@')[0] ?? user.email)
       const html = await renderResetPassword(name, url)
       const resend = getResendClient()
       if (!resend) {
@@ -434,7 +434,7 @@ export const createBetterAuth = () => betterAuth({
         if (!resend) {
           throw new Error('Resend is not configured')
         }
-        const name = user.name || user.email.split('@')[0]
+        const name = user.name || (user.email.split('@')[0] ?? user.email)
         const html = await renderVerifyEmail(name, url)
         const response = await resend.emails.send({
           from: emailSender(),
@@ -589,7 +589,7 @@ export const createBetterAuth = () => betterAuth({
       async sendInvitationEmail({ email, inviter, organization, invitation }) {
         const resend = getResendClient()
         if (resend) {
-          const inviterName = inviter.user.name || inviter.user.email.split('@')[0]
+          const inviterName = inviter.user.name || (inviter.user.email.split('@')[0] ?? inviter.user.email)
           const inviteUrl = buildInvitationUrl(runtimeConfig.public.baseURL, invitation.id)
           const html = await renderTeamInvite(inviterName, organization.name, inviteUrl)
           await resend.emails.send({
