@@ -4,6 +4,7 @@
   `unit/stubs/hub-kv.ts`), `nuxt` = `tests/components/**` (happy-dom), `e2e` = `tests/e2e/**`.
   Scripts: root `CLAUDE.md` § Checks. `uploadRateLimiterRedis.test.ts` needs `REDIS_URL`: skipped
   locally without it, it fails when `CI` is set (the CI `unit` job provides Redis 7).
+- One file: `pnpm vitest run <file>` (unit), `pnpm vitest run --project nuxt <file>` (components).
 - Route tests: `beforeAll(stubNitroGlobals)` then `callRoute(() => import('~~/server/api/...'), body, query,
   params, headers)` from `unit/support/nitroGlobals.ts`; stub `useRuntimeConfig` yourself when needed.
 - Mocks: `vi.hoisted(() => vi.fn())` + `vi.mock('~~/server/utils/<name>', ...)`; `useDB` returns
