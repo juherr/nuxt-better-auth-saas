@@ -108,6 +108,27 @@ describe('the demo mode before hook', () => {
       expect(getSessionFromCtx).not.toHaveBeenCalled()
     })
 
+    it('refuses revoking a demo user session, from the owner of the token it looks up', async () => {
+      const hook = await beforeHook()
+      const demoStoredSession = { user: { id: DEMO_USER_ID }, session: { id: 'session-2', token: 'demo-token', userId: DEMO_USER_ID } }
+      const findSession = vi.fn(async (token: string) => (token === 'demo-token' ? demoStoredSession : null))
+      const ctx = { ...request('/admin/revoke-user-session', { sessionToken: 'demo-token' }), context: { session: null, internalAdapter: { findSession } } }
+
+      const error = await rejection(hook(ctx))
+
+      expect((error as APIError).body).toMatchObject({ code: 'DEMO_MODE_RESTRICTED' })
+      expect(findSession).toHaveBeenCalledWith('demo-token')
+    })
+
+    it('lets revoking another session through', async () => {
+      const hook = await beforeHook()
+      const findSession = vi.fn(async () => null)
+      const ctx = { ...request('/admin/revoke-user-session', { sessionToken: 'other-token' }), context: { session: null, internalAdapter: { findSession } } }
+
+      await expect(hook(ctx)).resolves.toBeUndefined()
+      expect(findSession).toHaveBeenCalledWith('other-token')
+    })
+
     it('lets a request the policy allows through without resolving the session', async () => {
       const hook = await beforeHook()
 

@@ -32,6 +32,11 @@ export interface DemoRequest {
   path: string
   body: unknown
   session: DemoSession | null
+  /**
+   * The user owning the session that `demoSessionTokenToResolve` names,
+   * as the caller looked it up; null or absent when there is none.
+   */
+  sessionOwnerId?: string | null
 }
 
 export const DEMO_PROTECTION: DemoProtection = Object.freeze({
@@ -58,8 +63,13 @@ const ADMIN_TARGET_PATHS: readonly string[] = [
   '/admin/set-role',
   '/admin/impersonate-user',
   '/admin/revoke-user-sessions',
-  '/admin/update-user'
+  '/admin/update-user',
+  '/admin/list-user-sessions',
+  '/admin/unban-user'
 ]
+
+// Admin endpoint that acts on the session named by `body.sessionToken`.
+const ADMIN_REVOKE_SESSION_PATH = '/admin/revoke-user-session'
 
 type Body = Record<string, unknown>
 
@@ -110,6 +120,9 @@ export function demoBlockReason(request: DemoRequest, protection: DemoProtection
   if (ADMIN_TARGET_PATHS.includes(path) && isProtectedUser(text(body.userId))) {
     return 'The demo accounts cannot be changed by an administrator.'
   }
+  if (path === ADMIN_REVOKE_SESSION_PATH && isProtectedUser(request.sessionOwnerId ?? undefined)) {
+    return 'The demo accounts cannot be changed by an administrator.'
+  }
   if (path === '/organization/delete' && isSeededOrganization(text(body.organizationId))) {
     return 'The demo organizations cannot be deleted.'
   }
@@ -133,6 +146,19 @@ export function demoBlockReason(request: DemoRequest, protection: DemoProtection
     }
   }
   return null
+}
+
+/**
+ * The session token whose owner `demoBlockReason` needs for this request
+ * (as `sessionOwnerId`), or undefined when it needs none. The endpoint
+ * reads the token as a string, so only a string names a session.
+ */
+export function demoSessionTokenToResolve(path: string, body: unknown): string | undefined {
+  if (path !== ADMIN_REVOKE_SESSION_PATH) {
+    return undefined
+  }
+  const token = asBody(body).sessionToken
+  return typeof token === 'string' && token !== '' ? token : undefined
 }
 
 /**

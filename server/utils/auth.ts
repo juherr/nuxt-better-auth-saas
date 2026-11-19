@@ -9,7 +9,7 @@ import { admin as adminPlugin, openAPI, organization } from 'better-auth/plugins
 import { and, eq } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
 import * as schema from '~~/server/db/schema'
-import { DEMO_PROTECTION, demoBlockReason, demoNeedsSession } from '~~/shared/utils/demoMode'
+import { DEMO_PROTECTION, demoBlockReason, demoNeedsSession, demoSessionTokenToResolve } from '~~/shared/utils/demoMode'
 import { buildInvitationUrl } from '~~/shared/utils/invitationUrl'
 import { ac, admin, member, owner } from '~~/shared/utils/permissions'
 import { userDisplayName } from '~~/shared/utils/userDisplayName'
@@ -84,7 +84,16 @@ async function refuseDemoRestrictedRequest(ctx: AuthMiddlewareContext) {
       session = { userId: resolved.user.id, activeOrganizationId }
     }
   }
-  const reason = demoBlockReason({ path: ctx.path, body: ctx.body, session }, DEMO_PROTECTION)
+  // `/admin/revoke-user-session` names its target by session token only:
+  // look the token up (secondary storage first, then the database) to
+  // learn whose session it is.
+  let sessionOwnerId: string | null = null
+  const sessionToken = demoSessionTokenToResolve(ctx.path, ctx.body)
+  if (sessionToken !== undefined) {
+    const found = await ctx.context.internalAdapter.findSession(sessionToken)
+    sessionOwnerId = found?.session.userId ?? null
+  }
+  const reason = demoBlockReason({ path: ctx.path, body: ctx.body, session, sessionOwnerId }, DEMO_PROTECTION)
   if (reason) {
     throw new APIError('FORBIDDEN', { message: reason, code: 'DEMO_MODE_RESTRICTED' })
   }

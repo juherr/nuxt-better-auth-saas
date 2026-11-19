@@ -1,6 +1,6 @@
 import type { DemoProtection, DemoSession } from '~~/shared/utils/demoMode'
 import { describe, expect, it } from 'vitest'
-import { DEMO_PROTECTION, demoBlockReason, demoNeedsSession } from '~~/shared/utils/demoMode'
+import { DEMO_PROTECTION, demoBlockReason, demoNeedsSession, demoSessionTokenToResolve } from '~~/shared/utils/demoMode'
 
 const PROTECTED_USER = 'protected-user'
 const OTHER_USER = 'other-user'
@@ -85,7 +85,9 @@ describe('demoBlockReason', () => {
       '/admin/set-role',
       '/admin/impersonate-user',
       '/admin/revoke-user-sessions',
-      '/admin/update-user'
+      '/admin/update-user',
+      '/admin/list-user-sessions',
+      '/admin/unban-user'
     ])('%s is blocked on a protected user and allowed on another one', (path) => {
       expect(blocked(path, { userId: PROTECTED_USER }, otherSession)).toBeTruthy()
       expect(blocked(path, { userId: OTHER_USER }, otherSession)).toBeNull()
@@ -93,6 +95,34 @@ describe('demoBlockReason', () => {
 
     it('blocks a protected user id the endpoint would coerce from an array', () => {
       expect(blocked('/admin/ban-user', { userId: [PROTECTED_USER] })).toBeTruthy()
+    })
+  })
+
+  describe('/admin/revoke-user-session', () => {
+    const revoke = (sessionOwnerId: string | null) =>
+      demoBlockReason({ path: '/admin/revoke-user-session', body: { sessionToken: 'token-1' }, session: otherSession, sessionOwnerId }, protection)
+
+    it('is blocked when the session named by the token belongs to a protected user', () => {
+      expect(revoke(PROTECTED_USER)).toBeTruthy()
+    })
+
+    it('is allowed when the session belongs to another user', () => {
+      expect(revoke(OTHER_USER)).toBeNull()
+    })
+
+    it('is left to the endpoint when the token names no session', () => {
+      expect(revoke(null)).toBeNull()
+    })
+  })
+
+  describe('demoSessionTokenToResolve', () => {
+    it('names the session token of /admin/revoke-user-session', () => {
+      expect(demoSessionTokenToResolve('/admin/revoke-user-session', { sessionToken: 'token-1' })).toBe('token-1')
+    })
+
+    it('names nothing without a token or on another path', () => {
+      expect(demoSessionTokenToResolve('/admin/revoke-user-session', {})).toBeUndefined()
+      expect(demoSessionTokenToResolve('/admin/revoke-user-sessions', { sessionToken: 'token-1' })).toBeUndefined()
     })
   })
 
