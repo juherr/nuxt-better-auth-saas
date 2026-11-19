@@ -6,7 +6,8 @@ import { useStorage } from '@vueuse/core'
 definePageMeta({
   auth: {
     only: 'guest'
-  }
+  },
+  middleware: ['demo-signup']
 })
 
 const { t } = useI18n()
