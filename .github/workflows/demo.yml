@@ -121,6 +121,7 @@ jobs:
       - name: Sign in with the demo account
         run: |
           status=$(curl -sS -o demo-sign-in-body.txt -D demo-sign-in-headers.txt \
+            -c demo-cookies.txt \
             -w '%{http_code}' -X POST "$DEMO_BASE_URL/api/auth/sign-in/email" \
             -H 'Content-Type: application/json' \
             -H "Origin: $DEMO_BASE_URL" \
@@ -138,3 +139,23 @@ jobs:
             exit 1
           fi
           rm -f demo-sign-in-headers.txt demo-sign-in-body.txt
+      # Proves NUXT_PUBLIC_DEMO_MODE reached the worker: with the demo
+      # session, a password change must be refused with 403
+      # DEMO_MODE_RESTRICTED. The current password sent is wrong on purpose:
+      # without the flag the request still changes nothing.
+      - name: Check that demo mode refuses a password change
+        run: |
+          status=$(curl -sS -o demo-change-password-body.txt -b demo-cookies.txt \
+            -w '%{http_code}' -X POST "$DEMO_BASE_URL/api/auth/change-password" \
+            -H 'Content-Type: application/json' \
+            -H "Origin: $DEMO_BASE_URL" \
+            -d '{"currentPassword":"not-the-demo-password","newPassword":"demo-smoke-new-password"}')
+          rm -f demo-cookies.txt
+          echo "demo change-password status: $status"
+          if [ "$status" != "403" ] || ! grep -q 'DEMO_MODE_RESTRICTED' demo-change-password-body.txt; then
+            echo "::error::change-password answered $status without DEMO_MODE_RESTRICTED: demo mode is off"
+            cat demo-change-password-body.txt
+            echo
+            exit 1
+          fi
+          rm -f demo-change-password-body.txt
