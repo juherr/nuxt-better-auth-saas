@@ -34,3 +34,17 @@ SPDX-FileCopyrightText = [
   "2026 Julien Herr"
 ]
 SPDX-License-Identifier = "MIT"
+
+# Files whose UI text ("© 2026 …") REUSE would read as their copyright.
+[[annotations]]
+path = [
+  "app/layouts/components/AppFooter.vue",
+  "emails/BaseEmail.tsx"
+]
+precedence = "override"
+SPDX-FileCopyrightText = [
+  "2025 NuxSaaS",
+  "2025 HouseOfBetterAuth",
+  "2026 Julien Herr"
+]
+SPDX-License-Identifier = "MIT"
