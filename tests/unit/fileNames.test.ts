@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { describe, expect, it } from 'vitest'
 import { buildStorageName, MAX_DISPLAY_NAME_LENGTH, sanitizeDisplayName } from '~~/server/services/file/fileNames'
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { SQL } from 'drizzle-orm'
 import { PgDialect } from 'drizzle-orm/pg-core'
 

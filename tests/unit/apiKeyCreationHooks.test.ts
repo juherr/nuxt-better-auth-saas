@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { Table } from 'drizzle-orm'
 import { APIError } from 'better-auth/api'
 import { getTableName } from 'drizzle-orm'

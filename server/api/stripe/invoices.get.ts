@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { eq } from 'drizzle-orm'
 import { subscription as subscriptionTable } from '~~/server/db/schema'
 import { findOrganization, requireAuthSession, requireOrganizationRole } from '~~/server/utils/billing'

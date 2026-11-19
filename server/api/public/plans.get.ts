@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { FREE_LIMITS, PLAN_TIERS } from '~~/shared/utils/plans'
 
 /**

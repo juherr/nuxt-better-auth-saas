@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { useServerAuth } from '~~/server/utils/auth'
 
 export default defineEventHandler((event) => {

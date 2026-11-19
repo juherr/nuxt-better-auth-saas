@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { H3Event } from 'h3'
 import type Stripe from 'stripe'
 import type { OrgRole } from '~~/shared/utils/permissions'

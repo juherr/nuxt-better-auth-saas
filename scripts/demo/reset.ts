@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // Wipes the demo database, applies the migrations and writes the demo seed.
 //
 //   DEMO_RESET_CONFIRM=<host of DATABASE_URL> pnpm demo:reset

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // No imports on purpose: scripts/backfill-api-key-organization.ts runs this
 // module, directly and through apiKeyBackfill.ts, under plain Node (type
 // stripping), outside Nuxt and its aliases.

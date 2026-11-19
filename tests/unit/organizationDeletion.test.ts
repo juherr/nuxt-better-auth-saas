@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { describe, expect, it } from 'vitest'
 import messages from '~~/app/components/settings/DangerZone.i18n.json'
 import { organizationDeleteErrorKey } from '~~/app/utils/organizationDeletion'

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { H3Event } from 'h3'
 import { createTableRelationsHelpers, extractTablesRelationalConfig } from 'drizzle-orm'
 import * as schema from '~~/server/db/schema'

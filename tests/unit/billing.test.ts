@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { StripeSubscriptionsState } from './support/stripeSubscriptionsFake'
 import { PgDialect } from 'drizzle-orm/pg-core'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'

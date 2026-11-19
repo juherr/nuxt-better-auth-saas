@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { describe, expect, it, vi } from 'vitest'
 import { apiKey } from '~~/server/db/schema'
 import { deleteOrganizationApiKeys } from '~~/server/utils/apiKeyOrganization'

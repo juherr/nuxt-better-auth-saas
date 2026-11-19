@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * Detects an upload's type from its leading bytes. Pure, no dependency:
  * the declared multipart type is client input and is only trusted when the

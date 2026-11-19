@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * The item a single-price subscription bills through. The starter creates
  * every subscription with exactly one item, so a subscription without one

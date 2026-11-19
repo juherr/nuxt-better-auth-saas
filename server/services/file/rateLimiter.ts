@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { defaultRateLimitStore } from './rateLimitStores'
 
 export interface RateLimitResult {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { FileManagerConfig, StorageProvider } from '../types'
 import { LocalStorageProvider } from './local'
 import { S3CompatibleStorageProvider } from './s3-compatible'

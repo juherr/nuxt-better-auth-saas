@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 # pnpm settings. Since pnpm 11, the `pnpm` field of package.json is no
 # longer read and .npmrc only carries auth and registry settings.
 # https://github.com/pnpm/pnpm/releases/tag/v11.0.0

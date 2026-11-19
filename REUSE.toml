@@ -1,0 +1,36 @@
+version = 1
+
+# Copyright of every file. Source files carry only an
+# `SPDX-License-Identifier: MIT` header; their copyright comes from here.
+[[annotations]]
+path = "**"
+SPDX-FileCopyrightText = [
+  "2025 NuxSaaS",
+  "2025 HouseOfBetterAuth",
+  "2026 Julien Herr"
+]
+
+# Files that cannot hold a comment, or whose header would be lost on
+# regeneration (`pnpm auth:schema` rewrites server/db/schema/auth.ts).
+# Any other new file needs an `SPDX-License-Identifier: MIT` header.
+# The last matching table wins, so this one repeats the copyright.
+[[annotations]]
+path = [
+  "**/*.png",
+  "**/*.webp",
+  "**/*.ico",
+  "**/*.svg",
+  "**/*.json",
+  "**/*.md",
+  "**/*.webmanifest",
+  ".nvmrc",
+  ".nuxtrc",
+  "pnpm-lock.yaml",
+  "server/db/schema/auth.ts",
+]
+SPDX-FileCopyrightText = [
+  "2025 NuxSaaS",
+  "2025 HouseOfBetterAuth",
+  "2026 Julien Herr"
+]
+SPDX-License-Identifier = "MIT"

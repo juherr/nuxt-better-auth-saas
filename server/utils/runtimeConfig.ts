@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { RuntimeConfig } from '@nuxt/schema'
 import type { FileManagerConfig, StorageProviderType } from '~~/server/services/file/types'
 import { config } from 'dotenv'

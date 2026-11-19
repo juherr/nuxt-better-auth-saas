@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { requireOwnedSubscription } from '~~/server/utils/billing'
 import { addPaymentLog } from '~~/server/utils/stripe'
 import { sendSubscriptionResumedEmail } from '~~/server/utils/stripeEmails'

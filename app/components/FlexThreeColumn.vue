@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <template>
   <div class="flex items-center justify-between flex-1 gap-x-1.5">
     <slot>

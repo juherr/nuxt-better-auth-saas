@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { getTableColumns } from 'drizzle-orm'
 import { pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 import { describe, expect, it } from 'vitest'

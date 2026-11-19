@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <script setup lang="ts">
 import { isAdminOrOwner } from '~~/shared/utils/permissions'
 import { getPlanKeyFromId, PLAN_TIERS } from '~~/shared/utils/plans'

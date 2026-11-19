@@ -540,6 +540,23 @@ This project is a fork of the original [NuxSaaS](https://github.com/NuxSaaS/NuxS
 
 MIT. See [LICENSE](LICENSE).
 
+The project follows the [REUSE](https://reuse.software) specification, checked by the `reuse` CI
+job (`reuse lint` locally). Start every new source file with an SPDX header, as its first comment
+(after the shebang, if any):
+
+<!-- REUSE-IgnoreStart -->
+| Files | Header |
+|---|---|
+| `.ts`, `.tsx`, `.mjs`, `.jsonc` | `// SPDX-License-Identifier: MIT` |
+| `.vue` | `<!-- SPDX-License-Identifier: MIT -->` |
+| `.css` | `/* SPDX-License-Identifier: MIT */` |
+| `.yml`, `.yaml`, shell scripts | `# SPDX-License-Identifier: MIT` |
+<!-- REUSE-IgnoreEnd -->
+
+Copyright is declared once in [`REUSE.toml`](REUSE.toml). Files that cannot hold a comment (images,
+JSON, Markdown) or that are generated (`server/db/schema/auth.ts`) are licensed there too: add a
+path to its second table rather than a sidecar `.license` file.
+
 ---
 
 <p align="center">

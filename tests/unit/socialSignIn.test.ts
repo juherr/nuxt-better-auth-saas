@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { describe, expect, it } from 'vitest'
 import messages from '~~/app/pages/signin/i18n.json'
 import { socialSignInErrorKey } from '~~/app/utils/socialSignIn'

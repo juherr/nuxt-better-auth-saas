@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <script setup lang="ts">
 const route = useRoute()
 const localePath = useLocalePath()

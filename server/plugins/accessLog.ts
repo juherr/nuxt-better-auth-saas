@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 declare module 'h3' {
   interface H3EventContext {
     /** Writes the request's access log line; set by server/middleware/0.common.ts, no-op after the first call. */

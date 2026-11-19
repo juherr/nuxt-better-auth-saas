@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { describe, expect, it } from 'vitest'
 import { contentDisposition, servingHeaders, typeOfStorageName } from '~~/server/services/file/servingHeaders'
 

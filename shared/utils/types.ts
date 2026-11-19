@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { file, organization, user } from '~~/server/db/schema'
 
 export type User = typeof user.$inferSelect

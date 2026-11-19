@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { beforeAll } from 'vitest'
 
 beforeAll(() => {

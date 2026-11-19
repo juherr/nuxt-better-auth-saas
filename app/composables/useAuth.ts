@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { RouteLocationRaw } from 'vue-router'
 import { apiKeyClient } from '@better-auth/api-key/client'
 import { stripeClient } from '@better-auth/stripe/client'

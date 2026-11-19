@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { describe, expect, it } from 'vitest'
 import { assertStorageKey } from '~~/server/services/file/storage/s3-compatible'
 

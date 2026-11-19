@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import type { EventHandlerRequest, H3Event } from 'h3'
 import { drizzle } from 'drizzle-orm/node-postgres'

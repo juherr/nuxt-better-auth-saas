@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { APIError, getSessionFromCtx } from 'better-auth/api'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ACME_DEMO_ORGANIZATION_ID, DEMO_ADMIN_CREDENTIALS, DEMO_USER_ID } from '~~/scripts/demo/seedData'

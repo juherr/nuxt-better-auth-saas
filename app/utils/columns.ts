@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 export const htmlColumn = <T>(cell: ColumnCell<T>, el = 'span') => {
   const value = cell.getValue() as string
   return h(el, { innerHTML: value }, [])

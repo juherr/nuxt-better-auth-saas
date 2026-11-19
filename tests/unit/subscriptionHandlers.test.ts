@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { member as memberTable } from '~~/server/db/schema'
 import { removeExcessMembersOnExpiration } from '~~/server/utils/subscription-handlers'

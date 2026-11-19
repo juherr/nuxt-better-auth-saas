@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { beforeAll, describe, expect, it } from 'vitest'
 import { requireSubscriptionItem } from '~~/server/utils/stripeSubscriptionItem'
 import { stubNitroGlobals } from './support/nitroGlobals'

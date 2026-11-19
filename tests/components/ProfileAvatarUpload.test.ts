@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'

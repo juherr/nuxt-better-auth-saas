@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PLAN_TIERS } from '~~/shared/utils/plans'
 import { callRoute, stubNitroGlobals } from './support/nitroGlobals'

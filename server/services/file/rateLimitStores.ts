@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { RateLimitResult, RateLimitStore } from './rateLimiter'
 import { cacheClient } from '~~/server/utils/drivers'
 import { getRedisClient } from '~~/server/utils/redis'

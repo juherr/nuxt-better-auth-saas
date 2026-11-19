@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // Links legacy API keys to their organization in api_key_organization.
 //
 // Run with `pnpm db:backfill-api-keys` (plain Node with type stripping, so

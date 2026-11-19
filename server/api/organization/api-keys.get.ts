@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { eq } from 'drizzle-orm'
 import { apiKey, apiKeyOrganization } from '~~/server/db/schema'
 import { requireApiKeyManager } from '~~/server/utils/apiKeyAccess'

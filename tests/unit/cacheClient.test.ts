@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // better-auth 1.7 types getAndDelete and increment as required on

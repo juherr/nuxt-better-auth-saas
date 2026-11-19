@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { Buffer } from 'node:buffer'
 import { promises as fs } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * Upload limits. Framework-free so the runtime config, the route and the
  * tests share one definition.

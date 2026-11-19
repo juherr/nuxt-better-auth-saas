@@ -66,4 +66,6 @@
 - Stripe: `apiVersion: Stripe.API_VERSION`; read period ends through
   `server/utils/stripeSubscriptionPeriod.ts`; checkout reference, customer type and seats are decided server-side.
 - ESLint: `antfu/reasonable-newline` (#47) and antfu's pnpm rules (#48) are off on purpose.
+- New files start with an SPDX MIT header (README › License); `reuse lint`
+  (CI job `reuse`, locally `mise x pipx:reuse -- reuse lint`) fails without it.
 - Confirm a Nuxt module bump with `nuxt prepare`/`build`: modules can require versions `npm view` does not show.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { createPage, setup } from '@nuxt/test-utils/e2e'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 

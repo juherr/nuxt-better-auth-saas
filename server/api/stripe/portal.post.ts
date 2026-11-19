@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { findOrganization, requireAuthSession, requireOrganizationRole } from '~~/server/utils/billing'
 import { useDB } from '~~/server/utils/db'
 import { runtimeConfig } from '~~/server/utils/runtimeConfig'

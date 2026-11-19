@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * Stripe Email Notifications
  * Handles sending emails for subscription events

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // Wrangler config of the public demo, rendered by .github/workflows/demo.yml
 // into the repository root as wrangler.jsonc. Only the three variables
 // below are substituted (envsubst with an explicit list): any other `$` is

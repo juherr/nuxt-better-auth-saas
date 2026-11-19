@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 const ERROR_KEYS: Record<string, string> = {
   // @better-auth/stripe blocks the deletion while the organization's Stripe
   // customer has a subscription that is not canceled (trialing included).

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { organization as organizationTable } from '~~/server/db/schema'
 import { useDB } from '~~/server/utils/db'
 import { runtimeConfig } from '~~/server/utils/runtimeConfig'

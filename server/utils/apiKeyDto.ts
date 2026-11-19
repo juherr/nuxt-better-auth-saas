@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * What the app shows of an API key. The stored row also holds the key
  * hash, its owner, permissions and client metadata; none of them leave

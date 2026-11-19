@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { SQL } from 'drizzle-orm'
 import type { PgColumn, PgSelect } from 'drizzle-orm/pg-core'
 import { and, between, eq, ilike, inArray } from 'drizzle-orm'

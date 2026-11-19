@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { Redis } from 'ioredis'
 import type { EventEmitter } from 'node:events'
 

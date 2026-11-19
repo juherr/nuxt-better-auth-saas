@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { Section, Text } from 'react-email'
 import { BaseEmail, EmailButton } from './BaseEmail'
 

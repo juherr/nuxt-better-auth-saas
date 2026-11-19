@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 export interface OrganizationUpgradeInput {
   plan: string
   organizationId: string

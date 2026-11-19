@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <script setup lang="ts" generic="T">
 import { useSortable } from '@vueuse/integrations/useSortable'
 

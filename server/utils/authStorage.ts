@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { BetterAuthOptions } from 'better-auth'
 import { cacheClient } from './drivers'
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 export default defineNuxtPlugin(() => {
   const $customFetch = $fetch.create({
     onRequest({ request, options }) {

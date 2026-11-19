@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * Composable for timezone management
  * Provides timezone list and formatting utilities

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 export default defineNuxtRouteMiddleware(async (to) => {
   const { loggedIn, organization, useActiveOrganization, fetchSession, session } = useAuth()
 

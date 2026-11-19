@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * Subscription lifecycle handlers
  * These functions are called by Better Auth Stripe webhooks

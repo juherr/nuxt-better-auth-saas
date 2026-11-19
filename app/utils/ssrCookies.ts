@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * Request-scoped cookie jar of the SSR render.
  *

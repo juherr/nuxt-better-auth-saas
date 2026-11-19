@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { index, pgTable, text } from 'drizzle-orm/pg-core'
 import { apiKey, organization } from './auth'
 

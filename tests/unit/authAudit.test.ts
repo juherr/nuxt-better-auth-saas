@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { describe, expect, it } from 'vitest'
 import { AUDITED_SUCCESS_PATHS, resolveAuditTarget } from '~~/server/utils/authAudit'
 

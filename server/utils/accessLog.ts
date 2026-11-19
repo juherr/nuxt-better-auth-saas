@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * Access log policy: what a request line contains and when it is written.
  *
