@@ -34,7 +34,8 @@ const BUILD_ENV = [
   'NUXT_GOOGLE_MAPS_API_KEY_PUBLIC',
   'NUXT_PAYMENT',
   'NUXT_LOG_LEVEL',
-  'NUXT_LOG_FORMAT'
+  'NUXT_LOG_FORMAT',
+  'NUXT_PUBLIC_DEMO_MODE'
 ]
 
 // Paths of the values that end up `undefined`. Nuxt serializes the runtime
@@ -118,5 +119,21 @@ describe('generateRuntimeConfig', () => {
     expect(config.fileManager.storage.provider).toBe('local')
     expect(config.fileManager.storage.r2.accountId).toBe('build-account')
     expect(config.public.payment).toBe('none')
+  })
+
+  it('declares the demo mode off when the flag is unset, so it can be set at runtime', () => {
+    expect(generateRuntimeConfig().public.demoMode).toBe(false)
+  })
+
+  it('turns the demo mode on when the flag is "true" at build time', () => {
+    vi.stubEnv('NUXT_PUBLIC_DEMO_MODE', 'true')
+
+    expect(generateRuntimeConfig().public.demoMode).toBe(true)
+  })
+
+  it.each(['', 'false', '1', 'TRUE'])('keeps the demo mode off when the flag is "%s"', (value) => {
+    vi.stubEnv('NUXT_PUBLIC_DEMO_MODE', value)
+
+    expect(generateRuntimeConfig().public.demoMode).toBe(false)
   })
 })

@@ -92,6 +92,10 @@ export const generateRuntimeConfig = (preset = 'node-server') => ({
     appContactEmail: process.env.NUXT_APP_CONTACT_EMAIL || '',
     googleMapsApiKeyPublic: process.env.NUXT_GOOGLE_MAPS_API_KEY_PUBLIC || '',
     payment: process.env.NUXT_PAYMENT || 'stripe',
+    // Public demo: blocks sign-up and changes to the seeded accounts and
+    // organizations. A boolean default, so NUXT_PUBLIC_DEMO_MODE=true at
+    // server start still turns it on.
+    demoMode: process.env.NUXT_PUBLIC_DEMO_MODE === 'true',
     auth: {
       redirectUserTo: '/',
       redirectGuestTo: '/signin'

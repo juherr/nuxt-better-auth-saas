@@ -11,6 +11,13 @@
       "signIn": "Sign In",
       "noAccount": "Don't have an account?",
       "createAccount": "Create today!",
+      "demo": {
+        "title": "Public demo",
+        "description": "Sign in with one of these accounts. Data is reset every night.",
+        "userAccount": "Demo user",
+        "adminAccount": "Demo admin",
+        "fill": "Fill"
+      },
       "or": "Or",
       "signInSuccess": "Sign in Success",
       "errors": {
@@ -38,6 +45,13 @@
       "signIn": "登录",
       "noAccount": "还没有账号？",
       "createAccount": "立即注册！",
+      "demo": {
+        "title": "公开演示",
+        "description": "请使用以下账号之一登录。数据每晚重置。",
+        "userAccount": "演示用户",
+        "adminAccount": "演示管理员",
+        "fill": "填入"
+      },
       "or": "或者",
       "signInSuccess": "登录成功",
       "errors": {
@@ -68,6 +82,13 @@
       "signIn": "ログイン",
       "noAccount": "アカウントをお持ちでない方",
       "createAccount": "新規登録！",
+      "demo": {
+        "title": "公開デモ",
+        "description": "以下のいずれかのアカウントでサインインしてください。データは毎晩リセットされます。",
+        "userAccount": "デモユーザー",
+        "adminAccount": "デモ管理者",
+        "fill": "入力"
+      },
       "or": "または",
       "signInSuccess": "ログインに成功しました",
       "errors": {
@@ -98,6 +119,13 @@
       "signIn": "Se connecter",
       "noAccount": "Vous n'avez pas de compte ?",
       "createAccount": "Créez-en un !",
+      "demo": {
+        "title": "Démo publique",
+        "description": "Connectez-vous avec l'un de ces comptes. Les données sont réinitialisées chaque nuit.",
+        "userAccount": "Utilisateur de démo",
+        "adminAccount": "Administrateur de démo",
+        "fill": "Remplir"
+      },
       "or": "Ou",
       "signInSuccess": "Connexion réussie",
       "errors": {

@@ -1,6 +1,8 @@
 import type { VueWrapper } from '@vue/test-utils'
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
+import { DEMO_ADMIN_CREDENTIALS, DEMO_USER_CREDENTIALS } from '~~/scripts/demo/seedData'
 import SignIn from '~/pages/signin/index.vue'
 
 // better-auth answers a sign-in with an unverified email with a 403 whose
@@ -129,5 +131,74 @@ describe('sign-in page', () => {
 
     await vi.waitFor(() => expect(toastAdd).toHaveBeenCalledWith({ title: 'Invalid email or password', color: 'error' }))
     expect(document.body.textContent).not.toContain('signIn.emailNotVerifiedDesc')
+  })
+
+  describe('outside the public demo', () => {
+    it('shows no demo banner and keeps the sign-up link', async () => {
+      const page = await mount()
+
+      expect(page.find('[data-testid="demo-banner"]').exists()).toBe(false)
+      expect(page.text()).toContain('signIn.createAccount')
+    })
+
+    it('offers the social sign-in buttons and their divider', async () => {
+      const page = await mount()
+
+      expect(page.find('[data-testid="social-sign-in"]').exists()).toBe(true)
+      expect(page.text()).toContain('Google')
+      expect(page.text()).toContain('Github')
+      expect(page.text()).toContain('signIn.or')
+    })
+  })
+
+  describe('in the public demo', () => {
+    beforeEach(() => {
+      useRuntimeConfig().public.demoMode = true
+    })
+    afterEach(() => {
+      useRuntimeConfig().public.demoMode = false
+    })
+
+    it('shows both demo accounts and hides the sign-up link', async () => {
+      const page = await mount()
+
+      const banner = page.find('[data-testid="demo-banner"]')
+      expect(banner.exists()).toBe(true)
+      for (const credentials of [DEMO_USER_CREDENTIALS, DEMO_ADMIN_CREDENTIALS]) {
+        expect(banner.text()).toContain(credentials.email)
+        expect(banner.text()).toContain(credentials.password)
+      }
+      expect(page.text()).not.toContain('signIn.createAccount')
+      expect(page.text()).not.toContain('signIn.noAccount')
+    })
+
+    // OAuth is not configured on the demo, which refuses every new user:
+    // a social sign-in could only end on an error toast.
+    it('hides the social sign-in buttons and their divider', async () => {
+      const page = await mount()
+
+      expect(page.find('[data-testid="social-sign-in"]').exists()).toBe(false)
+      expect(page.text()).not.toContain('Google')
+      expect(page.text()).not.toContain('Github')
+      expect(page.text()).not.toContain('signIn.or')
+    })
+
+    it.each([
+      ['user', DEMO_USER_CREDENTIALS],
+      ['admin', DEMO_ADMIN_CREDENTIALS]
+    ])('fills the form with the demo %s account without submitting it', async (account, credentials) => {
+      signInEmail.mockResolvedValue({ data: {}, error: null })
+      const page = await mount()
+
+      await page.find(`[data-testid="demo-fill-${account}"]`).trigger('click')
+      await nextTick()
+      expect(signInEmail).not.toHaveBeenCalled()
+
+      await page.find('form').trigger('submit')
+      await vi.waitFor(() => expect(signInEmail).toHaveBeenCalledWith(expect.objectContaining({
+        email: credentials.email,
+        password: credentials.password
+      })))
+    })
   })
 })

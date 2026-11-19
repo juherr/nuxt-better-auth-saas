@@ -5,6 +5,8 @@ import {
   DEMO_ADMIN_CREDENTIALS,
   DEMO_ADMIN_USER_ID,
   DEMO_AUDIT_LOG_WINDOW_DAYS,
+  DEMO_PROTECTED_EMAILS,
+  DEMO_PROTECTED_MEMBER_IDS,
   DEMO_PROTECTED_ORGANIZATION_IDS,
   DEMO_PROTECTED_USER_IDS,
   DEMO_USER_CREDENTIALS,
@@ -117,6 +119,15 @@ describe('demo seed data', () => {
     expect([...DEMO_PROTECTED_ORGANIZATION_IDS].sort()).toEqual([...organizationIds].sort())
   })
 
+  it('protects the emails and the memberships of the protected accounts', () => {
+    const protectedUsers = seed.users.filter(user => DEMO_PROTECTED_USER_IDS.includes(user.id))
+    expect([...DEMO_PROTECTED_EMAILS].sort()).toEqual(protectedUsers.map(user => user.email).sort())
+    const protectedMembers = seed.members.filter(member => DEMO_PROTECTED_USER_IDS.includes(member.userId))
+    expect([...DEMO_PROTECTED_MEMBER_IDS].sort()).toEqual(protectedMembers.map(member => member.id).sort())
+    for (const member of protectedMembers)
+      expect(DEMO_PROTECTED_ORGANIZATION_IDS).toContain(member.organizationId)
+  })
+
   it('verifies both public accounts and logs them in with the published credentials', () => {
     const demo = findUser(DEMO_USER_ID)
     const admin = findUser(DEMO_ADMIN_USER_ID)
@@ -135,6 +146,17 @@ describe('demo seed data', () => {
     const owners = seed.members.filter(member => member.organizationId === ACME_DEMO_ORGANIZATION_ID && member.role === 'owner')
     expect(owners.map(member => member.userId)).toEqual([DEMO_USER_ID])
     expect(findUser(DEMO_USER_ID).lastActiveOrganizationId).toBe(ACME_DEMO_ORGANIZATION_ID)
+  })
+
+  it('makes the demo admin an admin of Acme Demo, with a protected membership', () => {
+    const membership = seed.members.find(member =>
+      member.organizationId === ACME_DEMO_ORGANIZATION_ID && member.userId === DEMO_ADMIN_USER_ID)
+    expect(membership?.role).toBe('admin')
+    expect(membership?.id).toBe('01934b00-0000-7000-8000-000000000207')
+    expect(DEMO_PROTECTED_MEMBER_IDS).toEqual(expect.arrayContaining([
+      '01934b00-0000-7000-8000-000000000201',
+      '01934b00-0000-7000-8000-000000000207'
+    ]))
   })
 
   it('covers the owner, admin and member roles, one banned and one unverified extra', () => {

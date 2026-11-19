@@ -8,6 +8,7 @@ const readMultipartFormData = vi.hoisted(() => vi.fn())
 const uploadFile = vi.hoisted(() => vi.fn())
 const requireAuth = vi.hoisted(() => vi.fn())
 const fileConfig = vi.hoisted(() => ({ value: {} as Partial<FileManagerConfig> }))
+const runtimeConfig = vi.hoisted(() => ({ public: { demoMode: false } }))
 const store = vi.hoisted(() => ({
   reserve: vi.fn<RateLimitStore['reserve']>(),
   read: vi.fn<RateLimitStore['read']>()
@@ -30,6 +31,7 @@ vi.mock('~~/server/services/file/rateLimitStores', () => ({
 beforeAll(() => {
   stubNitroGlobals()
   vi.stubGlobal('requireAuth', requireAuth)
+  vi.stubGlobal('useRuntimeConfig', () => runtimeConfig)
   stubRequestContext()
   vi.stubGlobal('formatFileSize', (bytes: number) => `${bytes} B`)
 })
@@ -62,6 +64,7 @@ describe('the upload endpoint', () => {
     readMultipartFormData.mockReset().mockResolvedValue([part(PNG, 'image/png')])
     uploadFile.mockReset().mockResolvedValue({ id: 'f1' })
     store.reserve.mockReset().mockResolvedValue({ allowed: true, currentCount: 1 })
+    runtimeConfig.public.demoMode = false
   })
 
   it('refuses an anonymous request before reading the body', async () => {
@@ -69,6 +72,22 @@ describe('the upload endpoint', () => {
 
     await expect(upload()).rejects.toMatchObject({ statusCode: 401 })
     expect(readMultipartFormData).not.toHaveBeenCalled()
+  })
+
+  it('refuses every upload with 403 in the public demo, before counting or reading it', async () => {
+    runtimeConfig.public.demoMode = true
+
+    await expect(upload()).rejects.toMatchObject({ statusCode: 403, data: { code: 'DEMO_MODE_RESTRICTED' } })
+    expect(store.reserve).not.toHaveBeenCalled()
+    expect(readMultipartFormData).not.toHaveBeenCalled()
+    expect(uploadFile).not.toHaveBeenCalled()
+  })
+
+  it('still refuses an anonymous request with 401 in the public demo', async () => {
+    runtimeConfig.public.demoMode = true
+    requireAuth.mockRejectedValue(Object.assign(new Error('Unauthorized'), { statusCode: 401 }))
+
+    await expect(upload()).rejects.toMatchObject({ statusCode: 401 })
   })
 
   it('stores a valid image', async () => {

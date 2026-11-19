@@ -17,6 +17,8 @@ const toast = useToast()
 const { refresh } = useAdminTable()
 
 const isUploadModalOpen = ref(false)
+// The public demo stores no file (the upload route answers 403).
+const demoMode = useRuntimeConfig().public.demoMode
 
 const filters: AdminTableFilter[] = reactive([
   {
@@ -211,7 +213,10 @@ const fetchData: FetchDataFn<FileWithUser> = async ({ page, limit, sort, filter 
 
 <template>
   <NuxtLayout name="admin">
-    <template #navRight>
+    <template
+      v-if="!demoMode"
+      #navRight
+    >
       <UButton
         color="primary"
         icon="i-lucide-upload"
@@ -229,6 +234,7 @@ const fetchData: FetchDataFn<FileWithUser> = async ({ page, limit, sort, filter 
       row-id="id"
     />
     <FileUploadModal
+      v-if="!demoMode"
       v-model:open="isUploadModalOpen"
       :t="t"
       @uploaded="refresh"
