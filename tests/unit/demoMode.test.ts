@@ -166,6 +166,21 @@ describe('demoBlockReason', () => {
       expect(blocked('/organization/remove-member', { memberIdOrEmail: 'demo@example.com' }, session)).toBeNull()
     })
 
+    it('falls back to the seeded active organization when the body names an empty one', () => {
+      const session = { userId: OTHER_USER, activeOrganizationId: SEEDED_ORG }
+      expect(blocked('/organization/remove-member', { memberIdOrEmail: 'demo@example.com', organizationId: '' }, session)).toBeTruthy()
+    })
+
+    it('prefers the organization of the body over the active one', () => {
+      const session = { userId: OTHER_USER, activeOrganizationId: SEEDED_ORG }
+      expect(blocked('/organization/remove-member', { memberIdOrEmail: 'demo@example.com', organizationId: OTHER_ORG }, session)).toBeNull()
+    })
+
+    it('is left to the endpoint without a target', () => {
+      const session = { userId: OTHER_USER, activeOrganizationId: SEEDED_ORG }
+      expect(blocked('/organization/remove-member', { organizationId: SEEDED_ORG }, session)).toBeNull()
+    })
+
     it('is allowed on another email in a seeded organization', () => {
       expect(blocked('/organization/remove-member', { memberIdOrEmail: 'alice@example.com', organizationId: SEEDED_ORG }, otherSession)).toBeNull()
     })

@@ -9,7 +9,7 @@ import { admin as adminPlugin, openAPI, organization } from 'better-auth/plugins
 import { and, eq } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
 import * as schema from '~~/server/db/schema'
-import { DEMO_PROTECTION, demoBlockReason, demoNeedsSession, demoSessionTokenToResolve } from '~~/shared/utils/demoMode'
+import { DEMO_MODE_RESTRICTED, DEMO_PROTECTION, demoBlockReason, demoNeedsSession, demoSessionTokenToResolve } from '~~/shared/utils/demoMode'
 import { buildInvitationUrl } from '~~/shared/utils/invitationUrl'
 import { ac, admin, member, owner } from '~~/shared/utils/permissions'
 import { userDisplayName } from '~~/shared/utils/userDisplayName'
@@ -95,7 +95,7 @@ async function refuseDemoRestrictedRequest(ctx: AuthMiddlewareContext) {
   }
   const reason = demoBlockReason({ path: ctx.path, body: ctx.body, session, sessionOwnerId }, DEMO_PROTECTION)
   if (reason) {
-    throw new APIError('FORBIDDEN', { message: reason, code: 'DEMO_MODE_RESTRICTED' })
+    throw new APIError('FORBIDDEN', { message: reason, code: DEMO_MODE_RESTRICTED })
   }
 }
 
@@ -278,7 +278,7 @@ export const createBetterAuth = () => betterAuth({
           if (runtimeConfig.public.demoMode) {
             throw new APIError('FORBIDDEN', {
               message: 'Account creation is disabled in the demo.',
-              code: 'DEMO_MODE_RESTRICTED'
+              code: DEMO_MODE_RESTRICTED
             })
           }
           if (ctx?.path.startsWith('/callback')) {
