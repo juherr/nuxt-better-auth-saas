@@ -5,11 +5,12 @@ const { mode } = defineProps<{
 
 const { t } = useI18n()
 const localePath = useLocalePath()
+const runtimeConfig = useRuntimeConfig()
 
 const navigation = [
   { label: t('global.nav.features'), to: localePath('/#features') },
   { label: t('global.nav.pricing'), to: localePath('/pricing') },
-  { label: t('global.nav.docs'), to: 'https://github.com/HouseOfBetterAuth/nuxt-better-auth-saas', external: true },
+  { label: t('global.nav.docs'), to: runtimeConfig.public.appRepo, external: true },
   { label: t('global.nav.dashboard'), to: localePath('/dashboard') }
 ]
 </script>

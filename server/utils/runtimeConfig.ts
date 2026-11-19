@@ -88,7 +88,7 @@ export const generateRuntimeConfig = (preset = 'node-server', { appVersion = '' 
     baseURL: process.env.NUXT_APP_URL || '',
     appName: process.env.NUXT_APP_NAME || '',
     appEnv: process.env.NODE_ENV || '',
-    appRepo: process.env.NUXT_APP_REPO || '',
+    appRepo: process.env.NUXT_APP_REPO || 'https://github.com/juherr/nuxt-saas-starter',
     // Tag of the built commit, else `dev-<short sha>`; runtime: NUXT_PUBLIC_APP_VERSION
     appVersion,
     appNotifyEmail: process.env.NUXT_APP_NOTIFY_EMAIL || '',
