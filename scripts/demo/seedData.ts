@@ -179,6 +179,19 @@ const MEMBERS: readonly { id: string, organizationId: string, userId: string, ro
   { id: '01934b00-0000-7000-8000-000000000206', organizationId: GLOBEX_LABS_ORGANIZATION_ID, userId: DAVE_USER_ID, role: 'member', ageDays: 35 }
 ]
 
+// Sign-in emails of the protected accounts, for the endpoints that name
+// their target by email.
+export const DEMO_PROTECTED_EMAILS: readonly string[] = Object.freeze([
+  DEMO_USER_CREDENTIALS.email,
+  DEMO_ADMIN_CREDENTIALS.email
+])
+
+// Member rows of the protected accounts in the seeded organizations, for
+// the endpoints that name their target by member id.
+export const DEMO_PROTECTED_MEMBER_IDS: readonly string[] = Object.freeze(
+  MEMBERS.filter(spec => DEMO_PROTECTED_USER_IDS.includes(spec.userId)).map(spec => spec.id)
+)
+
 const INVITATIONS: readonly { id: string, organizationId: string, email: string, role: DemoMemberRole, inviterId: string, ageHours: number }[] = [
   { id: '01934b00-0000-7000-8000-000000000401', organizationId: ACME_DEMO_ORGANIZATION_ID, email: 'frank@example.com', role: 'member', inviterId: DEMO_USER_ID, ageHours: 5 },
   { id: '01934b00-0000-7000-8000-000000000402', organizationId: GLOBEX_LABS_ORGANIZATION_ID, email: 'grace@example.com', role: 'admin', inviterId: CAROL_USER_ID, ageHours: 20 }

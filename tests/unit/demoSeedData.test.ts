@@ -5,6 +5,8 @@ import {
   DEMO_ADMIN_CREDENTIALS,
   DEMO_ADMIN_USER_ID,
   DEMO_AUDIT_LOG_WINDOW_DAYS,
+  DEMO_PROTECTED_EMAILS,
+  DEMO_PROTECTED_MEMBER_IDS,
   DEMO_PROTECTED_ORGANIZATION_IDS,
   DEMO_PROTECTED_USER_IDS,
   DEMO_USER_CREDENTIALS,
@@ -115,6 +117,15 @@ describe('demo seed data', () => {
     for (const id of DEMO_PROTECTED_USER_IDS)
       expect(userIds).toContain(id)
     expect([...DEMO_PROTECTED_ORGANIZATION_IDS].sort()).toEqual([...organizationIds].sort())
+  })
+
+  it('protects the emails and the memberships of the protected accounts', () => {
+    const protectedUsers = seed.users.filter(user => DEMO_PROTECTED_USER_IDS.includes(user.id))
+    expect([...DEMO_PROTECTED_EMAILS].sort()).toEqual(protectedUsers.map(user => user.email).sort())
+    const protectedMembers = seed.members.filter(member => DEMO_PROTECTED_USER_IDS.includes(member.userId))
+    expect([...DEMO_PROTECTED_MEMBER_IDS].sort()).toEqual(protectedMembers.map(member => member.id).sort())
+    for (const member of protectedMembers)
+      expect(DEMO_PROTECTED_ORGANIZATION_IDS).toContain(member.organizationId)
   })
 
   it('verifies both public accounts and logs them in with the published credentials', () => {

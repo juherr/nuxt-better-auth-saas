@@ -1,0 +1,209 @@
+import type { DemoProtection, DemoSession } from '~~/shared/utils/demoMode'
+import { describe, expect, it } from 'vitest'
+import { DEMO_PROTECTION, demoBlockReason, demoNeedsSession } from '~~/shared/utils/demoMode'
+
+const PROTECTED_USER = 'protected-user'
+const OTHER_USER = 'other-user'
+const SEEDED_ORG = 'seeded-org'
+const OTHER_ORG = 'other-org'
+const PROTECTED_MEMBER = 'protected-member'
+const OTHER_MEMBER = 'other-member'
+
+const protection: DemoProtection = {
+  userIds: [PROTECTED_USER],
+  emails: ['demo@example.com'],
+  organizationIds: [SEEDED_ORG],
+  memberIds: [PROTECTED_MEMBER]
+}
+
+const protectedSession: DemoSession = { userId: PROTECTED_USER, activeOrganizationId: null }
+const otherSession: DemoSession = { userId: OTHER_USER, activeOrganizationId: null }
+
+const blocked = (path: string, body: unknown, session: DemoSession | null = null) =>
+  demoBlockReason({ path, body, session }, protection)
+
+describe('demoBlockReason', () => {
+  it('blocks /sign-up/email for everyone', () => {
+    expect(blocked('/sign-up/email', { email: 'new@example.com' })).toBeTruthy()
+  })
+
+  it('lets /sign-in/email through', () => {
+    expect(blocked('/sign-in/email', { email: 'demo@example.com' })).toBeNull()
+  })
+
+  describe('on the protected session user', () => {
+    it.each([
+      '/change-password',
+      '/change-email',
+      '/delete-user',
+      '/revoke-sessions',
+      '/revoke-other-sessions'
+    ])('%s is blocked for a protected user and allowed for another one', (path) => {
+      expect(blocked(path, {}, protectedSession)).toBeTruthy()
+      expect(blocked(path, {}, otherSession)).toBeNull()
+    })
+
+    it.each([
+      '/change-password',
+      '/change-email',
+      '/delete-user',
+      '/revoke-sessions',
+      '/revoke-other-sessions'
+    ])('%s is left to the endpoint without a session', (path) => {
+      expect(blocked(path, {}, null)).toBeNull()
+    })
+
+    it('/update-user is blocked when a protected user changes the email', () => {
+      expect(blocked('/update-user', { email: 'mine@example.com' }, protectedSession)).toBeTruthy()
+      expect(blocked('/update-user', { email: 'mine@example.com' }, otherSession)).toBeNull()
+    })
+
+    it('/update-user lets a protected user change the name', () => {
+      expect(blocked('/update-user', { name: 'Renamed' }, protectedSession)).toBeNull()
+    })
+  })
+
+  describe('/request-password-reset', () => {
+    it('is blocked for a protected email', () => {
+      expect(blocked('/request-password-reset', { email: 'demo@example.com' })).toBeTruthy()
+    })
+
+    it('is blocked for a protected email in another case', () => {
+      expect(blocked('/request-password-reset', { email: ' DEMO@Example.com ' })).toBeTruthy()
+    })
+
+    it('is allowed for another email', () => {
+      expect(blocked('/request-password-reset', { email: 'someone@example.com' })).toBeNull()
+    })
+  })
+
+  describe('on a protected target user', () => {
+    it.each([
+      '/admin/ban-user',
+      '/admin/remove-user',
+      '/admin/set-user-password',
+      '/admin/set-role',
+      '/admin/impersonate-user',
+      '/admin/revoke-user-sessions',
+      '/admin/update-user'
+    ])('%s is blocked on a protected user and allowed on another one', (path) => {
+      expect(blocked(path, { userId: PROTECTED_USER }, otherSession)).toBeTruthy()
+      expect(blocked(path, { userId: OTHER_USER }, otherSession)).toBeNull()
+    })
+
+    it('blocks a protected user id the endpoint would coerce from an array', () => {
+      expect(blocked('/admin/ban-user', { userId: [PROTECTED_USER] })).toBeTruthy()
+    })
+  })
+
+  describe('/organization/delete', () => {
+    it('is blocked on a seeded organization', () => {
+      expect(blocked('/organization/delete', { organizationId: SEEDED_ORG }, otherSession)).toBeTruthy()
+    })
+
+    it('is allowed on another organization', () => {
+      expect(blocked('/organization/delete', { organizationId: OTHER_ORG }, protectedSession)).toBeNull()
+    })
+  })
+
+  describe('/organization/remove-member', () => {
+    it('is blocked on a protected member id, whatever organization the body names', () => {
+      expect(blocked('/organization/remove-member', { memberIdOrEmail: PROTECTED_MEMBER, organizationId: OTHER_ORG })).toBeTruthy()
+    })
+
+    it('is allowed on another member id', () => {
+      expect(blocked('/organization/remove-member', { memberIdOrEmail: OTHER_MEMBER, organizationId: SEEDED_ORG })).toBeNull()
+    })
+
+    it('is blocked on a protected email in a seeded organization', () => {
+      expect(blocked('/organization/remove-member', { memberIdOrEmail: 'Demo@Example.com', organizationId: SEEDED_ORG }, otherSession)).toBeTruthy()
+    })
+
+    it('is blocked on a protected email in the seeded active organization', () => {
+      const session = { userId: OTHER_USER, activeOrganizationId: SEEDED_ORG }
+      expect(blocked('/organization/remove-member', { memberIdOrEmail: 'demo@example.com' }, session)).toBeTruthy()
+    })
+
+    it('is allowed on a protected email in another organization', () => {
+      expect(blocked('/organization/remove-member', { memberIdOrEmail: 'demo@example.com', organizationId: OTHER_ORG }, otherSession)).toBeNull()
+      const session = { userId: OTHER_USER, activeOrganizationId: OTHER_ORG }
+      expect(blocked('/organization/remove-member', { memberIdOrEmail: 'demo@example.com' }, session)).toBeNull()
+    })
+
+    it('is allowed on another email in a seeded organization', () => {
+      expect(blocked('/organization/remove-member', { memberIdOrEmail: 'alice@example.com', organizationId: SEEDED_ORG }, otherSession)).toBeNull()
+    })
+  })
+
+  describe('/organization/leave', () => {
+    it('is blocked for a protected user leaving a seeded organization', () => {
+      expect(blocked('/organization/leave', { organizationId: SEEDED_ORG }, protectedSession)).toBeTruthy()
+    })
+
+    it('is allowed for a protected user leaving another organization', () => {
+      expect(blocked('/organization/leave', { organizationId: OTHER_ORG }, protectedSession)).toBeNull()
+    })
+
+    it('is allowed for another user leaving a seeded organization', () => {
+      expect(blocked('/organization/leave', { organizationId: SEEDED_ORG }, otherSession)).toBeNull()
+    })
+  })
+
+  describe('/organization/update-member-role', () => {
+    it('is blocked on a protected member id, whatever organization the body names', () => {
+      expect(blocked('/organization/update-member-role', { memberId: PROTECTED_MEMBER, role: 'member', organizationId: OTHER_ORG })).toBeTruthy()
+    })
+
+    it('is allowed on another member id', () => {
+      expect(blocked('/organization/update-member-role', { memberId: OTHER_MEMBER, role: 'member', organizationId: SEEDED_ORG })).toBeNull()
+    })
+  })
+
+  it.each([null, undefined, 'text', 42])('treats a body of %s as empty', (body) => {
+    expect(blocked('/admin/ban-user', body)).toBeNull()
+    expect(blocked('/sign-up/email', body)).toBeTruthy()
+  })
+})
+
+describe('demoNeedsSession', () => {
+  it.each([
+    '/change-password',
+    '/change-email',
+    '/delete-user',
+    '/update-user',
+    '/revoke-sessions',
+    '/revoke-other-sessions',
+    '/organization/leave'
+  ])('needs the session for %s', (path) => {
+    expect(demoNeedsSession(path, {})).toBe(true)
+  })
+
+  it('needs the session to remove a member named by email without an organization', () => {
+    expect(demoNeedsSession('/organization/remove-member', { memberIdOrEmail: 'demo@example.com' })).toBe(true)
+  })
+
+  it('does not need the session to remove a member named by id or with an organization', () => {
+    expect(demoNeedsSession('/organization/remove-member', { memberIdOrEmail: PROTECTED_MEMBER })).toBe(false)
+    expect(demoNeedsSession('/organization/remove-member', { memberIdOrEmail: 'demo@example.com', organizationId: SEEDED_ORG })).toBe(false)
+  })
+
+  it.each([
+    '/sign-up/email',
+    '/request-password-reset',
+    '/admin/ban-user',
+    '/organization/delete',
+    '/organization/update-member-role',
+    '/get-session'
+  ])('does not need the session for %s', (path) => {
+    expect(demoNeedsSession(path, {})).toBe(false)
+  })
+})
+
+describe('the demo protected set', () => {
+  it('protects the seeded demo accounts, organizations and their memberships', () => {
+    expect(DEMO_PROTECTION.userIds).toHaveLength(2)
+    expect(DEMO_PROTECTION.emails).toEqual(['demo@example.com', 'demo-admin@example.com'])
+    expect(DEMO_PROTECTION.organizationIds).toHaveLength(2)
+    expect(DEMO_PROTECTION.memberIds.length).toBeGreaterThan(0)
+  })
+})
