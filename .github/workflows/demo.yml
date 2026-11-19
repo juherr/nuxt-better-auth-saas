@@ -127,7 +127,8 @@ jobs:
               if [ "$status" = "$expected" ]; then
                 return 0
               fi
-              if [ "$status" != 503 ] && ! grep -qs 'error code: 1102' "$body"; then
+              # 000: no answer yet, e.g. right after the deploy
+              if [ "$status" != 000 ] && [ "$status" != 503 ] && ! grep -qs 'error code: 1102' "$body"; then
                 break
               fi
               if [ "$attempt" -lt "$attempts" ]; then
@@ -140,8 +141,12 @@ jobs:
             return 1
           }
 
+          # The new version can take a few seconds to answer everywhere:
+          # give the first request up to a minute
+          attempts=12
           request health 200 demo-health-body.txt "$DEMO_BASE_URL/api/health"
           rm -f demo-health-body.txt
+          attempts=3
 
           # better-auth checks Origin against the base URL, so it must equal
           # DEMO_BASE_URL. Over HTTPS the cookie carries the __Secure- prefix.
