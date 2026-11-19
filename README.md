@@ -555,11 +555,11 @@ job (`reuse lint` locally). Start every new source file with an SPDX header, as 
 | `.vue` | `<!-- SPDX-License-Identifier: MIT -->` |
 | `.css` | `/* SPDX-License-Identifier: MIT */` |
 | `.yml`, `.yaml`, shell scripts | `# SPDX-License-Identifier: MIT` |
-<!-- REUSE-IgnoreEnd -->
 
 Copyright is declared once in [`REUSE.toml`](REUSE.toml). Files that cannot hold a comment (images,
 JSON, Markdown) or that are generated (`server/db/schema/auth.ts`) are licensed there too: add a
 path to its second table rather than a sidecar `.license` file.
+<!-- REUSE-IgnoreEnd -->
 
 ---
 
