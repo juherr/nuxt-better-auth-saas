@@ -164,4 +164,20 @@ describe('demo seed data', () => {
       expect(log.createdAt.getTime()).toBeGreaterThanOrEqual(oldest)
     }
   })
+
+  it('logs email events without a client, as the email senders do', () => {
+    const emailLogs = seed.auditLogs.filter(log => log.category === 'email')
+    expect(emailLogs.length).toBeGreaterThan(0)
+    for (const log of emailLogs) {
+      expect(log.ipAddress).toBeNull()
+      expect(log.userAgent).toBeNull()
+    }
+  })
+
+  it('logs the banned sign-in with the message better-auth answers', () => {
+    const banned = seed.users.find(user => user.banned)
+    const log = seed.auditLogs.find(candidate =>
+      candidate.action === '/sign-in/email' && candidate.targetId === banned?.email && candidate.status === 'failure')
+    expect(log?.details).toBe('You have been banned from this application. Please contact support if you believe this is an error.')
+  })
 })

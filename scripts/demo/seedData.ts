@@ -88,8 +88,8 @@ export interface DemoAuditLogRow {
   action: string
   targetType: string | null
   targetId: string | null
-  ipAddress: string
-  userAgent: string
+  ipAddress: string | null
+  userAgent: string | null
   status: DemoAuditStatus
   details: string | null
   createdAt: Date
@@ -247,20 +247,20 @@ function buildAuditLogs(now: Date): DemoAuditLogRow[] {
       const email = emailOf(userId)
       logs.push(
         { userId: null, category: 'auth', action: '/request-password-reset', targetType: 'email', targetId: email, ...client(day), status: 'success', details: null, createdAt: at(day, 600) },
-        { userId, category: 'email', action: 'reset_password', targetType: 'email', targetId: email, ...client(day), status: 'success', details: null, createdAt: at(day, 599) },
+        { userId, category: 'email', action: 'reset_password', targetType: 'email', targetId: email, ipAddress: null, userAgent: null, status: 'success', details: null, createdAt: at(day, 599) },
         { userId: null, category: 'auth', action: '/reset-password', targetType: null, targetId: null, ...client(day), status: 'success', details: null, createdAt: at(day, 590) }
       )
     }
   }
 
   // The banned user tries to come back.
-  logs.push({ userId: null, category: 'auth', action: '/sign-in/email', targetType: 'email', targetId: emailOf(DAVE_USER_ID), ...client(3), status: 'failure', details: 'You have been banned from this application', createdAt: at(2, 120) })
+  logs.push({ userId: null, category: 'auth', action: '/sign-in/email', targetType: 'email', targetId: emailOf(DAVE_USER_ID), ...client(3), status: 'failure', details: 'You have been banned from this application. Please contact support if you believe this is an error.', createdAt: at(2, 120) })
 
   // The unverified user signs up; the verification email bounces once.
   const erin = emailOf(ERIN_USER_ID)
   logs.push(
     { userId: null, category: 'auth', action: '/sign-up/email', targetType: 'email', targetId: erin, ...client(5), status: 'success', details: null, createdAt: at(3, 0) },
-    { userId: ERIN_USER_ID, category: 'email', action: 'verification', targetType: 'email', targetId: erin, ...client(5), status: 'failure', details: 'Mailbox unavailable', createdAt: at(2, 1439) }
+    { userId: ERIN_USER_ID, category: 'email', action: 'verification', targetType: 'email', targetId: erin, ipAddress: null, userAgent: null, status: 'failure', details: 'Mailbox unavailable', createdAt: at(2, 1439) }
   )
 
   return logs.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
