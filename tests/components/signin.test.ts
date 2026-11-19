@@ -140,6 +140,15 @@ describe('sign-in page', () => {
       expect(page.find('[data-testid="demo-banner"]').exists()).toBe(false)
       expect(page.text()).toContain('signIn.createAccount')
     })
+
+    it('offers the social sign-in buttons and their divider', async () => {
+      const page = await mount()
+
+      expect(page.find('[data-testid="social-sign-in"]').exists()).toBe(true)
+      expect(page.text()).toContain('Google')
+      expect(page.text()).toContain('Github')
+      expect(page.text()).toContain('signIn.or')
+    })
   })
 
   describe('in the public demo', () => {
@@ -161,6 +170,17 @@ describe('sign-in page', () => {
       }
       expect(page.text()).not.toContain('signIn.createAccount')
       expect(page.text()).not.toContain('signIn.noAccount')
+    })
+
+    // OAuth is not configured on the demo, which refuses every new user:
+    // a social sign-in could only end on an error toast.
+    it('hides the social sign-in buttons and their divider', async () => {
+      const page = await mount()
+
+      expect(page.find('[data-testid="social-sign-in"]').exists()).toBe(false)
+      expect(page.text()).not.toContain('Google')
+      expect(page.text()).not.toContain('Github')
+      expect(page.text()).not.toContain('signIn.or')
     })
 
     it.each([

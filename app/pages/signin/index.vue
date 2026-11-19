@@ -179,32 +179,39 @@ async function handleResendEmail() {
           </template>
         </UAlert>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <UButton
-            color="neutral"
-            variant="outline"
-            icon="i-simple-icons-google"
-            class="justify-center"
-            :loading="loading && loadingAction === 'google'"
-            :disabled="loading"
-            @click="onSocialLogin('google')"
+        <!-- OAuth is not configured on the demo, which refuses every new
+             user: a social sign-in could only end on an error toast. -->
+        <template v-if="!demoMode">
+          <div
+            data-testid="social-sign-in"
+            class="grid grid-cols-1 sm:grid-cols-2 gap-2"
           >
-            Google
-          </UButton>
-          <UButton
-            color="neutral"
-            variant="outline"
-            icon="i-simple-icons-github"
-            class="justify-center"
-            :loading="loading && loadingAction === 'github'"
-            :disabled="loading"
-            @click="onSocialLogin('github')"
-          >
-            Github
-          </UButton>
-        </div>
+            <UButton
+              color="neutral"
+              variant="outline"
+              icon="i-simple-icons-google"
+              class="justify-center"
+              :loading="loading && loadingAction === 'google'"
+              :disabled="loading"
+              @click="onSocialLogin('google')"
+            >
+              Google
+            </UButton>
+            <UButton
+              color="neutral"
+              variant="outline"
+              icon="i-simple-icons-github"
+              class="justify-center"
+              :loading="loading && loadingAction === 'github'"
+              :disabled="loading"
+              @click="onSocialLogin('github')"
+            >
+              Github
+            </UButton>
+          </div>
 
-        <USeparator :label="t('signIn.or')" />
+          <USeparator :label="t('signIn.or')" />
+        </template>
 
         <UForm
           :schema="schema"
