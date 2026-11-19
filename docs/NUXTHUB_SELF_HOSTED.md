@@ -136,7 +136,7 @@ npx wrangler deploy
 Or use the npm script:
 
 ```bash
-pnpm deploy
+pnpm run deploy
 ```
 
 ---
