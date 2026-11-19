@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-This project is a fork of
-[HouseOfBetterAuth/nuxt-better-auth-saas](https://github.com/HouseOfBetterAuth/nuxt-better-auth-saas)
-as of 2025-12-14, itself built on NuxSaaS. Changes made before the fork are not itemised here.
-
 ### Added
 
 - Public demo mode, enabled with `NUXT_PUBLIC_DEMO_MODE=true`: the sign-in page shows the demo
@@ -30,6 +26,58 @@ as of 2025-12-14, itself built on NuxSaaS. Changes made before the fork are not 
 - The build version (git tag, else `dev-<short sha>`) is shown in the footer and the dashboard
   sidebar; `NUXT_PUBLIC_APP_VERSION` overrides it
   ([#114](https://github.com/juherr/nuxt-saas-starter/pull/114))
+- REUSE compliance: every source file carries an SPDX header, `REUSE.toml` covers the files that
+  cannot, and a `reuse` CI job fails on a new file without one. The README explains how to license
+  a new file
+- This changelog, following Keep a Changelog. Commit messages follow Conventional Commits, checked
+  by a commitlint `commit-msg` hook and, on pull requests, on the title and the commits.
+  `CONTRIBUTING.md` and a pull request template describe both
+
+### Changed
+
+- `pnpm typecheck` is a blocking CI check and must stay at zero errors
+  ([#98](https://github.com/juherr/nuxt-saas-starter/pull/98))
+- Rename the package to `nuxt-saas-starter`, declare it MIT in `package.json`, restore the NuxSaaS
+  copyright notice in `LICENSE` next to every other holder, and point funding and repository links
+  (`NUXT_APP_REPO` default, site navigation) to this project
+- GitHub Actions are pinned to commit SHAs, with their version in a comment that Dependabot updates
+
+### Removed
+
+- `NUXT_CF_HYPERDRIVE_ID` from `.env.example`: nothing read it, the Hyperdrive binding comes from
+  `wrangler.jsonc` ([#104](https://github.com/juherr/nuxt-saas-starter/pull/104))
+
+### Fixed
+
+- `pnpm install --frozen-lockfile` no longer fails on the `better-sqlite3` build script under
+  pnpm 12 ([#84](https://github.com/juherr/nuxt-saas-starter/pull/84))
+- The pricing page sends a plan the Stripe plugin knows, so checkout no longer fails
+  ([#89](https://github.com/juherr/nuxt-saas-starter/pull/89))
+- The seat-change preview of a trialing subscription no longer crashes
+  ([#85](https://github.com/juherr/nuxt-saas-starter/pull/85))
+- Invitation emails link to the accept-invite page instead of a 404
+  ([#86](https://github.com/juherr/nuxt-saas-starter/pull/86))
+- The creator's referral code is copied onto a new organization
+  ([#87](https://github.com/juherr/nuxt-saas-starter/pull/87))
+- Signing in with an unverified email opens the verify-email dialog
+  ([#88](https://github.com/juherr/nuxt-saas-starter/pull/88))
+- Creating a user outside an endpoint no longer fails, and the profile page shows a linked GitHub
+  account as linked ([#94](https://github.com/juherr/nuxt-saas-starter/pull/94))
+- Danger buttons and other components using Nuxt UI v2 colour names or `ui` objects render with
+  their intended style ([#96](https://github.com/juherr/nuxt-saas-starter/pull/96),
+  [#97](https://github.com/juherr/nuxt-saas-starter/pull/97))
+- Admin table filters naming an inherited key such as `toString` are ignored
+  ([#95](https://github.com/juherr/nuxt-saas-starter/pull/95))
+- Switching the home page screenshot tabs no longer flashes an empty panel
+
+## [0.1.0] - 2026-11-18
+
+First release of the fork of
+[HouseOfBetterAuth/nuxt-better-auth-saas](https://github.com/HouseOfBetterAuth/nuxt-better-auth-saas)
+as of 2025-12-14, itself built on NuxSaaS. Changes made before the fork are not itemised here.
+
+### Added
+
 - `GET /api/health` for load balancers: it answers 503 when the database is not configured or does
   not answer within 2 seconds ([#16](https://github.com/juherr/nuxt-saas-starter/pull/16))
 - Access log with one line per request, a request id echoed in `x-request-id`, and the
@@ -42,20 +90,13 @@ as of 2025-12-14, itself built on NuxSaaS. Changes made before the fork are not 
   configured, and a Node.js smoke test against PostgreSQL and Redis; Dependabot for npm and GitHub
   Actions ([#16](https://github.com/juherr/nuxt-saas-starter/pull/16),
   [#54](https://github.com/juherr/nuxt-saas-starter/pull/54))
-- REUSE compliance: every source file carries an SPDX header, `REUSE.toml` covers the files that
-  cannot, and a `reuse` CI job fails on a new file without one. The README explains how to license
-  a new file
-- This changelog, following Keep a Changelog. Commit messages follow Conventional Commits, checked
-  by a commitlint `commit-msg` hook and, on pull requests, on the title and the commits.
-  `CONTRIBUTING.md` and a pull request template describe both
 - Self-hosting guide for Node.js ([docs/SELF_HOSTING_NODE.md](docs/SELF_HOSTING_NODE.md)), covering
   migrations, KV, uploads, access logs and reverse proxy settings
   ([upstream #15][upstream-15],
   [#27](https://github.com/juherr/nuxt-saas-starter/pull/27))
 - `CLAUDE.md` files with the project commands and conventions for coding agents
   ([#65](https://github.com/juherr/nuxt-saas-starter/pull/65),
-  [#82](https://github.com/juherr/nuxt-saas-starter/pull/82),
-  [#101](https://github.com/juherr/nuxt-saas-starter/pull/101))
+  [#82](https://github.com/juherr/nuxt-saas-starter/pull/82))
 
 ### Changed
 
@@ -101,11 +142,6 @@ as of 2025-12-14, itself built on NuxSaaS. Changes made before the fork are not 
 - Lower the PostgreSQL pool from 90 to 10 connections per process, leaving room for a second
   instance, migrations and admin sessions
   ([upstream #14][upstream-14])
-- `pnpm typecheck` is a blocking CI check and must stay at zero errors
-  ([#98](https://github.com/juherr/nuxt-saas-starter/pull/98))
-- Rename the package to `nuxt-saas-starter`, declare it MIT in `package.json`, restore the NuxSaaS
-  copyright notice in `LICENSE` next to every other holder, and point funding and repository links
-  (`NUXT_APP_REPO` default, site navigation) to this project
 
 ### Removed
 
@@ -119,8 +155,6 @@ as of 2025-12-14, itself built on NuxSaaS. Changes made before the fork are not 
   data ([#27](https://github.com/juherr/nuxt-saas-starter/pull/27))
 - The unused `useCustomFetch` composable
   ([#59](https://github.com/juherr/nuxt-saas-starter/pull/59))
-- `NUXT_CF_HYPERDRIVE_ID` from `.env.example`: nothing read it, the Hyperdrive binding comes from
-  `wrangler.jsonc` ([#104](https://github.com/juherr/nuxt-saas-starter/pull/104))
 
 ### Fixed
 
@@ -132,10 +166,8 @@ as of 2025-12-14, itself built on NuxSaaS. Changes made before the fork are not 
 - `pnpm build` works without a database URL; migrations are applied at build time only when one is
   set
   ([upstream #20][upstream-20])
-- `pnpm install --frozen-lockfile` no longer fails on the `better-sqlite3` build script under
-  pnpm 12, and `pnpm preview:cf` no longer passes a flag current wrangler rejects
-  ([#84](https://github.com/juherr/nuxt-saas-starter/pull/84),
-  [#59](https://github.com/juherr/nuxt-saas-starter/pull/59))
+- `pnpm preview:cf` no longer passes a flag current wrangler rejects
+  ([#59](https://github.com/juherr/nuxt-saas-starter/pull/59))
 - Switching organization during server rendering keeps the new active organization, including from
   a typed URL or a bookmark, and a refused switch redirects instead of showing the wrong
   organization ([#27](https://github.com/juherr/nuxt-saas-starter/pull/27),
@@ -143,34 +175,16 @@ as of 2025-12-14, itself built on NuxSaaS. Changes made before the fork are not 
 - Members holding several roles (such as `owner,admin`) are recognised by billing, API key and
   dashboard checks, and by the member cleanup on subscription expiry
   ([#77](https://github.com/juherr/nuxt-saas-starter/pull/77))
-- The pricing page sends a plan the Stripe plugin knows, so checkout no longer fails
-  ([#89](https://github.com/juherr/nuxt-saas-starter/pull/89))
 - Subscription period ends are read from the subscription items, so renewal dates in emails,
   scheduled plan changes and seat updates are no longer empty, and the credit balance shows the
   proration credits of the upcoming invoice again
   ([#60](https://github.com/juherr/nuxt-saas-starter/pull/60))
-- The seat-change preview of a trialing subscription no longer crashes
-  ([#85](https://github.com/juherr/nuxt-saas-starter/pull/85))
-- Invitation emails link to the accept-invite page instead of a 404
-  ([#86](https://github.com/juherr/nuxt-saas-starter/pull/86))
-- The creator's referral code is copied onto a new organization
-  ([#87](https://github.com/juherr/nuxt-saas-starter/pull/87))
 - The forgot-password page calls the endpoint better-auth serves, and unlinking a social account
   works with better-auth 1.7 ([#56](https://github.com/juherr/nuxt-saas-starter/pull/56))
-- Signing in with an unverified email opens the verify-email dialog
-  ([#88](https://github.com/juherr/nuxt-saas-starter/pull/88))
-- Creating a user outside an endpoint no longer fails, and the profile page shows a linked GitHub
-  account as linked ([#94](https://github.com/juherr/nuxt-saas-starter/pull/94))
-- Danger buttons and other components using Nuxt UI v2 colour names or `ui` objects render with
-  their intended style ([#96](https://github.com/juherr/nuxt-saas-starter/pull/96),
-  [#97](https://github.com/juherr/nuxt-saas-starter/pull/97))
-- Admin table filters no longer share one selection between instances, and filters naming an
-  inherited key such as `toString` are ignored
-  ([#55](https://github.com/juherr/nuxt-saas-starter/pull/55),
-  [#95](https://github.com/juherr/nuxt-saas-starter/pull/95))
+- Admin table filters no longer share one selection between instances
+  ([#55](https://github.com/juherr/nuxt-saas-starter/pull/55))
 - Deleting a file whose stored copy cannot be removed keeps its record and reports the failure
   ([#76](https://github.com/juherr/nuxt-saas-starter/pull/76))
-- Switching the home page screenshot tabs no longer flashes an empty panel
 
 ### Security
 
@@ -201,7 +215,8 @@ as of 2025-12-14, itself built on NuxSaaS. Changes made before the fork are not 
   ([#76](https://github.com/juherr/nuxt-saas-starter/pull/76),
   [#78](https://github.com/juherr/nuxt-saas-starter/pull/78))
 
-[unreleased]: https://github.com/juherr/nuxt-saas-starter/commits/main
+[unreleased]: https://github.com/juherr/nuxt-saas-starter/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/juherr/nuxt-saas-starter/releases/tag/v0.1.0
 [upstream-13]: https://github.com/HouseOfBetterAuth/nuxt-better-auth-saas/pull/13
 [upstream-14]: https://github.com/HouseOfBetterAuth/nuxt-better-auth-saas/pull/14
 [upstream-15]: https://github.com/HouseOfBetterAuth/nuxt-better-auth-saas/pull/15
