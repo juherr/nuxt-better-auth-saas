@@ -30,13 +30,6 @@ const auditLog = pgTable('audit_log', {
   createdAt: timestamp('created_at').notNull()
 })
 
-async function hashPasswords(plainPasswords: readonly string[]): Promise<Map<string, string>> {
-  const hashes = new Map<string, string>()
-  for (const plain of new Set(plainPasswords))
-    hashes.set(plain, await hashPassword(plain))
-  return hashes
-}
-
 async function main(): Promise<number> {
   const connectionString = process.env.DATABASE_URL
   if (!connectionString) {
@@ -45,13 +38,10 @@ async function main(): Promise<number> {
   }
 
   const seed = buildDemoSeed(new Date())
-  const hashes = await hashPasswords(seed.accounts.map(row => row.plainPassword))
-  const accounts = seed.accounts.map(({ plainPassword, ...row }) => {
-    const password = hashes.get(plainPassword)
-    if (password === undefined)
-      throw new Error(`No hash computed for account ${row.id}`)
-    return { ...row, password }
-  })
+  const accounts = await Promise.all(seed.accounts.map(async ({ plainPassword, ...row }) => ({
+    ...row,
+    password: await hashPassword(plainPassword)
+  })))
 
   const pool = new pg.Pool({ connectionString })
   try {
