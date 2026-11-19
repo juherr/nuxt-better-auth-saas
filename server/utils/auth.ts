@@ -270,6 +270,17 @@ export const createBetterAuth = () => betterAuth({
     user: {
       create: {
         before: async (user, ctx) => {
+          // The public demo creates no account, whatever the route:
+          // sign-up, /admin/create-user or an OAuth implicit sign-up. The
+          // demo seed writes to the database directly and is unaffected.
+          // A throw propagates as is (db/with-hooks.mjs), where returning
+          // false would leave each caller to report a null user.
+          if (runtimeConfig.public.demoMode) {
+            throw new APIError('FORBIDDEN', {
+              message: 'Account creation is disabled in the demo.',
+              code: 'DEMO_MODE_RESTRICTED'
+            })
+          }
           if (ctx?.path.startsWith('/callback')) {
             try {
               const additionalData = await getOAuthState<{ referralCode?: string }>()

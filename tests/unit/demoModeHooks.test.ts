@@ -46,6 +46,13 @@ async function beforeHook() {
   return options.hooks.before as (ctx: unknown) => Promise<unknown>
 }
 
+async function userCreateHook() {
+  const { createBetterAuth } = await import('~~/server/utils/auth')
+  createBetterAuth()
+  const options = betterAuth.mock.calls.at(-1)![0] as any
+  return options.databaseHooks.user.create.before as (user: unknown, ctx: unknown) => Promise<unknown>
+}
+
 function request(path: string, body: unknown = {}, session: unknown = null) {
   return {
     path,
@@ -134,6 +141,27 @@ describe('the demo mode before hook', () => {
 
       await expect(hook(request('/sign-in/email', { email: 'demo@example.com' }))).resolves.toBeUndefined()
       expect(getSessionFromCtx).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('the user create hook', () => {
+    const newUser = { email: 'new@example.com', name: 'New' }
+
+    it('refuses every user creation with DEMO_MODE_RESTRICTED when the demo mode is on', async () => {
+      runtimeConfig.public.demoMode = true
+      const hook = await userCreateHook()
+
+      const error = await rejection(hook(newUser, { path: '/admin/create-user' }))
+
+      expect(error).toBeInstanceOf(APIError)
+      expect((error as APIError).statusCode).toBe(403)
+      expect((error as APIError).body).toMatchObject({ code: 'DEMO_MODE_RESTRICTED' })
+    })
+
+    it('passes the user through unchanged when the demo mode is off', async () => {
+      const hook = await userCreateHook()
+
+      await expect(hook(newUser, { path: '/admin/create-user' })).resolves.toBeUndefined()
     })
   })
 
