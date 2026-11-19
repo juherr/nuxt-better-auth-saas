@@ -1,6 +1,6 @@
 import { APIError, getSessionFromCtx } from 'better-auth/api'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { DEMO_USER_ID } from '~~/scripts/demo/seedData'
+import { ACME_DEMO_ORGANIZATION_ID, DEMO_ADMIN_CREDENTIALS, DEMO_USER_ID } from '~~/scripts/demo/seedData'
 import { nitroCreateError } from './support/nitroGlobals'
 
 const runtimeConfig = vi.hoisted(() => ({
@@ -134,6 +134,24 @@ describe('the demo mode before hook', () => {
 
       await expect(hook(ctx)).resolves.toBeUndefined()
       expect(findSession).toHaveBeenCalledWith('other-token')
+    })
+
+    it('refuses removing a demo account by email from the seeded organization the session has active', async () => {
+      const hook = await beforeHook()
+      const memberSession = { user: { id: 'acme-member-id' }, session: { id: 'session-3', activeOrganizationId: ACME_DEMO_ORGANIZATION_ID } }
+
+      const error = await rejection(hook(request('/organization/remove-member', { memberIdOrEmail: DEMO_ADMIN_CREDENTIALS.email }, memberSession)))
+
+      expect((error as APIError).body).toMatchObject({ code: 'DEMO_MODE_RESTRICTED' })
+      expect(getSessionFromCtx).toHaveBeenCalledTimes(1)
+    })
+
+    it('lets removing a demo account by email through when the active organization is not seeded', async () => {
+      const hook = await beforeHook()
+      const memberSession = { user: { id: 'acme-member-id' }, session: { id: 'session-3', activeOrganizationId: 'other-organization-id' } }
+
+      await expect(hook(request('/organization/remove-member', { memberIdOrEmail: DEMO_ADMIN_CREDENTIALS.email }, memberSession))).resolves.toBeUndefined()
+      expect(getSessionFromCtx).toHaveBeenCalledTimes(1)
     })
 
     it('lets a request the policy allows through without resolving the session', async () => {
