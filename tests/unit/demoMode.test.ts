@@ -1,6 +1,6 @@
-import type { DemoProtection, DemoSession } from '~~/shared/utils/demoMode'
+import type { DemoProtection, DemoRequest, DemoSession } from '~~/shared/utils/demoMode'
 import { describe, expect, it } from 'vitest'
-import { DEMO_PROTECTION, demoBlockReason, demoNeedsSession, demoSessionTokenToResolve } from '~~/shared/utils/demoMode'
+import { DEMO_PROTECTION, DEMO_SESSION_UNRESOLVED, demoBlockReason, demoNeedsSession, demoSessionTokenToResolve } from '~~/shared/utils/demoMode'
 
 const PROTECTED_USER = 'protected-user'
 const OTHER_USER = 'other-user'
@@ -19,7 +19,7 @@ const protection: DemoProtection = {
 const protectedSession: DemoSession = { userId: PROTECTED_USER, activeOrganizationId: null }
 const otherSession: DemoSession = { userId: OTHER_USER, activeOrganizationId: null }
 
-const blocked = (path: string, body: unknown, session: DemoSession | null = null) =>
+const blocked = (path: string, body: unknown, session: DemoRequest['session'] = null) =>
   demoBlockReason({ path, body, session }, protection)
 
 describe('demoBlockReason', () => {
@@ -59,6 +59,36 @@ describe('demoBlockReason', () => {
       expect(blocked(path, {}, null)).toBeNull()
     })
 
+    // A session cookie the hook could not resolve may belong to a protected
+    // user, and the endpoint may still resolve it: fail closed.
+    it.each([
+      '/change-password',
+      '/change-email',
+      '/delete-user',
+      '/revoke-sessions',
+      '/revoke-other-sessions',
+      '/revoke-session',
+      '/link-social',
+      '/unlink-account'
+    ])('%s is blocked when the session could not be resolved', (path) => {
+      expect(blocked(path, {}, DEMO_SESSION_UNRESOLVED)).toBeTruthy()
+    })
+
+    it('/update-user is blocked when the session could not be resolved and it changes the email or sets an avatar', () => {
+      expect(blocked('/update-user', { email: 'mine@example.com' }, DEMO_SESSION_UNRESOLVED)).toBeTruthy()
+      expect(blocked('/update-user', { image: 'https://example.com/a.png' }, DEMO_SESSION_UNRESOLVED)).toBeTruthy()
+    })
+
+    it('/update-user lets a rename or an avatar removal through when the session could not be resolved', () => {
+      expect(blocked('/update-user', { name: 'Renamed' }, DEMO_SESSION_UNRESOLVED)).toBeNull()
+      expect(blocked('/update-user', { image: null }, DEMO_SESSION_UNRESOLVED)).toBeNull()
+    })
+
+    it('/update-user is left to the endpoint without a session', () => {
+      expect(blocked('/update-user', { email: 'mine@example.com' }, null)).toBeNull()
+      expect(blocked('/update-user', { image: 'https://example.com/a.png' }, null)).toBeNull()
+    })
+
     it('/update-user is blocked when a protected user changes the email', () => {
       expect(blocked('/update-user', { email: 'mine@example.com' }, protectedSession)).toBeTruthy()
       expect(blocked('/update-user', { email: 'mine@example.com' }, otherSession)).toBeNull()
@@ -95,11 +125,21 @@ describe('demoBlockReason', () => {
       expect(blocked('/organization/update', { organizationId: '', data: { logo: LOGO } }, session)).toBeTruthy()
     })
 
-    // The hook needs the session to find the target here: without it, the
-    // policy cannot tell the target is not seeded, so it refuses.
-    it('is blocked when it sets a logo without organizationId and no session was resolved', () => {
-      expect(blocked('/organization/update', { data: { logo: LOGO } }, null)).toBeTruthy()
-      expect(blocked('/organization/update', { organizationId: '', data: { logo: LOGO } }, null)).toBeTruthy()
+    // The hook needs the session to find the target here: when it could not
+    // resolve it, the policy cannot tell the target is not seeded, so it
+    // refuses. Without a session cookie, the endpoint answers 401 itself.
+    it('is blocked when it sets a logo without organizationId and the session could not be resolved', () => {
+      expect(blocked('/organization/update', { data: { logo: LOGO } }, DEMO_SESSION_UNRESOLVED)).toBeTruthy()
+      expect(blocked('/organization/update', { organizationId: '', data: { logo: LOGO } }, DEMO_SESSION_UNRESOLVED)).toBeTruthy()
+    })
+
+    it('is left to the endpoint when it sets a logo without organizationId and without a session', () => {
+      expect(blocked('/organization/update', { data: { logo: LOGO } }, null)).toBeNull()
+      expect(blocked('/organization/update', { organizationId: '', data: { logo: LOGO } }, null)).toBeNull()
+    })
+
+    it('lets the logo of another organization named in the body through when the session could not be resolved', () => {
+      expect(blocked('/organization/update', { organizationId: OTHER_ORG, data: { logo: LOGO } }, DEMO_SESSION_UNRESOLVED)).toBeNull()
     })
 
     it('lets a logo through for a resolved session without an active organization', () => {
@@ -241,6 +281,23 @@ describe('demoBlockReason', () => {
     it('is allowed on another email in a seeded organization', () => {
       expect(blocked('/organization/remove-member', { memberIdOrEmail: 'alice@example.com', organizationId: SEEDED_ORG }, otherSession)).toBeNull()
     })
+
+    it('is blocked on a protected email without organizationId when the session could not be resolved', () => {
+      expect(blocked('/organization/remove-member', { memberIdOrEmail: 'demo@example.com' }, DEMO_SESSION_UNRESOLVED)).toBeTruthy()
+      expect(blocked('/organization/remove-member', { memberIdOrEmail: 'demo@example.com', organizationId: '' }, DEMO_SESSION_UNRESOLVED)).toBeTruthy()
+    })
+
+    it('lets a protected email through when the session could not be resolved but the body names another organization', () => {
+      expect(blocked('/organization/remove-member', { memberIdOrEmail: 'demo@example.com', organizationId: OTHER_ORG }, DEMO_SESSION_UNRESOLVED)).toBeNull()
+    })
+
+    it('lets another email through when the session could not be resolved', () => {
+      expect(blocked('/organization/remove-member', { memberIdOrEmail: 'alice@example.com' }, DEMO_SESSION_UNRESOLVED)).toBeNull()
+    })
+
+    it('leaves a protected email without organizationId to the endpoint without a session', () => {
+      expect(blocked('/organization/remove-member', { memberIdOrEmail: 'demo@example.com' }, null)).toBeNull()
+    })
   })
 
   describe('/organization/leave', () => {
@@ -254,6 +311,18 @@ describe('demoBlockReason', () => {
 
     it('is allowed for another user leaving a seeded organization', () => {
       expect(blocked('/organization/leave', { organizationId: SEEDED_ORG }, otherSession)).toBeNull()
+    })
+
+    it('is blocked when the session could not be resolved and the organization is seeded', () => {
+      expect(blocked('/organization/leave', { organizationId: SEEDED_ORG }, DEMO_SESSION_UNRESOLVED)).toBeTruthy()
+    })
+
+    it('is allowed when the session could not be resolved and the organization is another one', () => {
+      expect(blocked('/organization/leave', { organizationId: OTHER_ORG }, DEMO_SESSION_UNRESOLVED)).toBeNull()
+    })
+
+    it('is left to the endpoint without a session', () => {
+      expect(blocked('/organization/leave', { organizationId: SEEDED_ORG }, null)).toBeNull()
     })
   })
 

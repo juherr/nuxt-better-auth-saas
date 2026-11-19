@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import type { DemoSession } from '~~/shared/utils/demoMode'
+import type { DemoRequest } from '~~/shared/utils/demoMode'
 import type { User } from '~~/shared/utils/types'
 import { apiKey } from '@better-auth/api-key'
 import { betterAuth } from 'better-auth'
@@ -9,7 +9,7 @@ import { admin as adminPlugin, openAPI, organization } from 'better-auth/plugins
 import { and, eq } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
 import * as schema from '~~/server/db/schema'
-import { DEMO_MODE_RESTRICTED, DEMO_PROTECTION, demoBlockReason, demoNeedsSession, demoSessionTokenToResolve } from '~~/shared/utils/demoMode'
+import { DEMO_MODE_RESTRICTED, DEMO_PROTECTION, DEMO_SESSION_UNRESOLVED, demoBlockReason, demoNeedsSession, demoSessionTokenToResolve } from '~~/shared/utils/demoMode'
 import { buildInvitationUrl } from '~~/shared/utils/invitationUrl'
 import { ac, admin, member, owner } from '~~/shared/utils/permissions'
 import { userDisplayName } from '~~/shared/utils/userDisplayName'
@@ -73,7 +73,7 @@ type AuthMiddlewareContext = Parameters<Parameters<typeof createAuthMiddleware>[
  * whose decision depends on it, to keep the other requests cheap.
  */
 async function refuseDemoRestrictedRequest(ctx: AuthMiddlewareContext) {
-  let session: DemoSession | null = null
+  let session: DemoRequest['session'] = null
   if (demoNeedsSession(ctx.path, ctx.body)) {
     const resolved = await getSessionFromCtx(ctx)
     if (resolved) {
@@ -82,6 +82,12 @@ async function refuseDemoRestrictedRequest(ctx: AuthMiddlewareContext) {
         ? resolved.session.activeOrganizationId
         : null
       session = { userId: resolved.user.id, activeOrganizationId }
+    } else if (ctx.getCookie(ctx.context.authCookies.sessionToken.name) !== null) {
+      // getSessionFromCtx answers null on a failed lookup too, and the
+      // endpoint looks the session up again: a session cookie the hook
+      // cannot resolve fails closed. Presence only: an expired or forged
+      // cookie gets the demo 403 instead of the endpoint's 401.
+      session = DEMO_SESSION_UNRESOLVED
     }
   }
   // `/admin/revoke-user-session` names its target by session token only:

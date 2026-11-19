@@ -58,6 +58,10 @@ KV. `.github/workflows/demo.yml` deploys it from `main` and resets its database 
 - admin actions that target those two accounts;
 - file uploads.
 
+When a check needs the caller's session (account changes, leaving or removing members of the demo organizations, their
+logos) and the request carries a session cookie the check cannot resolve, the app refuses it rather than guessing whose
+session it is. A stale or forged cookie therefore gets this 403 instead of the usual 401.
+
 The sign-in page shows the credentials of both accounts.
 
 The demo accounts come only from `pnpm demo:reset`. Never point `create-admin.ts` at the demo database: the next reset

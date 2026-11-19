@@ -24,6 +24,13 @@ export interface DemoSession {
 }
 
 /**
+ * The request carries a session cookie, but the hook could not resolve the
+ * session (getSessionFromCtx answers null on a failed lookup). The endpoint
+ * may still resolve it afterwards, so the user may be a protected one.
+ */
+export const DEMO_SESSION_UNRESOLVED = 'unresolved'
+
+/**
  * A better-auth request seen from a before hook: the endpoint path
  * (relative to the auth base path) and the raw body, before the endpoint
  * validates it.
@@ -31,7 +38,8 @@ export interface DemoSession {
 export interface DemoRequest {
   path: string
   body: unknown
-  session: DemoSession | null
+  /** The resolved session, `DEMO_SESSION_UNRESOLVED`, or null without a session cookie. */
+  session: DemoSession | typeof DEMO_SESSION_UNRESOLVED | null
   /**
    * The user owning the session that `demoSessionTokenToResolve` names,
    * as the caller looked it up; null or absent when there is none.
@@ -108,40 +116,48 @@ const isEmail = (value: string) => value.includes('@')
 
 /**
  * Why the demo refuses this request, or null to let it through. Pure: the
- * caller passes the session (or null when the path does not need one, see
- * `demoNeedsSession`) and the protected set.
+ * caller passes the session (null when the path does not need one, see
+ * `demoNeedsSession`, or when the request carries no session cookie) and
+ * the protected set. An unresolved session fails closed: it is refused
+ * wherever a protected session, or a seeded active organization, would be.
  */
 export function demoBlockReason(request: DemoRequest, protection: DemoProtection): string | null {
-  const { path, session } = request
+  const { path, session: given } = request
   const body = asBody(request.body)
+  const unresolved = given === DEMO_SESSION_UNRESOLVED
+  const session = unresolved ? null : given
   const isProtectedUser = (userId: string | null | undefined) =>
     userId !== undefined && userId !== null && protection.userIds.includes(userId)
   const isSeededOrganization = (organizationId: string | undefined) =>
     organizationId !== undefined && protection.organizationIds.includes(organizationId)
-  const sessionIsProtected = session !== null && isProtectedUser(session.userId)
+  const sessionMayBeProtected = unresolved || (session !== null && isProtectedUser(session.userId))
+  // Whether the target organization (the one the body names, else the
+  // session's active one) may be seeded: it may when only an unresolved
+  // session could name it.
+  const mayBeSeededTarget = () => {
+    const named = text(body.organizationId) || undefined
+    if (named === undefined && unresolved) {
+      return true
+    }
+    return isSeededOrganization(named ?? session?.activeOrganizationId ?? undefined)
+  }
 
   if (path === '/sign-up/email') {
     return 'Sign-up is disabled in the demo.'
   }
-  if (SELF_PATHS.includes(path) && sessionIsProtected) {
+  if (SELF_PATHS.includes(path) && sessionMayBeProtected) {
     return 'The demo accounts cannot change their credentials, sessions or linked accounts.'
   }
-  if (path === '/update-user' && sessionIsProtected && text(body.email) !== undefined) {
+  if (path === '/update-user' && sessionMayBeProtected && text(body.email) !== undefined) {
     return 'The demo accounts cannot change their email.'
   }
-  if (path === '/update-user' && sessionIsProtected && setsValue(body.image)) {
+  if (path === '/update-user' && sessionMayBeProtected && setsValue(body.image)) {
     return 'The demo accounts cannot change their avatar.'
   }
   // better-auth 1.7.25 reads the logo from `data.logo` and the target from
-  // `organizationId`, else the session's active organization. Without
-  // `organizationId`, a null session means the hook could not resolve it
-  // (getSessionFromCtx answers null on a failed lookup): fail closed.
-  if (path === '/organization/update' && setsValue(asBody(body.data).logo)) {
-    const named = text(body.organizationId) || undefined
-    const organizationId = named ?? session?.activeOrganizationId ?? undefined
-    if ((named === undefined && session === null) || isSeededOrganization(organizationId)) {
-      return 'The demo organizations cannot change their logo.'
-    }
+  // `organizationId`, else the session's active organization.
+  if (path === '/organization/update' && setsValue(asBody(body.data).logo) && mayBeSeededTarget()) {
+    return 'The demo organizations cannot change their logo.'
   }
   if (path === '/request-password-reset' && isProtectedEmail(text(body.email), protection)) {
     return 'The demo accounts cannot reset their password.'
@@ -153,14 +169,13 @@ export function demoBlockReason(request: DemoRequest, protection: DemoProtection
   if (path === '/organization/delete' && isSeededOrganization(text(body.organizationId))) {
     return 'The demo organizations cannot be deleted.'
   }
-  if (path === '/organization/leave' && sessionIsProtected && isSeededOrganization(text(body.organizationId))) {
+  if (path === '/organization/leave' && sessionMayBeProtected && isSeededOrganization(text(body.organizationId))) {
     return 'The demo accounts cannot leave the demo organizations.'
   }
   if (path === '/organization/remove-member') {
     const target = text(body.memberIdOrEmail)
-    const organizationId = text(body.organizationId) || session?.activeOrganizationId || undefined
     const isProtectedTarget = target !== undefined && (isEmail(target)
-      ? isProtectedEmail(target, protection) && isSeededOrganization(organizationId)
+      ? isProtectedEmail(target, protection) && mayBeSeededTarget()
       : protection.memberIds.includes(target))
     if (isProtectedTarget) {
       return 'The demo accounts cannot be removed from the demo organizations.'
