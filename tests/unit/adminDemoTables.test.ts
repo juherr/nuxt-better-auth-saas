@@ -83,6 +83,24 @@ describe('the admin list route in demo mode', () => {
     expect(useDB).not.toHaveBeenCalled()
   })
 
+  it('refuses a relation into a hidden table enabled with a config object', async () => {
+    runtimeConfig.public.demoMode = true
+    await expect(list('user', { with: JSON.stringify({ accounts: {} }) }))
+      .rejects
+      .toMatchObject({ statusCode: 403, data: { code: DEMO_MODE_RESTRICTED } })
+  })
+
+  // drizzle drops falsy `with` entries before loading, so they read nothing.
+  it.each([
+    ['a disabled relation', { accounts: false }],
+    ['a null relation', { accounts: null }],
+    ['a disabled nested relation', { members: { with: { user: { with: { accounts: false } } } } }]
+  ])('lets %s into a hidden table through', async (_label, withRelations) => {
+    runtimeConfig.public.demoMode = true
+    await list('organization', { with: JSON.stringify(withRelations) })
+    expect(findMany).toHaveBeenCalled()
+  })
+
   it('keeps the relations the admin pages load', async () => {
     runtimeConfig.public.demoMode = true
     await list('organization', { with: JSON.stringify({ members: { with: { user: true } } }) })

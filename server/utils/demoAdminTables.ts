@@ -35,9 +35,11 @@ const HIDDEN_RELATIONS: ReadonlySet<string> = (() => {
   return names
 })()
 
+// drizzle skips falsy `with` entries (`accounts: false`), which load nothing.
 const namesHiddenRelation = (value: unknown): boolean =>
   value !== null && typeof value === 'object'
-  && Object.entries(value).some(([key, nested]) => HIDDEN_RELATIONS.has(key) || namesHiddenRelation(nested))
+  && Object.entries(value).some(([key, nested]) =>
+    Boolean(nested) && (HIDDEN_RELATIONS.has(key) || namesHiddenRelation(nested)))
 
 /**
  * Whether the demo hides this read: a hidden table, or a relational
