@@ -24,6 +24,8 @@ const unlinkingAccount = ref<string | null>(null)
 const deletingAccount = ref(false)
 const showDeleteConfirm = ref(false)
 const uploadingAvatar = ref(false)
+// The public demo stores no file (the upload route answers 403).
+const demoMode = useRuntimeConfig().public.demoMode
 
 // File input ref
 const avatarInput = ref<HTMLInputElement | null>(null)
@@ -312,6 +314,7 @@ watch(() => user.value?.name, (newName) => {
             </UAvatar>
             <!-- Upload overlay -->
             <div
+              v-if="!demoMode"
               class="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
               @click="avatarInput?.click()"
             >
@@ -336,6 +339,7 @@ watch(() => user.value?.name, (newName) => {
             </p>
             <div class="flex gap-2">
               <UButton
+                v-if="!demoMode"
                 variant="outline"
                 size="sm"
                 icon="i-lucide-upload"
@@ -356,17 +360,19 @@ watch(() => user.value?.name, (newName) => {
                 Remove
               </UButton>
             </div>
-            <p class="text-xs text-muted-foreground mt-2">
-              JPG, PNG or GIF. Max 5MB.
-            </p>
-            <!-- Hidden file input -->
-            <input
-              ref="avatarInput"
-              type="file"
-              accept="image/*"
-              class="hidden"
-              @change="uploadAvatar"
-            >
+            <template v-if="!demoMode">
+              <p class="text-xs text-muted-foreground mt-2">
+                JPG, PNG or GIF. Max 5MB.
+              </p>
+              <!-- Hidden file input -->
+              <input
+                ref="avatarInput"
+                type="file"
+                accept="image/*"
+                class="hidden"
+                @change="uploadAvatar"
+              >
+            </template>
           </div>
         </div>
 
