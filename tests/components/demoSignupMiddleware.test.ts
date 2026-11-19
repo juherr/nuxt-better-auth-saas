@@ -21,6 +21,10 @@ describe('the demo sign-up middleware', () => {
     navigateToMock.mockReset()
   })
 
+  it('is attached to the sign-up page', () => {
+    expect(useRouter().resolve('/signup').meta.middleware).toContain('demo-signup')
+  })
+
   it('lets the sign-up page open outside the public demo', async () => {
     await run()
 
