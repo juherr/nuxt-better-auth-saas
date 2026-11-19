@@ -26,8 +26,9 @@ let runtimeConfigInstance: RuntimeConfig
  * See .env.example for the full list.
  *
  * `preset` is the Nitro preset the server is built for (see nuxt.config.ts).
+ * `appVersion` is resolved from git by nuxt.config.ts (scripts/appVersion.ts).
  */
-export const generateRuntimeConfig = (preset = 'node-server') => ({
+export const generateRuntimeConfig = (preset = 'node-server', { appVersion = '' }: { appVersion?: string } = {}) => ({
   preset,
   betterAuthSecret: process.env.NUXT_BETTER_AUTH_SECRET || '',
   // Stripe
@@ -88,6 +89,8 @@ export const generateRuntimeConfig = (preset = 'node-server') => ({
     appName: process.env.NUXT_APP_NAME || '',
     appEnv: process.env.NODE_ENV || '',
     appRepo: process.env.NUXT_APP_REPO || '',
+    // Tag of the built commit, else `dev-<short sha>`; runtime: NUXT_PUBLIC_APP_VERSION
+    appVersion,
     appNotifyEmail: process.env.NUXT_APP_NOTIFY_EMAIL || '',
     appContactEmail: process.env.NUXT_APP_CONTACT_EMAIL || '',
     googleMapsApiKeyPublic: process.env.NUXT_GOOGLE_MAPS_API_KEY_PUBLIC || '',
