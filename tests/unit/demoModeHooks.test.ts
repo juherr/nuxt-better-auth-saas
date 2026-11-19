@@ -53,13 +53,17 @@ async function userCreateHook() {
   return options.databaseHooks.user.create.before as (user: unknown, ctx: unknown) => Promise<unknown>
 }
 
-function request(path: string, body: unknown = {}, session: unknown = null) {
+const SESSION_COOKIE = 'better-auth.session_token'
+
+// createAuthMiddleware parses the `cookie` header itself; the hook reads
+// the session token cookie by the name better-auth configured.
+function request(path: string, body: unknown = {}, session: unknown = null, cookie?: string) {
   return {
     path,
     body,
-    headers: new Headers(),
+    headers: new Headers(cookie === undefined ? {} : { cookie }),
     getHeader: () => undefined,
-    context: { session }
+    context: { session, authCookies: { sessionToken: { name: SESSION_COOKIE } } }
   }
 }
 
@@ -154,17 +158,50 @@ describe('the demo mode before hook', () => {
       expect(getSessionFromCtx).toHaveBeenCalledTimes(1)
     })
 
-    it('refuses setting the active organization logo when the session lookup fails', async () => {
+    // getSessionFromCtx answers null when the lookup throws; the endpoint
+    // may resolve the session afterwards, so the hook must not let a request
+    // carrying a session cookie pass. Without the cookie, the endpoint
+    // answers 401 itself.
+    const unresolvedSessionRequests: [string, Record<string, unknown>][] = [
+      ['/change-password', { currentPassword: 'old', newPassword: 'new-password' }],
+      ['/change-email', { newEmail: 'mine@example.com' }],
+      ['/delete-user', {}],
+      ['/revoke-sessions', {}],
+      ['/revoke-other-sessions', {}],
+      ['/revoke-session', { token: 'some-token' }],
+      ['/link-social', { provider: 'github' }],
+      ['/unlink-account', { providerId: 'github' }],
+      ['/update-user', { email: 'mine@example.com' }],
+      ['/update-user', { image: 'https://example.com/a.png' }],
+      ['/organization/leave', { organizationId: ACME_DEMO_ORGANIZATION_ID }],
+      ['/organization/remove-member', { memberIdOrEmail: DEMO_ADMIN_CREDENTIALS.email }],
+      ['/organization/update', { data: { logo: 'https://example.com/logo.png' } }]
+    ]
+
+    it.each(unresolvedSessionRequests)('refuses %s %j when it carries a session cookie the lookup cannot resolve', async (path, body) => {
       const hook = await beforeHook()
-      // getSessionFromCtx answers null when the lookup throws; the endpoint
-      // may resolve the session afterwards, so the hook must not let it pass.
       vi.mocked(getSessionFromCtx).mockResolvedValueOnce(null)
       const memberSession = { user: { id: 'acme-member-id' }, session: { id: 'session-4', activeOrganizationId: ACME_DEMO_ORGANIZATION_ID } }
 
-      const error = await rejection(hook(request('/organization/update', { data: { logo: 'https://example.com/logo.png' } }, memberSession)))
+      const error = await rejection(hook(request(path, body, memberSession, `${SESSION_COOKIE}=token.signature`)))
 
+      expect((error as APIError).statusCode).toBe(403)
       expect((error as APIError).body).toMatchObject({ code: 'DEMO_MODE_RESTRICTED' })
       expect(getSessionFromCtx).toHaveBeenCalledTimes(1)
+    })
+
+    it.each(unresolvedSessionRequests)('leaves %s %j without a session cookie to the endpoint', async (path, body) => {
+      const hook = await beforeHook()
+
+      await expect(hook(request(path, body))).resolves.toBeUndefined()
+      expect(getSessionFromCtx).toHaveBeenCalledTimes(1)
+    })
+
+    it('lets a rename through when it carries a session cookie the lookup cannot resolve', async () => {
+      const hook = await beforeHook()
+      vi.mocked(getSessionFromCtx).mockResolvedValueOnce(null)
+
+      await expect(hook(request('/update-user', { name: 'Renamed' }, null, `${SESSION_COOKIE}=token.signature`))).resolves.toBeUndefined()
     })
 
     it('lets a request the policy allows through without resolving the session', async () => {
