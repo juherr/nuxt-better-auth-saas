@@ -1,0 +1,138 @@
+name: Demo
+
+# Public demo on Cloudflare Workers (free plan), see docs/DEMO_DEPLOYMENT.md.
+# - After a green CI run on a push to main: reset the database, then deploy.
+# - Every night: reset the database only.
+# - On demand (workflow_dispatch): reset, then deploy.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch: {}
+
+# One run at a time, and no running one is cancelled: a reset or a deploy
+# stopped halfway would leave the demo broken. GitHub still keeps a single
+# pending run per group: a newer run replaces the pending one.
+concurrency:
+  group: demo
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  reset:
+    # workflow_run fires for every completed CI run whose head branch is
+    # named main, including a pull request from a fork's own main branch.
+    # Without the event and repository checks, that fork's code would run
+    # here with the demo secrets. On schedule and workflow_dispatch,
+    # github.event.workflow_run is null and only the first test applies.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      # postinstall runs nuxt prepare.
+      - run: pnpm install --frozen-lockfile
+      - name: Generate migrations
+        run: pnpm db:generate
+      # DEMO_DATABASE_URL is the direct (non-pooler) Neon URL of the owner
+      # role. The reset refuses to run unless DEMO_RESET_CONFIRM is the
+      # exact hostname of DATABASE_URL.
+      - name: Reset the database to the demo seed
+        env:
+          DATABASE_URL: ${{ secrets.DEMO_DATABASE_URL }}
+        run: |
+          DEMO_RESET_CONFIRM=$(node -e 'process.stdout.write(new URL(process.env.DATABASE_URL).hostname)')
+          echo "::add-mask::$DEMO_RESET_CONFIRM"
+          export DEMO_RESET_CONFIRM
+          pnpm demo:reset
+
+  deploy:
+    needs: reset
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DEMO_KV_ID: ${{ vars.DEMO_KV_ID }}
+      DEMO_HYPERDRIVE_ID: ${{ vars.DEMO_HYPERDRIVE_ID }}
+      DEMO_BASE_URL: ${{ vars.DEMO_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Before the build: the cloudflare-module preset merges the root
+      # wrangler.jsonc into .output/server/wrangler.json, which is the file
+      # wrangler deploy then uses. Rendered after the build, the worker
+      # would be deployed without its KV, Hyperdrive and vars. The explicit
+      # variable list keeps "$schema" intact.
+      - name: Render wrangler.jsonc
+        run: |
+          # shellcheck disable=SC2016 # envsubst expands the list itself
+          envsubst '${DEMO_KV_ID} ${DEMO_HYPERDRIVE_ID} ${DEMO_BASE_URL}' \
+            < deploy/demo/wrangler.template.jsonc > wrangler.jsonc
+      # No DATABASE_URL or REDIS_URL in this job: the first one would make
+      # the build apply migrations and freeze the URL into .output, the
+      # second one selects the ioredis KV driver, which does not run on
+      # Workers.
+      - name: Build
+        run: pnpm build
+        env:
+          NUXT_NITRO_PRESET: cloudflare-module
+      - name: Deploy
+        run: pnpm exec wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Wait for /api/health
+        run: |
+          for _ in $(seq 1 30); do
+            if curl -fsS "$DEMO_BASE_URL/api/health"; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::/api/health never answered ok"
+          exit 1
+      # better-auth checks Origin against the base URL, so it must equal
+      # DEMO_BASE_URL. Over HTTPS the cookie carries the __Secure- prefix.
+      - name: Sign in with the demo account
+        run: |
+          status=$(curl -sS -o demo-sign-in-body.txt -D demo-sign-in-headers.txt \
+            -w '%{http_code}' -X POST "$DEMO_BASE_URL/api/auth/sign-in/email" \
+            -H 'Content-Type: application/json' \
+            -H "Origin: $DEMO_BASE_URL" \
+            -d '{"email":"demo@example.com","password":"demo-password"}')
+          echo "demo sign-in status: $status"
+          if [ "$status" != "200" ]; then
+            echo "::error::demo sign-in answered $status instead of 200"
+            cat demo-sign-in-body.txt
+            echo
+            exit 1
+          fi
+          # A 200 carries a live session: never print its headers.
+          if ! grep -Eqi '^set-cookie: (__Secure-)?better-auth\.session_token=' demo-sign-in-headers.txt; then
+            echo "::error::no better-auth session cookie in the demo sign-in response"
+            exit 1
+          fi
+          rm -f demo-sign-in-headers.txt demo-sign-in-body.txt
