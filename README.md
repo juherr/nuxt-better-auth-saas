@@ -532,7 +532,11 @@ Keep old plan entries in the file — existing subscribers are matched by `price
 
 ## Acknowledgments
 
-This project is a fork of the original [NuxSaaS](https://github.com/NuxSaaS/NuxSaaS) by the NuxSaaS team. Thank you for the foundation!
+This project is a fork of [nuxt-better-auth-saas](https://github.com/HouseOfBetterAuth/nuxt-better-auth-saas)
+by HouseOfBetterAuth, itself built on NuxSaaS by the NuxSaaS team, whose repository is no longer
+online. Thank you for the foundation!
+
+If this starter saves you time, you can [sponsor its maintenance](https://github.com/sponsors/juherr).
 
 ---
 
