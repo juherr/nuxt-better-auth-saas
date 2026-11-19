@@ -68,6 +68,8 @@
 - ESLint: `antfu/reasonable-newline` (#47) and antfu's pnpm rules (#48) are off on purpose.
 - Conventional Commits (commitlint `commit-msg` hook; PR title and commits in CI) and a Keep a
   Changelog entry under `[Unreleased]` for user-visible changes: `CONTRIBUTING.md`.
+- GitHub Actions are pinned to a commit SHA with the exact version as an end-of-line comment
+  (`@<sha> # v4.4.0`); Dependabot bumps both.
 - New files start with an SPDX MIT header (README › License); `reuse lint`
   (CI job `reuse`, locally `mise x pipx:reuse -- reuse lint`) fails without it.
 - Confirm a Nuxt module bump with `nuxt prepare`/`build`: modules can require versions `npm view` does not show.
