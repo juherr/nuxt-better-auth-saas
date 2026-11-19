@@ -34,14 +34,17 @@ describe('readGitVersionInfo', () => {
     dirs.push(dir)
     return dir
   }
+  // The developer's global and system git config (signing, hooksPath) must
+  // not reach the throwaway repositories these tests commit and tag in.
+  const isolatedGitEnv = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' }
   const git = (cwd: string, ...args: string[]) =>
-    execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+    execFileSync('git', args, { cwd, env: isolatedGitEnv, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
   const repoWithOneCommit = () => {
     const dir = tempDir()
     git(dir, 'init', '-q')
     writeFileSync(join(dir, 'file.txt'), 'content')
     git(dir, 'add', 'file.txt')
-    git(dir, '-c', 'user.name=Test', '-c', 'user.email=test@example.test', '-c', 'commit.gpgsign=false', 'commit', '-q', '-m', 'init')
+    git(dir, '-c', 'user.name=Test', '-c', 'user.email=test@example.test', 'commit', '-q', '-m', 'init')
     return dir
   }
 
