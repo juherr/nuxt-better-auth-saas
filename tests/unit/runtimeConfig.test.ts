@@ -98,6 +98,16 @@ describe('generateRuntimeConfig', () => {
     expect(config.logFormat).toBe('json')
   })
 
+  it('defaults the repository link to this project', () => {
+    expect(generateRuntimeConfig().public.appRepo).toBe('https://github.com/juherr/nuxt-saas-starter')
+  })
+
+  it('reads the repository link at build time', () => {
+    vi.stubEnv('NUXT_APP_REPO', 'https://github.com/acme/saas')
+
+    expect(generateRuntimeConfig().public.appRepo).toBe('https://github.com/acme/saas')
+  })
+
   it('declares the app version so it can be set at runtime', () => {
     expect(generateRuntimeConfig().public.appVersion).toBe('')
   })
