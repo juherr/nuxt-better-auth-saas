@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: MIT
+name: Conventional Commits
+
+# Checks https://www.conventionalcommits.org/en/v1.0.0/ on what can land on
+# main: the pull request title (subject of a squash merge) and its commits
+# (kept by a rebase or merge commit). Runs again when the title is edited.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+concurrency:
+  group: conventional-commits-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  commitlint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Lint the pull request title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: printf '%s' "$PR_TITLE" | pnpm exec commitlint
+      - name: Lint the pull request commits
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: pnpm exec commitlint --from "$BASE_SHA" --to "$HEAD_SHA"
