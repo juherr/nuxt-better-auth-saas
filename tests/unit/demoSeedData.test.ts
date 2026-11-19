@@ -148,6 +148,17 @@ describe('demo seed data', () => {
     expect(findUser(DEMO_USER_ID).lastActiveOrganizationId).toBe(ACME_DEMO_ORGANIZATION_ID)
   })
 
+  it('makes the demo admin an admin of Acme Demo, with a protected membership', () => {
+    const membership = seed.members.find(member =>
+      member.organizationId === ACME_DEMO_ORGANIZATION_ID && member.userId === DEMO_ADMIN_USER_ID)
+    expect(membership?.role).toBe('admin')
+    expect(membership?.id).toBe('01934b00-0000-7000-8000-000000000207')
+    expect(DEMO_PROTECTED_MEMBER_IDS).toEqual(expect.arrayContaining([
+      '01934b00-0000-7000-8000-000000000201',
+      '01934b00-0000-7000-8000-000000000207'
+    ]))
+  })
+
   it('covers the owner, admin and member roles, one banned and one unverified extra', () => {
     expect(new Set(seed.members.map(member => member.role))).toEqual(new Set(['owner', 'admin', 'member']))
     const banned = seed.users.filter(user => user.banned)

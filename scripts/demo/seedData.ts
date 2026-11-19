@@ -176,7 +176,8 @@ const MEMBERS: readonly { id: string, organizationId: string, userId: string, ro
   { id: '01934b00-0000-7000-8000-000000000203', organizationId: ACME_DEMO_ORGANIZATION_ID, userId: BOB_USER_ID, role: 'member', ageDays: 40 },
   { id: '01934b00-0000-7000-8000-000000000204', organizationId: GLOBEX_LABS_ORGANIZATION_ID, userId: CAROL_USER_ID, role: 'owner', ageDays: 60 },
   { id: '01934b00-0000-7000-8000-000000000205', organizationId: GLOBEX_LABS_ORGANIZATION_ID, userId: ALICE_USER_ID, role: 'member', ageDays: 50 },
-  { id: '01934b00-0000-7000-8000-000000000206', organizationId: GLOBEX_LABS_ORGANIZATION_ID, userId: DAVE_USER_ID, role: 'member', ageDays: 35 }
+  { id: '01934b00-0000-7000-8000-000000000206', organizationId: GLOBEX_LABS_ORGANIZATION_ID, userId: DAVE_USER_ID, role: 'member', ageDays: 35 },
+  { id: '01934b00-0000-7000-8000-000000000207', organizationId: ACME_DEMO_ORGANIZATION_ID, userId: DEMO_ADMIN_USER_ID, role: 'admin', ageDays: 90 }
 ]
 
 // Sign-in emails of the protected accounts, for the endpoints that name
