@@ -18,6 +18,16 @@ export default defineEventHandler(async (event) => {
 
   const user = await requireAuth(event)
 
+  // The public demo stores no file: refuse before the rate limiter writes
+  // to its store and before the body is read.
+  if (useRuntimeConfig(event).public.demoMode) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Uploads are disabled in the demo',
+      data: { code: 'DEMO_MODE_RESTRICTED' }
+    })
+  }
+
   // Refuse before buffering: h3 reads the whole body into memory.
   const bodyLength = checkDeclaredBodyLength(
     getRequestHeader(event, 'content-length'),
