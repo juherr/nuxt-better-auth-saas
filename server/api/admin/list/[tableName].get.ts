@@ -4,6 +4,7 @@ import { PgTable } from 'drizzle-orm/pg-core'
 import { z } from 'zod'
 import * as schema from '~~/server/db/schema'
 import { isValidTable } from '~~/server/utils/db'
+import { refuseDemoHiddenAdminRead } from '~~/server/utils/demoAdminTables'
 import { filterSchema, processFilters } from '~~/server/utils/query'
 
 const sortSchema = z.array(
@@ -106,6 +107,7 @@ export default eventHandler(async (event) => {
   const columns = getTableColumns(table)
 
   const query = await getValidatedQuery(event, querySchema.parse)
+  refuseDemoHiddenAdminRead(event, tableName, query?.with)
   const db = await useDB(event)
 
   // Build query options
