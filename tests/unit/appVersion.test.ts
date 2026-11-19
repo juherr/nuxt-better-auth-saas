@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readGitVersionInfo, resolveAppVersion } from '~~/scripts/appVersion'
 
 describe('resolveAppVersion', () => {
@@ -34,11 +34,15 @@ describe('readGitVersionInfo', () => {
     dirs.push(dir)
     return dir
   }
-  // The developer's global and system git config (signing, hooksPath) must
-  // not reach the throwaway repositories these tests commit and tag in.
-  const isolatedGitEnv = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' }
+  // The developer's global and system git config (tag signing, core.abbrev)
+  // must reach neither the fixture's git commands nor the function under
+  // test: both inherit this environment.
+  beforeEach(() => {
+    vi.stubEnv('GIT_CONFIG_GLOBAL', '/dev/null')
+    vi.stubEnv('GIT_CONFIG_NOSYSTEM', '1')
+  })
   const git = (cwd: string, ...args: string[]) =>
-    execFileSync('git', args, { cwd, env: isolatedGitEnv, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+    execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
   const repoWithOneCommit = () => {
     const dir = tempDir()
     git(dir, 'init', '-q')
@@ -49,6 +53,7 @@ describe('readGitVersionInfo', () => {
   }
 
   afterEach(() => {
+    vi.unstubAllEnvs()
     for (const dir of dirs.splice(0))
       rmSync(dir, { recursive: true, force: true })
   })
