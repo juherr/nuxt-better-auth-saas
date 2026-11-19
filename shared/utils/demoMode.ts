@@ -91,6 +91,13 @@ const asBody = (body: unknown): Body =>
 const text = (value: unknown): string | undefined =>
   (value === undefined || value === null ? undefined : String(value))
 
+// Whether a field sets a value: null and '' clear it (removing an avatar
+// or a logo stays allowed), absent leaves it alone.
+const setsValue = (value: unknown) => {
+  const read = text(value)
+  return read !== undefined && read !== ''
+}
+
 const normalizeEmail = (value: string) => value.trim().toLowerCase()
 
 const isProtectedEmail = (value: string | undefined, protection: DemoProtection) =>
@@ -121,6 +128,17 @@ export function demoBlockReason(request: DemoRequest, protection: DemoProtection
   }
   if (path === '/update-user' && sessionIsProtected && text(body.email) !== undefined) {
     return 'The demo accounts cannot change their email.'
+  }
+  if (path === '/update-user' && sessionIsProtected && setsValue(body.image)) {
+    return 'The demo accounts cannot change their avatar.'
+  }
+  // better-auth 1.7.25 reads the logo from `data.logo` and the target from
+  // `organizationId`, else the session's active organization.
+  if (path === '/organization/update' && setsValue(asBody(body.data).logo)) {
+    const organizationId = text(body.organizationId) || session?.activeOrganizationId || undefined
+    if (isSeededOrganization(organizationId)) {
+      return 'The demo organizations cannot change their logo.'
+    }
   }
   if (path === '/request-password-reset' && isProtectedEmail(text(body.email), protection)) {
     return 'The demo accounts cannot reset their password.'
@@ -179,6 +197,9 @@ export function demoNeedsSession(path: string, body: unknown): boolean {
     const fields = asBody(body)
     const target = text(fields.memberIdOrEmail)
     return target !== undefined && isEmail(target) && !text(fields.organizationId)
+  }
+  if (path === '/organization/update') {
+    return !text(asBody(body).organizationId)
   }
   return false
 }

@@ -67,6 +67,47 @@ describe('demoBlockReason', () => {
     it('/update-user lets a protected user change the name', () => {
       expect(blocked('/update-user', { name: 'Renamed' }, protectedSession)).toBeNull()
     })
+
+    it('/update-user is blocked when a protected user sets an avatar', () => {
+      expect(blocked('/update-user', { image: 'https://example.com/a.png' }, protectedSession)).toBeTruthy()
+      expect(blocked('/update-user', { name: 'Renamed', image: 'data:image/png;base64,AAAA' }, protectedSession)).toBeTruthy()
+    })
+
+    it.each([null, ''])('/update-user lets a protected user remove the avatar (image %j)', (image) => {
+      expect(blocked('/update-user', { image }, protectedSession)).toBeNull()
+    })
+
+    it('/update-user lets another user set an avatar', () => {
+      expect(blocked('/update-user', { image: 'https://example.com/a.png' }, otherSession)).toBeNull()
+    })
+  })
+
+  describe('/organization/update', () => {
+    const LOGO = 'https://example.com/logo.png'
+
+    it('is blocked when it sets the logo of a seeded organization named in the body', () => {
+      expect(blocked('/organization/update', { organizationId: SEEDED_ORG, data: { logo: LOGO } }, null)).toBeTruthy()
+    })
+
+    it('is blocked when it sets the logo of the seeded active organization', () => {
+      const session: DemoSession = { userId: OTHER_USER, activeOrganizationId: SEEDED_ORG }
+      expect(blocked('/organization/update', { data: { logo: LOGO } }, session)).toBeTruthy()
+      expect(blocked('/organization/update', { organizationId: '', data: { logo: LOGO } }, session)).toBeTruthy()
+    })
+
+    it('lets a seeded organization be renamed', () => {
+      expect(blocked('/organization/update', { organizationId: SEEDED_ORG, data: { name: 'Renamed' } }, null)).toBeNull()
+    })
+
+    it.each([null, ''])('lets the logo of a seeded organization be removed (logo %j)', (logo) => {
+      expect(blocked('/organization/update', { organizationId: SEEDED_ORG, data: { logo } }, null)).toBeNull()
+    })
+
+    it('lets the logo of another organization be set', () => {
+      const session: DemoSession = { userId: OTHER_USER, activeOrganizationId: SEEDED_ORG }
+      expect(blocked('/organization/update', { organizationId: OTHER_ORG, data: { logo: LOGO } }, session)).toBeNull()
+      expect(blocked('/organization/update', { data: { logo: LOGO } }, { ...session, activeOrganizationId: OTHER_ORG })).toBeNull()
+    })
   })
 
   describe('/request-password-reset', () => {
@@ -239,6 +280,14 @@ describe('demoNeedsSession', () => {
   it('does not need the session to remove a member named by id or with an organization', () => {
     expect(demoNeedsSession('/organization/remove-member', { memberIdOrEmail: PROTECTED_MEMBER })).toBe(false)
     expect(demoNeedsSession('/organization/remove-member', { memberIdOrEmail: 'demo@example.com', organizationId: SEEDED_ORG })).toBe(false)
+  })
+
+  it('needs the session to update the active organization', () => {
+    expect(demoNeedsSession('/organization/update', { data: { logo: 'x' } })).toBe(true)
+  })
+
+  it('does not need the session to update an organization named in the body', () => {
+    expect(demoNeedsSession('/organization/update', { organizationId: SEEDED_ORG, data: { logo: 'x' } })).toBe(false)
   })
 
   it.each([
