@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { FakeSubscription } from './support/stripeSubscriptionsFake'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { getTierForInterval } from '~~/shared/utils/plans'

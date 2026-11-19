@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { SQL } from 'drizzle-orm'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { callRoute, stubNitroGlobals } from './support/nitroGlobals'

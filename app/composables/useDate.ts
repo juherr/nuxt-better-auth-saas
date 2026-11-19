@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 export const useDate = () => {
   const { useActiveOrganization } = useAuth()
   const activeOrg = useActiveOrganization()

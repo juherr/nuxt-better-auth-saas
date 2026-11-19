@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <script setup lang="ts">
 import { CalendarDate } from '@internationalized/date'
 import { useRoute, useRouter } from 'vue-router'

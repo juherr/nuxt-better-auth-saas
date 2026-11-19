@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { RowData } from '@tanstack/vue-table'
 import type { ShallowRef } from 'vue'
 import type { UTableInstance } from '../types'

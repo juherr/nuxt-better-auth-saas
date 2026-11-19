@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { PgColumn } from 'drizzle-orm/pg-core'
 import { getTableColumns, sql } from 'drizzle-orm'
 import { PgTable } from 'drizzle-orm/pg-core'

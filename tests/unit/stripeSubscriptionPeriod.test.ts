@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type Stripe from 'stripe'
 import { describe, expect, it } from 'vitest'
 import {

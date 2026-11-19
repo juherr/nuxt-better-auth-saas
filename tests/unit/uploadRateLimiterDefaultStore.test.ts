@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 describe('the upload rate limiter as the upload route builds it', () => {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { requireOwnedSubscription } from '~~/server/utils/billing'
 
 export default defineEventHandler(async (event) => {

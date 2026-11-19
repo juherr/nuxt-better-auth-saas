@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { refineMatchesPassword, refinePasswordsMatch } from '~~/app/utils/passwordConfirmation'

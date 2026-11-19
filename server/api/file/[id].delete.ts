@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { FileService, useFileManagerConfig } from '~~/server/services/file/fileService'
 import { createStorageProvider } from '~~/server/services/file/storage/factory'
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 name: CI
 
 on:
@@ -28,6 +29,15 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint --max-warnings=0
+
+  # Every file needs licensing information: an SPDX header, or an entry
+  # in REUSE.toml for files that cannot hold a comment.
+  reuse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: fsfe/reuse-action@v6
 
   typecheck:
     runs-on: ubuntu-latest

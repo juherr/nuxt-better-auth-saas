@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import {
   DEMO_PROTECTED_EMAILS,
   DEMO_PROTECTED_MEMBER_IDS,

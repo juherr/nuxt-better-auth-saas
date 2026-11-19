@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { auditLog } from '~~/server/db/schema/auditLog'
 import { getDB } from './db'
 

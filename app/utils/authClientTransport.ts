@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { SsrCookiePort } from './ssrCookies'
 
 /** Fetch that dispatches a relative path inside the server process (Nitro's `event.fetch`). */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { Hyperdrive } from '@cloudflare/workers-types'
 import { kv } from 'hub:kv'
 import pg from 'pg'

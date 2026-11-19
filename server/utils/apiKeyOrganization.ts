@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import type * as schema from '~~/server/db/schema'
 import { eq, inArray } from 'drizzle-orm'

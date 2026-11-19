@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { fileURLToPath } from 'node:url'
 import { defineVitestProject } from '@nuxt/test-utils/config'
 import { defineConfig } from 'vitest/config'

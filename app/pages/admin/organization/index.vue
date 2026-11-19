@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <script setup lang="ts">
 import type { member } from '~~/server/db/schema'
 import type { Organization, User } from '~~/shared/utils/types'

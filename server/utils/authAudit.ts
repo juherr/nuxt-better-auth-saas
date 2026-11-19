@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // Audit log helpers for the better-auth hooks.after middleware.
 
 // Paths whose request body carries the email the action targets.

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <script setup lang="ts">
 const { organization, session, fetchSession } = useAuth()
 const router = useRouter()

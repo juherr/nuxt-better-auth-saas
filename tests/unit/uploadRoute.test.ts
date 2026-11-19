@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { RateLimitStore } from '~~/server/services/file/rateLimiter'
 import type { FileManagerConfig } from '~~/server/services/file/types'
 import { Buffer } from 'node:buffer'

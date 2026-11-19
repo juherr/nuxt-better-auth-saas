@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { expect, it, vi } from 'vitest'
 
 const { config } = vi.hoisted(() => ({ config: vi.fn() }))

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import type { NuxtPage } from 'nuxt/schema'
 import { resolve } from 'node:path'

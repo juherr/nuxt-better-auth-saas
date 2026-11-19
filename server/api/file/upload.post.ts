@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { readMultipartFormData } from 'h3'
 import { checkUploadContent } from '~~/server/services/file/contentSniffer'
 import { FileService, useFileManagerConfig } from '~~/server/services/file/fileService'

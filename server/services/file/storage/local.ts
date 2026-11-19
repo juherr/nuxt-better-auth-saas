@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { Buffer } from 'node:buffer'
 import type { StorageProvider } from '../types'
 import { constants, promises as fs } from 'node:fs'

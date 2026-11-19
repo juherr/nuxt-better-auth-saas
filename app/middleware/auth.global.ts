@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { defu } from 'defu'
 
 type MiddlewareOptions = false | {

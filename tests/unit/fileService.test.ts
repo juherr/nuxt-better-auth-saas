@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { StorageProvider } from '~~/server/services/file/types'
 import type { FileRecord } from '~~/shared/utils/types'
 import { Buffer } from 'node:buffer'

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { CalendarDate, getLocalTimeZone } from '@internationalized/date'
 import { endOfDay, format, parseISO, startOfDay } from 'date-fns'
 

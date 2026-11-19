@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // Stand-in for NuxtHub's generated `hub:kv` module in unit tests.
 const store = new Map<string, unknown>()
 

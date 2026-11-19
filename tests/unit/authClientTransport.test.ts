@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { createAuthClient } from 'better-auth/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authClientTransport, configuredOrigin } from '~~/app/utils/authClientTransport'

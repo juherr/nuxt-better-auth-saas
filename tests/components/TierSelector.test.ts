@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { describe, expect, it } from 'vitest'
 import TierSelector from '~/components/billing/TierSelector.vue'

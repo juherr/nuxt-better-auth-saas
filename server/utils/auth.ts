@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { H3Event } from 'h3'
 import type { DemoRequest } from '~~/shared/utils/demoMode'
 import type { User } from '~~/shared/utils/types'

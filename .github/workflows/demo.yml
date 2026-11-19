@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 name: Demo
 
 # Public demo on Cloudflare Workers (free plan), see docs/DEMO_DEPLOYMENT.md.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { sql } from 'drizzle-orm'
 import { getDB } from '~~/server/utils/db'
 import { isDatabaseConfigured } from '~~/server/utils/drivers'

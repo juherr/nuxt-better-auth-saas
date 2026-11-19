@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { PlanInterval, PlanKey } from '~~/shared/utils/plans'
 import { eq } from 'drizzle-orm'
 import { subscription as subscriptionTable } from '~~/server/db/schema'

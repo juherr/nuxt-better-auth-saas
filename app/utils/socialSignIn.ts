@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 const ERROR_KEYS: Record<string, string> = {
   // better-auth 1.7 refuses to link an OAuth identity to an existing account
   // whose email is not verified (account.accountLinking.requireLocalEmailVerified).

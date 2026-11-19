@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { Subscription } from '@better-auth/stripe'
 import { stripe } from '@better-auth/stripe'
 import { createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'

@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <i18n src="./menu/i18n.json"></i18n>
 
 <script setup lang="ts">

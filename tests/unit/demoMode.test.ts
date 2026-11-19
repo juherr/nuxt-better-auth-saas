@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { DemoProtection, DemoRequest, DemoSession } from '~~/shared/utils/demoMode'
 import { describe, expect, it } from 'vitest'
 import { DEMO_PROTECTION, DEMO_SESSION_UNRESOLVED, demoBlockReason, demoNeedsSession, demoSessionTokenToResolve } from '~~/shared/utils/demoMode'

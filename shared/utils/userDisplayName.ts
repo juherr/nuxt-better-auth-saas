@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * The name to greet a user with in emails: their name, else the local part
  * of their email, else the whole email.

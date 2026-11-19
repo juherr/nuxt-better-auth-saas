@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { relations } from 'drizzle-orm'
 import { boolean, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { v7 as uuidv7 } from 'uuid'

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { createAccessControl } from 'better-auth/plugins/access'
 
 // ============================================

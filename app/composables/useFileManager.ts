@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 export interface FileManagerConfig {
   maxSize?: number
   allowedTypes?: string[]

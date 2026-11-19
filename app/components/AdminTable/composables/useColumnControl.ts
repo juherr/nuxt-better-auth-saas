@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { ShallowRef } from 'vue'
 import type { UTableInstance } from '../types'
 

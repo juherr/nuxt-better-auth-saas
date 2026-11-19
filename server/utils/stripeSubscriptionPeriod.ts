@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * Minimal shape shared by the Stripe API subscription (current and legacy
  * payloads) and the loosely typed objects our callers hold.

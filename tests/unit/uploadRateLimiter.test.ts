@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { RateLimitStore } from '~~/server/services/file/rateLimiter'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RateLimitUnavailableError, UploadRateLimiter } from '~~/server/services/file/rateLimiter'

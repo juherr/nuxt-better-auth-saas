@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { describe, expect, it } from 'vitest'
 import { applySsrCookie, captureSetCookies, ssrCookieHeader, ssrCookieHeaders, ssrCookiePort } from '~~/app/utils/ssrCookies'
 import { fakeEvent, responseWith } from './support/ssrCookieEvent'

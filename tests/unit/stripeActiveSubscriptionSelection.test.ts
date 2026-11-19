@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { DownstreamStripe, SelectionRouteAdapter } from './support/subscriptionSelectionCases'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { callRoute, stubNitroGlobals } from './support/nitroGlobals'

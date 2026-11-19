@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 export default defineNuxtPlugin(async (nuxtApp) => {
   if (!nuxtApp.payload.serverRendered) {
     await useAuth().fetchSession()

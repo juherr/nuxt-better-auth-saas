@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import globalMessage from './global.json'
 
 export default defineI18nConfig(() => ({

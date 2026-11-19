@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { afterEach, describe, expect, it } from 'vitest'
 import AppVersion from '~/components/AppVersion.vue'

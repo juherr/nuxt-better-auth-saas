@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { SQL } from 'drizzle-orm'
 import type { PgColumn } from 'drizzle-orm/pg-core'
 import type { OrgRole } from '~~/shared/utils/permissions'

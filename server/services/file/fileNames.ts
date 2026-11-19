@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * Storage and display names of uploaded files. Pure helpers: the client
  * filename never reaches a storage path.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { createReadStream } from 'node:fs'
 import { locateLocalUpload } from '~~/server/services/file/localServing'
 

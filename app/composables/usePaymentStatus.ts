@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * Composable for checking subscription payment status
  * Used across the app to detect failed payments and trial usage

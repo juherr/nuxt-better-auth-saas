@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * In-memory stand-in for `stripe.subscriptions.list` and `.retrieve`.
  *

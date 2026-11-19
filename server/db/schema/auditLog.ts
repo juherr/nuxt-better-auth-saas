@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { pgTable, serial, text, timestamp } from 'drizzle-orm/pg-core'
 import { user } from './auth'
 

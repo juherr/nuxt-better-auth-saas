@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { not } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
 import { member } from '~~/server/db/schema'

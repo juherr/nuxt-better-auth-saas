@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { LocalePathFunction } from '#i18n'
 import { hasPermission } from '~~/shared/utils/permissions'
 

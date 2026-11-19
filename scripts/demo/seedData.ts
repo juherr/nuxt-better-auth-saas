@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // Deterministic data for the public demo, written by scripts/demo/seed.ts.
 //
 // This module has no imports on purpose: the demo-mode guards import the

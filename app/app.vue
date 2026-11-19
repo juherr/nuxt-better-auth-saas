@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <script lang="ts" setup>
 import { useStorage } from '@vueuse/core'
 import { registerTheme } from 'echarts/core'

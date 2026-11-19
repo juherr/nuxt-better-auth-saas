@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <script setup lang="ts">
 import type { PlanInterval, PlanKey } from '~~/shared/utils/plans'
 import { getTierForInterval, PAID_TIERS, PLAN_TIERS } from '~~/shared/utils/plans'

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // Writes the demo data of scripts/demo/seedData.ts into DATABASE_URL.
 //
 // Run with plain Node 26 (type stripping): relative imports carry their

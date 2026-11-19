@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * Headers an uploaded file is served with, by every storage provider. Pure:
  * the type always comes from detected bytes or from a storage name built

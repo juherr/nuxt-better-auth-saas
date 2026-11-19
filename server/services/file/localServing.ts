@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { promises as fs } from 'node:fs'
 import { servingHeaders, typeOfStorageName } from './servingHeaders'
 import { resolveRealInside } from './storage/local'

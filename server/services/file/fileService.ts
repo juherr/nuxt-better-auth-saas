@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { Buffer } from 'node:buffer'
 import type { DetectedType } from './contentSniffer'
 import type { FileManagerConfig, StorageProvider } from './types'

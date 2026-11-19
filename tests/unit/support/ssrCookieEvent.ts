@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { SsrCookieEvent } from '~~/app/utils/ssrCookies'
 
 /** A minimal h3 event for the SSR cookie jar, with a reader of the Set-Cookie sent to the browser. */

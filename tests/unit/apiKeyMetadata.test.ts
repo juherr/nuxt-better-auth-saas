@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { APIError } from 'better-auth/api'
 import { describe, expect, it } from 'vitest'
 import {

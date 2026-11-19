@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // Pure decisions of scripts/demo/reset.ts: no I/O, unit-tested.
 
 export interface DemoResetEnv {

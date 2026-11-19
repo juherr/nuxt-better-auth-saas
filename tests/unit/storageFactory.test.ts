@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { FileManagerConfig } from '~~/server/services/file/types'
 import { describe, expect, it } from 'vitest'
 import { createStorageProvider } from '~~/server/services/file/storage/factory'

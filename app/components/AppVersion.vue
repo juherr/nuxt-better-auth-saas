@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <script lang="ts" setup>
 // Tag of the built commit, else dev-<short sha> (scripts/appVersion.ts)
 const version = useRuntimeConfig().public.appVersion

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { getAuthTables } from 'better-auth/db'
 import { organization as organizationPlugin } from 'better-auth/plugins'
 import { getTableColumns } from 'drizzle-orm'

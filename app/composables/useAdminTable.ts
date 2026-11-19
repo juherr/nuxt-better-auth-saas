@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { ComponentExposed } from 'vue-component-type-helpers'
 import type { AdminTable } from '#components'
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 export default defineNuxtPlugin({
   name: 'better-auth-fetch-plugin',
   enforce: 'pre',

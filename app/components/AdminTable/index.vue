@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <script setup lang="ts" generic="T">
 import type { UTableInstance } from './types'
 import { useDebounceFn } from '@vueuse/core'

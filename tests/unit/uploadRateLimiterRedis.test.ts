@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { Redis } from 'ioredis'
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'

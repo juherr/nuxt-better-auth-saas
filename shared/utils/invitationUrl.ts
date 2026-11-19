@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * Link to the page that accepts an organization invitation
  * (`app/pages/accept-invite/[id].vue`). The path carries no locale prefix:

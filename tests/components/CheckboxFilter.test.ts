@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { mockNuxtImport, mountSuspended } from '@nuxt/test-utils/runtime'
 import { describe, expect, it } from 'vitest'
 import CheckboxFilter from '~/components/AdminTable/components/filters/Checkbox/index.vue'

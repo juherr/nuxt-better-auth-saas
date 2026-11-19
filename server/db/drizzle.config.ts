@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { defineConfig } from 'drizzle-kit'
 
 export default defineConfig({

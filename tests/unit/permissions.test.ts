@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { OrgRole } from '~~/shared/utils/permissions'
 import { describe, expect, it } from 'vitest'
 import { isApiKeyManagerRole } from '~~/server/utils/apiKeyMetadata'

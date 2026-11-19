@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { and, eq } from 'drizzle-orm'
 import * as schema from '~~/server/db/schema'
 import { requireAuth } from '~~/server/utils/auth'

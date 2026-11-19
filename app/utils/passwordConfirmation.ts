@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import type { z } from 'zod'
 
 interface PasswordPair {

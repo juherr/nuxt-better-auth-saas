@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { getAuthTables } from 'better-auth/db'
 import { describe, expect, it, vi } from 'vitest'
 

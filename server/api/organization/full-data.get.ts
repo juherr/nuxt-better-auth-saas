@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 /**
  * Server-side only endpoint that fetches ALL organization data
  * Queries database directly - NO HTTP calls, NO Better Auth API calls

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 import { getPgPool } from './drivers'
 
 export async function getDBStats() {

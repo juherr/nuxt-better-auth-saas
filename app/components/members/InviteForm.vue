@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <script setup lang="ts">
 import type { PlanInterval } from '~~/shared/utils/plans'
 /**

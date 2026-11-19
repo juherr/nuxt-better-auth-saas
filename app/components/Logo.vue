@@ -1,3 +1,4 @@
+<!-- SPDX-License-Identifier: MIT -->
 <template>
   <svg
     width="100%"
