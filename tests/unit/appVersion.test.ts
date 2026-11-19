@@ -36,10 +36,14 @@ describe('readGitVersionInfo', () => {
   }
   // The developer's global and system git config (tag signing, core.abbrev)
   // must reach neither the fixture's git commands nor the function under
-  // test: both inherit this environment.
+  // test: both inherit this environment. Neither may an inherited repository
+  // location (set by git when the tests run from a hook): git would then use
+  // that repository instead of the temp dir, and commit and tag into it.
   beforeEach(() => {
     vi.stubEnv('GIT_CONFIG_GLOBAL', '/dev/null')
     vi.stubEnv('GIT_CONFIG_NOSYSTEM', '1')
+    for (const name of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_COMMON_DIR', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY', 'GIT_ALTERNATE_OBJECT_DIRECTORIES'])
+      vi.stubEnv(name, undefined)
   })
   const git = (cwd: string, ...args: string[]) =>
     execFileSync('git', args, { cwd, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
