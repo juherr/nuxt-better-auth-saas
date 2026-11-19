@@ -14,8 +14,11 @@ KV. `.github/workflows/demo.yml` deploys it from `main` and resets its database 
 - **Fork gate.** `workflow_run` fires for any CI run whose head branch is named `main`, including a pull request from a
   fork's own `main`. The `reset` job therefore also requires `event == 'push'` and the head repository to be this one;
   otherwise the fork's code would run with the demo secrets.
-- **One run at a time.** All runs share the `demo` concurrency group, and no running one is cancelled. GitHub keeps
-  only one pending run per group, so a newer run replaces a pending one. If the nightly reset is queued while a deploy
+- **One run at a time.** All runs that pass the fork gate share the `demo` concurrency group, and no running one is
+  cancelled. GitHub keeps only one pending run per group, so a newer run replaces a pending one. A run that fails the
+  gate (CI failed or cancelled, not a `push`, or a fork's `main`) skips all its jobs and gets a group of its own
+  (`demo-skipped-<run id>`), so it cannot displace a pending run. The gate is written twice, in the concurrency group
+  and in the `reset` job's `if:`, and both copies must stay identical. If the nightly reset is queued while a deploy
   run is pending, that deploy is dropped: its commit goes live with the next push or `gh workflow run demo.yml`.
 - **`reset` job.** It runs `pnpm db:generate`, then `pnpm demo:reset` against `DEMO_DATABASE_URL`, with
   `DEMO_RESET_CONFIRM` set to that URL's hostname. The reset wipes the database, applies the migrations and seeds the

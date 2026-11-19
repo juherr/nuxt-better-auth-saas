@@ -15,9 +15,12 @@ on:
 
 # One run at a time, and no running one is cancelled: a reset or a deploy
 # stopped halfway would leave the demo broken. GitHub still keeps a single
-# pending run per group: a newer run replaces the pending one.
+# pending run per group: a newer run replaces the pending one. A run that
+# fails the gate (CI not green, not a push, or a fork's main) skips all its
+# jobs, so it gets a group of its own and cannot displace a pending run.
+# The gate here and the reset job's if: must stay the same text.
 concurrency:
-  group: demo
+  group: ${{ (github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository)) && 'demo' || format('demo-skipped-{0}', github.run_id) }}
   cancel-in-progress: false
 
 permissions:
@@ -30,17 +33,15 @@ jobs:
     # Without the event and repository checks, that fork's code would run
     # here with the demo secrets. On schedule and workflow_dispatch,
     # github.event.workflow_run is null and only the first test applies.
-    if: >-
-      github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.head_repository.full_name == github.repository)
+    # Keep this text identical to the gate of the concurrency group above.
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v4
         with:
@@ -75,6 +76,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v4
         with:
