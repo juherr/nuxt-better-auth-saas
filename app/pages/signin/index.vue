@@ -1,6 +1,8 @@
 <i18n src="./i18n.json"></i18n>
 
 <script setup lang="ts">
+import { DEMO_ADMIN_CREDENTIALS, DEMO_USER_CREDENTIALS } from '~~/scripts/demo/seedData'
+
 definePageMeta({
   auth: {
     only: 'guest'
@@ -34,6 +36,18 @@ const state = reactive<Partial<Schema>>({
   password: undefined,
   rememberMe: false
 })
+
+// The public demo publishes its two seeded accounts and creates no new one.
+const demoMode = useRuntimeConfig().public.demoMode
+const demoAccounts = [
+  { id: 'user', label: 'signIn.demo.userAccount', credentials: DEMO_USER_CREDENTIALS },
+  { id: 'admin', label: 'signIn.demo.adminAccount', credentials: DEMO_ADMIN_CREDENTIALS }
+] as const
+
+function fillDemoAccount(credentials: { email: string, password: string }) {
+  state.email = credentials.email
+  state.password = credentials.password
+}
 
 const loading = ref(false)
 const loadingAction = ref('')
@@ -127,6 +141,44 @@ async function handleResendEmail() {
         </div>
       </template>
       <div class="space-y-4">
+        <UAlert
+          v-if="demoMode"
+          data-testid="demo-banner"
+          color="info"
+          variant="subtle"
+          icon="i-lucide-flask-conical"
+          :title="t('signIn.demo.title')"
+        >
+          <template #description>
+            <p class="mb-2">
+              {{ t('signIn.demo.description') }}
+            </p>
+            <ul class="space-y-2">
+              <li
+                v-for="account in demoAccounts"
+                :key="account.id"
+                class="flex items-center justify-between gap-2"
+              >
+                <span class="min-w-0">
+                  <span class="block font-medium">{{ t(account.label) }}</span>
+                  <span class="block break-all font-mono text-xs">{{ account.credentials.email }}</span>
+                  <span class="block break-all font-mono text-xs">{{ account.credentials.password }}</span>
+                </span>
+                <UButton
+                  :data-testid="`demo-fill-${account.id}`"
+                  size="xs"
+                  color="info"
+                  variant="outline"
+                  :disabled="loading"
+                  @click="fillDemoAccount(account.credentials)"
+                >
+                  {{ t('signIn.demo.fill') }}
+                </UButton>
+              </li>
+            </ul>
+          </template>
+        </UAlert>
+
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <UButton
             color="neutral"
@@ -213,7 +265,10 @@ async function handleResendEmail() {
             {{ t('signIn.signIn') }}
           </UButton>
 
-          <div class="text-center text-sm">
+          <div
+            v-if="!demoMode"
+            class="text-center text-sm"
+          >
             {{ t('signIn.noAccount') }}
             <UButton
               variant="link"
