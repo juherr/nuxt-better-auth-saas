@@ -79,16 +79,18 @@ neonctl connection-string --project-id <project id> --role-name <owner role> --s
   direct endpoint, and `DEMO_RESET_CONFIRM` is the hostname of that URL.
 - Use the **owner role** of the database: the reset drops and recreates the `public` and `drizzle` schemas.
 - Keep `sslmode=verify-full` in the URL stored as `DEMO_DATABASE_URL` (step 5), used by the reset from the runner. With
-  `require`, `pg` prints a warning on every connection. Hyperdrive gets the same URL without the query (step 2).
+  `require`, `pg` prints a warning on every connection. Hyperdrive gets the same URL without any query string (step 2).
 
 ### 2. Hyperdrive
 
 ```bash
+url=$(neonctl connection-string --project-id <project id> --role-name <owner role> --ssl verify-full)
 pnpm exec wrangler hyperdrive create nuxt-saas-demo \
-  --connection-string='<Neon direct URL without ?sslmode=...>' --caching-disabled
+  --connection-string="${url%%\?*}" --caching-disabled
 ```
 
-Drop the `?sslmode=verify-full` query: Hyperdrive encrypts every connection with `require` by default. Verifying the
+`${url%%\?*}` drops everything from the `?` on. Strip the whole query string, not only `sslmode`: Neon URLs also carry
+`channel_binding=require`. Hyperdrive encrypts every connection with `require` by default. Verifying the
 server certificate (`verify-full`) would need the root CA uploaded with `wrangler cert upload certificate-authority`,
 then `--ca-certificate-id <id> --sslmode verify-full`; this demo does not set it up
 ([Hyperdrive TLS/SSL](https://developers.cloudflare.com/hyperdrive/configuration/tls-ssl-certificates-for-hyperdrive/)).
@@ -104,14 +106,20 @@ pnpm exec wrangler kv namespace create nuxt-saas-demo
 
 Note the returned id. KV holds the sessions.
 
+Wrangler then suggests a config block with the binding `nuxt_saas_demo`. Do not copy it: the template's binding must
+stay `KV`, which is the name the app reads. Only the id goes into `DEMO_KV_ID` (step 5).
+
 ### 4. Worker secret
 
 ```bash
 pnpm exec wrangler secret put NUXT_BETTER_AUTH_SECRET --name nuxt-saas-demo
 ```
 
-This is done once, by hand. The workflow does not set it. Without it, sign-in fails, and so does the workflow's smoke
-test: set it, then rerun the workflow.
+This is done once, by hand, **after the first `wrangler deploy`**, which creates the `nuxt-saas-demo` worker. The
+workflow does not set it. `secret put` publishes a new version of the worker with the secret: no redeploy is needed.
+
+The first deploy is usually the workflow's first run (steps 5 and then [Running it by hand](#running-it-by-hand)). Its
+smoke test fails at the demo sign-in, since the secret is not there yet: set the secret, then rerun the workflow.
 
 ### 5. GitHub secrets and variables
 
@@ -126,6 +134,14 @@ test: set it, then rerun the workflow.
 
 `DEMO_BASE_URL` sets `NUXT_PUBLIC_BASE_URL` and `NUXT_PUBLIC_I18N_BASE_URL`. better-auth uses it as its base URL and
 trusted origin, so it must be the exact URL users reach.
+
+On `workers.dev`, that URL is `https://nuxt-saas-demo.<subdomain>.workers.dev`, where `<subdomain>` is the account's
+workers.dev subdomain. Read it in the Cloudflare dashboard (Workers & Pages), or from the API:
+
+```bash
+curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+  "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain"
+```
 
 Each job gets only its own secrets: `reset` gets `DEMO_DATABASE_URL`, `deploy` gets the two Cloudflare ones.
 
@@ -155,10 +171,49 @@ Re-enable the workflow from the Actions tab (or `gh workflow enable demo.yml`) w
 | KV writes to the same key | 1 per second | [KV limits](https://developers.cloudflare.com/kv/platform/limits/) |
 | Hyperdrive queries | 100,000/day | [Hyperdrive pricing](https://developers.cloudflare.com/hyperdrive/platform/pricing/) |
 
-- **Worker size.** `wrangler deploy --dry-run` reported `Total Upload: 10359.03 KiB / gzip: 2253.64 KiB` (wrangler
-  4.163.0), well under 64 MiB.
-- **CPU time, not yet measured.** better-auth hashes passwords with its default scrypt, and every request on Workers
-  creates a new `betterAuth` instance and `pg.Pool`. Sign-in and server-side rendering may exceed 10 ms of CPU, in which
-  case Cloudflare answers with error 1102.
+- **Worker size.** The first real deploy reported `Total Upload: 10394.27 KiB / gzip: 2261.22 KiB` and
+  `Worker Startup Time: 112 ms` (wrangler 4.163.0), well under 64 MiB. Wrangler also warns that the config's `main` is
+  overridden: this is expected, since `wrangler deploy` uses the redirected configuration written by the build (see
+  [Build rules](#build-rules)).
+- **CPU time, over the limit.** See [Measured CPU time](#measured-cpu-time).
 - **KV writes.** Every sign-in writes a session to KV, and rewrites the `active-sessions-<userId>` key of that user. All
   visitors share the demo account, so two demo sign-ins within the same second can hit the per-key limit.
+
+### Measured CPU time
+
+Measured on 2026-11-19 against the deployed demo, on the free plan. CPU time in ms, read from `wrangler tail`. The
+median and max leave out the first, cold call of each path.
+
+| Path | Status | First call | Median | Max |
+|---|---|---|---|---|
+| `GET /api/health` | 200 | 33 | 20 | 36 |
+| `GET /` | 200 | 536 | 258 | 593 |
+| `GET /signin` | 200 | 418 | 102 | 466 |
+| demo sign-in | 200 + cookie | 240 | 177 | 240 |
+| `GET /dashboard` | 200 | 188 | 111 | 229 |
+| `GET /acme-demo/members` | 200 | 139 | 304 | 546 |
+| change-password (demo) | 403 `DEMO_MODE_RESTRICTED` | 19 | 22 | 76 |
+| admin sign-in | 200 + cookie | 197 | 137 | 197 |
+| `GET /admin` | 302 | 76 | 48 | 213 |
+| `GET /admin/dashboard` | 200 | 35 | 57 | 156 |
+
+- Over the whole session, the GraphQL Analytics API gave a CPU time of 137 ms at P50 and 594 ms at P99.
+- Every path is above the 10 ms limit, yet isolated, spaced-out requests all passed.
+- Chained requests fail. After about 15 server-rendered requests in a row, the worker answers HTTP 503 with the body
+  `error code: 1102`, and the tail shows `Error: Worker exceeded CPU time limit.`. 21 of the 139 events of the session
+  were `exceededCpu`, each cut at `cpuTime` 10. One demo sign-in was cut too.
+
+The demo is fine for light testing by one visitor at a time, not reliable under bursts. If that becomes a problem, two
+options:
+
+- the Workers Paid plan, whose CPU limit per request is far above these numbers
+  ([Workers limits](https://developers.cloudflare.com/workers/platform/limits/));
+- the `node-server` target on another host ([SELF_HOSTING_NODE.md](./SELF_HOSTING_NODE.md)), with the same code.
+
+To measure again:
+
+- `pnpm exec wrangler tail nuxt-saas-demo --format json` prints one JSON event per request, with its `cpuTime` (ms),
+  its `outcome` (`ok`, `exceededCpu`) and its exceptions. Send a header such as `X-Probe: <name>` with each request to
+  match events to requests.
+- The GraphQL Analytics API dataset `workersInvocationsAdaptive`, filtered on the script name, gives CPU time quantiles
+  over a time range.
