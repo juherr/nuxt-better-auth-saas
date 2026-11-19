@@ -70,27 +70,37 @@ const screenshots = [
   {
     label: t('home.screenshots.dashboard'),
     key: 'dashboard',
-    src: '/screenshots/dashboard.png'
+    src: '/screenshots/dashboard.png',
+    width: 3038,
+    height: 1222
   },
   {
     label: t('home.screenshots.users'),
     key: 'users',
-    src: '/screenshots/users.webp'
+    src: '/screenshots/users.webp',
+    width: 3024,
+    height: 1576
   },
   {
     label: t('home.screenshots.subscription'),
     key: 'subscription',
-    src: '/screenshots/subscription.png'
+    src: '/screenshots/subscription.png',
+    width: 2268,
+    height: 1058
   },
   {
     label: t('home.screenshots.pricing'),
     key: 'pricing',
-    src: '/screenshots/pricing.png'
+    src: '/screenshots/pricing.png',
+    width: 2154,
+    height: 1356
   },
   {
     label: t('home.screenshots.signin'),
     key: 'signin',
-    src: '/screenshots/signin.png'
+    src: '/screenshots/signin.png',
+    width: 1656,
+    height: 1366
   }
 ]
 const activeScreenshot = ref('0')
@@ -169,8 +179,13 @@ const activeScreenshot = ref('0')
               {{ t('home.screenshots.title') }}
             </h2>
           </div>
+          <!--
+            Panels stay mounted and images load eagerly with their size declared:
+            a panel mounted on first open showed an empty box until its image arrived.
+          -->
           <UTabs
             :items="screenshots"
+            :unmount-on-hide="false"
             class="w-full hidden sm:block"
           >
             <template #content="{ item }">
@@ -178,8 +193,9 @@ const activeScreenshot = ref('0')
                 <img
                   :src="item.src"
                   :alt="item.label"
+                  :width="item.width"
+                  :height="item.height"
                   class="w-full h-auto"
-                  loading="lazy"
                 >
               </div>
             </template>
@@ -187,6 +203,7 @@ const activeScreenshot = ref('0')
           <UAccordion
             v-model="activeScreenshot"
             :items="screenshots"
+            :unmount-on-hide="false"
             class="w-full block sm:hidden"
           >
             <template #content="{ item }">
@@ -194,8 +211,9 @@ const activeScreenshot = ref('0')
                 <img
                   :src="item.src"
                   :alt="item.label"
+                  :width="item.width"
+                  :height="item.height"
                   class="w-full h-auto"
-                  loading="lazy"
                 >
               </div>
             </template>
