@@ -37,7 +37,10 @@ describe('demoBlockReason', () => {
       '/change-email',
       '/delete-user',
       '/revoke-sessions',
-      '/revoke-other-sessions'
+      '/revoke-other-sessions',
+      '/revoke-session',
+      '/link-social',
+      '/unlink-account'
     ])('%s is blocked for a protected user and allowed for another one', (path) => {
       expect(blocked(path, {}, protectedSession)).toBeTruthy()
       expect(blocked(path, {}, otherSession)).toBeNull()
@@ -48,7 +51,10 @@ describe('demoBlockReason', () => {
       '/change-email',
       '/delete-user',
       '/revoke-sessions',
-      '/revoke-other-sessions'
+      '/revoke-other-sessions',
+      '/revoke-session',
+      '/link-social',
+      '/unlink-account'
     ])('%s is left to the endpoint without a session', (path) => {
       expect(blocked(path, {}, null)).toBeNull()
     })
@@ -203,6 +209,9 @@ describe('demoNeedsSession', () => {
     '/update-user',
     '/revoke-sessions',
     '/revoke-other-sessions',
+    '/revoke-session',
+    '/link-social',
+    '/unlink-account',
     '/organization/leave'
   ])('needs the session for %s', (path) => {
     expect(demoNeedsSession(path, {})).toBe(true)

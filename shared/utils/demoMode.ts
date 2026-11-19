@@ -46,13 +46,17 @@ export const DEMO_PROTECTION: DemoProtection = Object.freeze({
   memberIds: DEMO_PROTECTED_MEMBER_IDS
 })
 
-// Endpoints that act on the session user.
+// Endpoints that act on the session user. better-auth 1.7.25 exposes no
+// `/set-password`: `setPassword` is a server-only endpoint without a path.
 const SELF_PATHS: readonly string[] = [
   '/change-password',
   '/change-email',
   '/delete-user',
   '/revoke-sessions',
-  '/revoke-other-sessions'
+  '/revoke-other-sessions',
+  '/revoke-session',
+  '/link-social',
+  '/unlink-account'
 ]
 
 // Admin endpoints that act on the user named by `body.userId`.
@@ -109,7 +113,7 @@ export function demoBlockReason(request: DemoRequest, protection: DemoProtection
     return 'Sign-up is disabled in the demo.'
   }
   if (SELF_PATHS.includes(path) && sessionIsProtected) {
-    return 'The demo accounts cannot change their credentials or sessions.'
+    return 'The demo accounts cannot change their credentials, sessions or linked accounts.'
   }
   if (path === '/update-user' && sessionIsProtected && text(body.email) !== undefined) {
     return 'The demo accounts cannot change their email.'
