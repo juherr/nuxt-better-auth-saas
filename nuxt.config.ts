@@ -1,7 +1,9 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 import type { NuxtPage } from 'nuxt/schema'
 import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { defineNuxtConfig } from 'nuxt/config'
+import { readGitVersionInfo, resolveAppVersion } from './scripts/appVersion'
 import { generateRuntimeConfig } from './server/utils/runtimeConfig'
 
 console.log(`Current NODE_ENV: ${process.env.NODE_ENV}`)
@@ -9,6 +11,12 @@ console.log(`Current NODE_ENV: ${process.env.NODE_ENV}`)
 const effectiveNitroPreset = (process.env.NODE_ENV === 'development' && !process.env.NUXT_FORCE_CLOUDFLARE_DEV)
   ? 'node-server'
   : (process.env.NUXT_NITRO_PRESET || 'node-server')
+
+// Tag of the built commit, else dev-<short sha>, shown in the footer
+const appVersion = resolveAppVersion({
+  override: process.env.NUXT_PUBLIC_APP_VERSION,
+  ...readGitVersionInfo(fileURLToPath(new URL('.', import.meta.url)))
+})
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-12-10',
@@ -109,7 +117,7 @@ export default defineNuxtConfig({
       // console.log(`\n`)
     }
   },
-  runtimeConfig: generateRuntimeConfig(effectiveNitroPreset),
+  runtimeConfig: generateRuntimeConfig(effectiveNitroPreset, { appVersion }),
   app: {
     head: {
       viewport: 'width=device-width, initial-scale=1, maximum-scale=5.0, minimum-scale=1.0',

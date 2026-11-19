@@ -35,7 +35,8 @@ const BUILD_ENV = [
   'NUXT_PAYMENT',
   'NUXT_LOG_LEVEL',
   'NUXT_LOG_FORMAT',
-  'NUXT_PUBLIC_DEMO_MODE'
+  'NUXT_PUBLIC_DEMO_MODE',
+  'NUXT_PUBLIC_APP_VERSION'
 ]
 
 // Paths of the values that end up `undefined`. Nuxt serializes the runtime
@@ -95,6 +96,14 @@ describe('generateRuntimeConfig', () => {
 
     expect(config.logLevel).toBe('warn')
     expect(config.logFormat).toBe('json')
+  })
+
+  it('declares the app version so it can be set at runtime', () => {
+    expect(generateRuntimeConfig().public.appVersion).toBe('')
+  })
+
+  it('keeps the app version resolved for the build', () => {
+    expect(generateRuntimeConfig('node-server', { appVersion: 'dev-abc1234' }).public.appVersion).toBe('dev-abc1234')
   })
 
   it('keeps the preset chosen for the build', () => {

@@ -17,6 +17,11 @@ const runtimeConfig = useRuntimeConfig()
           <span class="text-sm text-neutral-500 dark:text-neutral-400">
             © {{ new Date().getFullYear() }} All rights reserved
           </span>
+          <USeparator
+            orientation="vertical"
+            class="hidden md:block"
+          />
+          <AppVersion />
         </div>
 
         <div class="flex items-center space-x-4">

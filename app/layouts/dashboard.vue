@@ -530,6 +530,10 @@ async function createTeam() {
               />
             </div>
           </UTooltip>
+          <AppVersion
+            v-if="!isCollapsed"
+            class="px-2 pb-2"
+          />
         </div>
       </div>
     </aside>

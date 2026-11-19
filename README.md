@@ -179,6 +179,16 @@ export const createBetterAuth = () => betterAuth({
 
 Your `NUXT_APP_URL` is automatically added to `trustedOrigins` via `runtimeConfig.public.baseURL`.
 
+### Version
+
+The footer and the dashboard sidebar show the version of the build, resolved
+from git when the app is built: the tag pointing at the built commit (e.g.
+`v1.2.0`), otherwise `dev-<short sha>`, or `dev` without git. Set
+`NUXT_PUBLIC_APP_VERSION` at build or at server start to override it, e.g.
+when building from a source tree without `.git`. A shallow CI checkout
+fetches no tags: a release build needs `fetch-tags: true` on
+`actions/checkout`, or `NUXT_PUBLIC_APP_VERSION=${{ github.ref_name }}`.
+
 ### Recommended Hosting
 
 **Recommended stack:**
