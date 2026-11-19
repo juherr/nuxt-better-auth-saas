@@ -21,7 +21,8 @@
 - KV (sessions) driver is baked in at **build** time: Redis when `REDIS_URL` is set, the `KV` binding on
   Cloudflare, else `fs-lite` under `.data/kv`; `NUXT_REDIS_URL` is read by nothing. The upload rate limiter reads `REDIS_URL` at run time.
 - `node create-admin.ts` creates an admin from `NUXT_ADMIN_EMAIL` / `NUXT_ADMIN_PASSWORD` (needs
-  `DATABASE_URL`; the CI smoke job uses it).
+  `DATABASE_URL`; the CI smoke job uses it). It builds its own better-auth instance, so the app's
+  `databaseHooks` do not run: probe a hook through `POST /api/auth/sign-up/email`.
 
 ## Layout
 - `app/` Nuxt UI front (pages, components, composables).
@@ -47,6 +48,10 @@
   document schema changes as an upgrade note in the README.
 - Never run `pnpm db:migrate`: drizzle-kit records migrations in `drizzle.__drizzle_migrations`,
   NuxtHub in `_hub_migrations`, so each re-applies the other's (`docs/SELF_HOSTING_NODE.md`).
+- Two worktrees may share one database only when their schemas are identical, and then they must
+  share one `server/db/migrations` folder: `db:generate` names migrations differently per run, so
+  the second build fails. With differing schemas, use separate databases: `db:generate` diffs
+  against the folder's latest snapshot, so a schema missing a table generates a `DROP TABLE`.
 - `pnpm auth:schema` regenerates `server/db/schema/auth.ts`; custom columns survive only when declared
   in better-auth `additionalFields` (user: `lastActiveOrganizationId`, `referralCode`; organization:
   `organizationAdditionalFields` in `server/utils/authSchemaFields.ts`); `stripeCustomerId` comes from
