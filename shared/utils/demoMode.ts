@@ -133,10 +133,13 @@ export function demoBlockReason(request: DemoRequest, protection: DemoProtection
     return 'The demo accounts cannot change their avatar.'
   }
   // better-auth 1.7.25 reads the logo from `data.logo` and the target from
-  // `organizationId`, else the session's active organization.
+  // `organizationId`, else the session's active organization. Without
+  // `organizationId`, a null session means the hook could not resolve it
+  // (getSessionFromCtx answers null on a failed lookup): fail closed.
   if (path === '/organization/update' && setsValue(asBody(body.data).logo)) {
-    const organizationId = text(body.organizationId) || session?.activeOrganizationId || undefined
-    if (isSeededOrganization(organizationId)) {
+    const named = text(body.organizationId) || undefined
+    const organizationId = named ?? session?.activeOrganizationId ?? undefined
+    if ((named === undefined && session === null) || isSeededOrganization(organizationId)) {
       return 'The demo organizations cannot change their logo.'
     }
   }

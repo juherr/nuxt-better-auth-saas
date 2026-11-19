@@ -95,6 +95,22 @@ describe('demoBlockReason', () => {
       expect(blocked('/organization/update', { organizationId: '', data: { logo: LOGO } }, session)).toBeTruthy()
     })
 
+    // The hook needs the session to find the target here: without it, the
+    // policy cannot tell the target is not seeded, so it refuses.
+    it('is blocked when it sets a logo without organizationId and no session was resolved', () => {
+      expect(blocked('/organization/update', { data: { logo: LOGO } }, null)).toBeTruthy()
+      expect(blocked('/organization/update', { organizationId: '', data: { logo: LOGO } }, null)).toBeTruthy()
+    })
+
+    it('lets a logo through for a resolved session without an active organization', () => {
+      expect(blocked('/organization/update', { data: { logo: LOGO } }, otherSession)).toBeNull()
+    })
+
+    it('lets a rename or a logo removal through without organizationId and without a session', () => {
+      expect(blocked('/organization/update', { data: { name: 'Renamed' } }, null)).toBeNull()
+      expect(blocked('/organization/update', { data: { logo: null } }, null)).toBeNull()
+    })
+
     it('lets a seeded organization be renamed', () => {
       expect(blocked('/organization/update', { organizationId: SEEDED_ORG, data: { name: 'Renamed' } }, null)).toBeNull()
     })
