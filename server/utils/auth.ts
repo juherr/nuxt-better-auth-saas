@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3'
+import type { DemoSession } from '~~/shared/utils/demoMode'
 import type { User } from '~~/shared/utils/types'
 import { apiKey } from '@better-auth/api-key'
 import { betterAuth } from 'better-auth'
@@ -8,6 +9,7 @@ import { admin as adminPlugin, openAPI, organization } from 'better-auth/plugins
 import { and, eq } from 'drizzle-orm'
 import { v7 as uuidv7 } from 'uuid'
 import * as schema from '~~/server/db/schema'
+import { DEMO_PROTECTION, demoBlockReason, demoNeedsSession } from '~~/shared/utils/demoMode'
 import { buildInvitationUrl } from '~~/shared/utils/invitationUrl'
 import { ac, admin, member, owner } from '~~/shared/utils/permissions'
 import { userDisplayName } from '~~/shared/utils/userDisplayName'
@@ -64,6 +66,29 @@ export function refuseDisabledEndpoint(endpointPath: string) {
 }
 
 type AuthMiddlewareContext = Parameters<Parameters<typeof createAuthMiddleware>[0]>[0]
+
+/**
+ * In the public demo, answers 403 `DEMO_MODE_RESTRICTED` to the requests
+ * `demoBlockReason` refuses. The session is resolved only for the paths
+ * whose decision depends on it, to keep the other requests cheap.
+ */
+async function refuseDemoRestrictedRequest(ctx: AuthMiddlewareContext) {
+  let session: DemoSession | null = null
+  if (demoNeedsSession(ctx.path, ctx.body)) {
+    const resolved = await getSessionFromCtx(ctx)
+    if (resolved) {
+      const activeOrganizationId = 'activeOrganizationId' in resolved.session
+        && typeof resolved.session.activeOrganizationId === 'string'
+        ? resolved.session.activeOrganizationId
+        : null
+      session = { userId: resolved.user.id, activeOrganizationId }
+    }
+  }
+  const reason = demoBlockReason({ path: ctx.path, body: ctx.body, session }, DEMO_PROTECTION)
+  if (reason) {
+    throw new APIError('FORBIDDEN', { message: reason, code: 'DEMO_MODE_RESTRICTED' })
+  }
+}
 
 /**
  * Whether the subscription rows found for a subscription id all belong to
@@ -477,6 +502,9 @@ export const createBetterAuth = () => betterAuth({
   },
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
+      if (runtimeConfig.public.demoMode) {
+        await refuseDemoRestrictedRequest(ctx)
+      }
       refuseDisabledEndpoint(ctx.path)
       if (ctx.path === '/subscription/upgrade') {
         // Anonymous requests are left to the endpoint's own 401.
