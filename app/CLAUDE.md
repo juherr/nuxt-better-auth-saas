@@ -16,3 +16,6 @@
   `useRequestHeaders(['cookie'])`, so cookies set earlier in the render (`setActive`) are sent.
   Ignore the unused `$customFetch` plugin (`plugins/customFetch.ts`).
 - Theme colors in `app.config.ts` (primary emerald, neutral slate).
+- Nuxt UI v4 colours are `primary|secondary|success|info|warning|error|neutral` only: a v2 name
+  (`gray`, `red`, `white`…) renders unstyled. `ui` props take class strings per slot
+  (`th: 'py-2'`), not v2 objects.
