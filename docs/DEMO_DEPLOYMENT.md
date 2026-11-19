@@ -59,14 +59,20 @@ neonctl connection-string --project-id <project id> --role-name <owner role> --s
 - Use the **direct** endpoint, not the `-pooler` one (`--pooled` is off by default). The reset was run against the
   direct endpoint, and `DEMO_RESET_CONFIRM` is the hostname of that URL.
 - Use the **owner role** of the database: the reset drops and recreates the `public` and `drizzle` schemas.
-- Keep `sslmode=verify-full` in the URL. With `require`, `pg` prints a warning on every connection.
+- Keep `sslmode=verify-full` in the URL stored as `DEMO_DATABASE_URL` (step 5), used by the reset from the runner. With
+  `require`, `pg` prints a warning on every connection. Hyperdrive gets the same URL without the query (step 2).
 
 ### 2. Hyperdrive
 
 ```bash
 pnpm exec wrangler hyperdrive create nuxt-saas-demo \
-  --connection-string='<Neon direct URL>' --caching-disabled
+  --connection-string='<Neon direct URL without ?sslmode=...>' --caching-disabled
 ```
+
+Drop the `?sslmode=verify-full` query: Hyperdrive encrypts every connection with `require` by default. Verifying the
+server certificate (`verify-full`) would need the root CA uploaded with `wrangler cert upload certificate-authority`,
+then `--ca-certificate-id <id> --sslmode verify-full`; this demo does not set it up
+([Hyperdrive TLS/SSL](https://developers.cloudflare.com/hyperdrive/configuration/tls-ssl-certificates-for-hyperdrive/)).
 
 `--caching-disabled` ("Disables the caching of SQL responses") is taken from `wrangler hyperdrive create --help`
 (wrangler 4.163.0). Caching stays off so that the demo never serves rows from before a reset. Note the returned id.
@@ -111,9 +117,13 @@ gh workflow run demo.yml
 ```
 
 This resets and then deploys the ref chosen for the run (`main` by default). `workflow_dispatch` accepts any branch.
+`workflow_run` and the "Run workflow" button only work once `demo.yml` is on the default branch, so the first run
+happens after the merge to `main`
+([events that trigger workflows](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows)).
 
-GitHub disables scheduled workflows after 60 days without activity in the repository. Re-enable the workflow from the
-Actions tab (or `gh workflow enable demo.yml`) when that happens.
+In a public repository, GitHub disables scheduled workflows after 60 days without repository activity
+([events that trigger workflows](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows)).
+Re-enable the workflow from the Actions tab (or `gh workflow enable demo.yml`) when that happens.
 
 ## Free plan limits
 
