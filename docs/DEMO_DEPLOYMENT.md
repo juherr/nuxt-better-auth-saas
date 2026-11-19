@@ -24,8 +24,10 @@ KV. `.github/workflows/demo.yml` deploys it from `main` and resets its database 
   `DEMO_RESET_CONFIRM` set to that URL's hostname. The reset wipes the database, applies the migrations and seeds the
   demo accounts.
 - **`deploy` job.** It renders `deploy/demo/wrangler.template.jsonc` into `wrangler.jsonc`, builds with
-  `NUXT_NITRO_PRESET=cloudflare-module` and runs `wrangler deploy`. A smoke test then waits for `/api/health`, signs
-  in as `demo@example.com` and checks that demo mode is on (see [Demo mode](#demo-mode)).
+  `NUXT_NITRO_PRESET=cloudflare-module` and runs `wrangler deploy`. A smoke test then checks `/api/health`, signs in
+  as `demo@example.com` and checks that demo mode is on (see [Demo mode](#demo-mode)). Each of these requests is tried
+  up to three times, a few seconds apart, when the worker answers 503 or `error code: 1102` (CPU limit, see
+  [Measured CPU time](#measured-cpu-time)); any other unexpected answer fails the job at once.
 - **Reset before deploy.** Between the two jobs the previous code runs on the new schema for a few minutes. This is
   accepted for a demo.
 
@@ -63,6 +65,8 @@ wipes whatever it created anyway.
 
 After each deploy, the smoke test signs in as `demo@example.com` and posts a password change with that session. The job
 fails unless the answer is 403 `DEMO_MODE_RESTRICTED`, which proves the flag reached the worker.
+The smoke test proves the flag and the routes, not the CPU budget: its requests usually pass even though they go
+over 10 ms of CPU.
 
 ## One-time setup
 

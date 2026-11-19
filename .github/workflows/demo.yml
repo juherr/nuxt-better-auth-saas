@@ -106,56 +106,72 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: Wait for /api/health
+      # Proves the routes answer and NUXT_PUBLIC_DEMO_MODE reached the
+      # worker, not that requests fit the free plan's CPU budget. Chained
+      # requests can exceed it: the worker then answers 503 with the body
+      # "error code: 1102". Each request is therefore tried up to three
+      # times on that answer only; any other unexpected answer fails at
+      # once.
+      - name: Smoke test
         run: |
-          for _ in $(seq 1 30); do
-            if curl -fsS "$DEMO_BASE_URL/api/health"; then
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "::error::/api/health never answered ok"
-          exit 1
-      # better-auth checks Origin against the base URL, so it must equal
-      # DEMO_BASE_URL. Over HTTPS the cookie carries the __Secure- prefix.
-      - name: Sign in with the demo account
-        run: |
-          status=$(curl -sS -o demo-sign-in-body.txt -D demo-sign-in-headers.txt \
-            -c demo-cookies.txt \
-            -w '%{http_code}' -X POST "$DEMO_BASE_URL/api/auth/sign-in/email" \
+          attempts=3
+          delay=${SMOKE_RETRY_DELAY:-5}
+
+          # request <label> <expected status> <body file> <curl args...>
+          request() {
+            local label=$1 expected=$2 body=$3 status attempt
+            shift 3
+            for attempt in $(seq 1 "$attempts"); do
+              status=$(curl -sS -o "$body" -w '%{http_code}' "$@") || status=000
+              echo "$label: attempt $attempt answered $status"
+              if [ "$status" = "$expected" ]; then
+                return 0
+              fi
+              if [ "$status" != 503 ] && ! grep -qs 'error code: 1102' "$body"; then
+                break
+              fi
+              if [ "$attempt" -lt "$attempts" ]; then
+                sleep "$delay"
+              fi
+            done
+            echo "::error::$label answered $status instead of $expected"
+            cat "$body" 2>/dev/null || true
+            echo
+            return 1
+          }
+
+          request health 200 demo-health-body.txt "$DEMO_BASE_URL/api/health"
+          rm -f demo-health-body.txt
+
+          # better-auth checks Origin against the base URL, so it must equal
+          # DEMO_BASE_URL. Over HTTPS the cookie carries the __Secure- prefix.
+          request 'demo sign-in' 200 demo-sign-in-body.txt \
+            -D demo-sign-in-headers.txt -c demo-cookies.txt \
+            -X POST "$DEMO_BASE_URL/api/auth/sign-in/email" \
             -H 'Content-Type: application/json' \
             -H "Origin: $DEMO_BASE_URL" \
-            -d '{"email":"demo@example.com","password":"demo-password"}')
-          echo "demo sign-in status: $status"
-          if [ "$status" != "200" ]; then
-            echo "::error::demo sign-in answered $status instead of 200"
-            cat demo-sign-in-body.txt
-            echo
-            exit 1
-          fi
+            -d '{"email":"demo@example.com","password":"demo-password"}'
           # A 200 carries a live session: never print its headers.
           if ! grep -Eqi '^set-cookie: (__Secure-)?better-auth\.session_token=' demo-sign-in-headers.txt; then
             echo "::error::no better-auth session cookie in the demo sign-in response"
             exit 1
           fi
           rm -f demo-sign-in-headers.txt demo-sign-in-body.txt
-      # Proves NUXT_PUBLIC_DEMO_MODE reached the worker: with the demo
-      # session, a password change must be refused with 403
-      # DEMO_MODE_RESTRICTED. The current password sent is wrong on purpose:
-      # without the flag the request still changes nothing.
-      - name: Check that demo mode refuses a password change
-        run: |
-          status=$(curl -sS -o demo-change-password-body.txt -b demo-cookies.txt \
-            -w '%{http_code}' -X POST "$DEMO_BASE_URL/api/auth/change-password" \
+
+          # With the demo session, a password change must be refused with
+          # 403 DEMO_MODE_RESTRICTED. The current password sent is wrong on
+          # purpose: without the flag the request still changes nothing.
+          if ! request 'demo change-password' 403 demo-change-password-body.txt \
+            -b demo-cookies.txt \
+            -X POST "$DEMO_BASE_URL/api/auth/change-password" \
             -H 'Content-Type: application/json' \
             -H "Origin: $DEMO_BASE_URL" \
-            -d '{"currentPassword":"not-the-demo-password","newPassword":"demo-smoke-new-password"}')
-          rm -f demo-cookies.txt
-          echo "demo change-password status: $status"
-          if [ "$status" != "403" ] || ! grep -q 'DEMO_MODE_RESTRICTED' demo-change-password-body.txt; then
-            echo "::error::change-password answered $status without DEMO_MODE_RESTRICTED: demo mode is off"
+            -d '{"currentPassword":"not-the-demo-password","newPassword":"demo-smoke-new-password"}' \
+            || ! grep -q 'DEMO_MODE_RESTRICTED' demo-change-password-body.txt; then
+            rm -f demo-cookies.txt
+            echo "::error::change-password was not refused with DEMO_MODE_RESTRICTED: demo mode is off"
             cat demo-change-password-body.txt
             echo
             exit 1
           fi
-          rm -f demo-change-password-body.txt
+          rm -f demo-cookies.txt demo-change-password-body.txt
