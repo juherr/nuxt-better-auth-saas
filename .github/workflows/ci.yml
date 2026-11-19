@@ -151,6 +151,10 @@ jobs:
           done
           echo "::error::/api/health never answered ok"
           exit 1
+      - name: Reset the database to the demo seed
+        env:
+          DEMO_RESET_CONFIRM: localhost
+        run: pnpm demo:reset
       - name: Seed a user
         run: node create-admin.ts
       - name: Sign in with email and password
@@ -182,6 +186,39 @@ jobs:
             show_response
             exit 1
           fi
+      # A second reset proves it is idempotent over a seeded database. It
+      # wipes smoke-admin too, hence after the admin sign-in.
+      - name: Reset the database to the demo seed again
+        env:
+          DEMO_RESET_CONFIRM: localhost
+        run: pnpm demo:reset
+      - name: Sign in with the demo account
+        run: |
+          status=$(curl -sS -o demo-sign-in-body.txt -D demo-sign-in-headers.txt \
+            -w '%{http_code}' -X POST "$NUXT_APP_URL/api/auth/sign-in/email" \
+            -H 'Content-Type: application/json' \
+            -H "Origin: $NUXT_APP_URL" \
+            -d '{"email":"demo@example.com","password":"demo-password"}')
+          echo "demo sign-in status: $status"
+          # On failure no session exists, so the headers and body hold
+          # nothing secret and are printed as they are.
+          show_response() {
+            echo "--- demo sign-in response headers ---"
+            cat demo-sign-in-headers.txt
+            echo "--- demo sign-in response body ---"
+            cat demo-sign-in-body.txt
+            echo
+          }
+          if [ "$status" != "200" ]; then
+            echo "::error::demo sign-in answered $status instead of 200"
+            show_response
+            exit 1
+          fi
+          if ! grep -qi '^set-cookie: better-auth\.session_token=' demo-sign-in-headers.txt; then
+            echo "::error::no better-auth session cookie in the demo sign-in response"
+            show_response
+            exit 1
+          fi
       - name: Upload the server log and smoke responses
         if: failure()
         uses: actions/upload-artifact@v4
@@ -191,3 +228,5 @@ jobs:
             server.log
             sign-in-headers.txt
             sign-in-body.txt
+            demo-sign-in-headers.txt
+            demo-sign-in-body.txt
