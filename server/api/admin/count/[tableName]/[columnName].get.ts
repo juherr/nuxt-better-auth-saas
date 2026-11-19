@@ -4,6 +4,7 @@ import { PgTable } from 'drizzle-orm/pg-core'
 import { z } from 'zod'
 import * as schema from '~~/server/db/schema'
 import { isValidTable } from '~~/server/utils/db'
+import { refuseDemoHiddenAdminRead } from '~~/server/utils/demoAdminTables'
 import { filterSchema, processFilters, withFilters } from '~~/server/utils/query'
 
 const pathSchema = z.object({
@@ -70,6 +71,7 @@ export default eventHandler(async (event) => {
     })
   }
 
+  refuseDemoHiddenAdminRead(event, tableName)
   const db = await useDB(event)
 
   const columnKey = columnName as keyof typeof columns

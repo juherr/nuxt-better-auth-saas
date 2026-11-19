@@ -154,6 +154,19 @@ describe('the demo mode before hook', () => {
       expect(getSessionFromCtx).toHaveBeenCalledTimes(1)
     })
 
+    it('refuses setting the active organization logo when the session lookup fails', async () => {
+      const hook = await beforeHook()
+      // getSessionFromCtx answers null when the lookup throws; the endpoint
+      // may resolve the session afterwards, so the hook must not let it pass.
+      vi.mocked(getSessionFromCtx).mockResolvedValueOnce(null)
+      const memberSession = { user: { id: 'acme-member-id' }, session: { id: 'session-4', activeOrganizationId: ACME_DEMO_ORGANIZATION_ID } }
+
+      const error = await rejection(hook(request('/organization/update', { data: { logo: 'https://example.com/logo.png' } }, memberSession)))
+
+      expect((error as APIError).body).toMatchObject({ code: 'DEMO_MODE_RESTRICTED' })
+      expect(getSessionFromCtx).toHaveBeenCalledTimes(1)
+    })
+
     it('lets a request the policy allows through without resolving the session', async () => {
       const hook = await beforeHook()
 
