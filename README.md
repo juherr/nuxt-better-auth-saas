@@ -194,6 +194,8 @@ The app automatically uses Cloudflare KV when deployed to Cloudflare Workers. No
 
 To run on Node.js (migrations, sessions, build, runtime variables, admin user), see [docs/SELF_HOSTING_NODE.md](docs/SELF_HOSTING_NODE.md).
 
+The public demo on the Cloudflare free plan, deployed from `main` and reset every night, is described in [docs/DEMO_DEPLOYMENT.md](docs/DEMO_DEPLOYMENT.md).
+
 ---
 
 <details>

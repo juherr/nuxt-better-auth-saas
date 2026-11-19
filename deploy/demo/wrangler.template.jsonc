@@ -1,0 +1,35 @@
+// Wrangler config of the public demo, rendered by .github/workflows/demo.yml
+// into the repository root as wrangler.jsonc. Only the three variables
+// below are substituted (envsubst with an explicit list): any other `$` is
+// kept as it is. See docs/DEMO_DEPLOYMENT.md.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nuxt-saas-demo",
+  "main": "./.output/server/index.mjs",
+  "compatibility_date": "2025-12-10",
+  "assets": {
+    "directory": "./.output/public/",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  },
+  // No R2 bucket: uploads are disabled in the demo.
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "${DEMO_KV_ID}"
+    }
+  ],
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "${DEMO_HYPERDRIVE_ID}"
+    }
+  ],
+  "vars": {
+    "NUXT_PUBLIC_DEMO_MODE": "true",
+    "NUXT_PUBLIC_BASE_URL": "${DEMO_BASE_URL}",
+    "NUXT_PUBLIC_I18N_BASE_URL": "${DEMO_BASE_URL}"
+  }
+}
