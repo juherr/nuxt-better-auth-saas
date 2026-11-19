@@ -10,6 +10,7 @@ import {
   resolveAllowedMimeTypes,
   resolveMaxFileSize
 } from '~~/server/services/file/uploadPolicy'
+import { DEMO_MODE_RESTRICTED } from '~~/shared/utils/demoMode'
 
 export default defineEventHandler(async (event) => {
   const config = useFileManagerConfig()
@@ -24,7 +25,7 @@ export default defineEventHandler(async (event) => {
     throw createError({
       statusCode: 403,
       statusMessage: 'Uploads are disabled in the demo',
-      data: { code: 'DEMO_MODE_RESTRICTED' }
+      data: { code: DEMO_MODE_RESTRICTED }
     })
   }
 

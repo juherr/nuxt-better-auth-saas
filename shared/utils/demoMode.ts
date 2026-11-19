@@ -39,6 +39,9 @@ export interface DemoRequest {
   sessionOwnerId?: string | null
 }
 
+/** The error code of every demo refusal, as clients and the smoke test read it. */
+export const DEMO_MODE_RESTRICTED = 'DEMO_MODE_RESTRICTED'
+
 export const DEMO_PROTECTION: DemoProtection = Object.freeze({
   userIds: DEMO_PROTECTED_USER_IDS,
   emails: DEMO_PROTECTED_EMAILS,
@@ -104,7 +107,8 @@ const isEmail = (value: string) => value.includes('@')
 export function demoBlockReason(request: DemoRequest, protection: DemoProtection): string | null {
   const { path, session } = request
   const body = asBody(request.body)
-  const isProtectedUser = (userId: string | undefined) => userId !== undefined && protection.userIds.includes(userId)
+  const isProtectedUser = (userId: string | null | undefined) =>
+    userId !== undefined && userId !== null && protection.userIds.includes(userId)
   const isSeededOrganization = (organizationId: string | undefined) =>
     organizationId !== undefined && protection.organizationIds.includes(organizationId)
   const sessionIsProtected = session !== null && isProtectedUser(session.userId)
@@ -121,10 +125,8 @@ export function demoBlockReason(request: DemoRequest, protection: DemoProtection
   if (path === '/request-password-reset' && isProtectedEmail(text(body.email), protection)) {
     return 'The demo accounts cannot reset their password.'
   }
-  if (ADMIN_TARGET_PATHS.includes(path) && isProtectedUser(text(body.userId))) {
-    return 'The demo accounts cannot be changed by an administrator.'
-  }
-  if (path === ADMIN_REVOKE_SESSION_PATH && isProtectedUser(request.sessionOwnerId ?? undefined)) {
+  if ((ADMIN_TARGET_PATHS.includes(path) && isProtectedUser(text(body.userId)))
+    || (path === ADMIN_REVOKE_SESSION_PATH && isProtectedUser(request.sessionOwnerId))) {
     return 'The demo accounts cannot be changed by an administrator.'
   }
   if (path === '/organization/delete' && isSeededOrganization(text(body.organizationId))) {
@@ -135,11 +137,11 @@ export function demoBlockReason(request: DemoRequest, protection: DemoProtection
   }
   if (path === '/organization/remove-member') {
     const target = text(body.memberIdOrEmail)
-    if (target !== undefined && !isEmail(target) && protection.memberIds.includes(target)) {
-      return 'The demo accounts cannot be removed from the demo organizations.'
-    }
     const organizationId = text(body.organizationId) || session?.activeOrganizationId || undefined
-    if (target !== undefined && isEmail(target) && isProtectedEmail(target, protection) && isSeededOrganization(organizationId)) {
+    const isProtectedTarget = target !== undefined && (isEmail(target)
+      ? isProtectedEmail(target, protection) && isSeededOrganization(organizationId)
+      : protection.memberIds.includes(target))
+    if (isProtectedTarget) {
       return 'The demo accounts cannot be removed from the demo organizations.'
     }
   }
