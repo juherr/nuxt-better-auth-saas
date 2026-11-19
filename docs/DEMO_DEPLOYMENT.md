@@ -24,8 +24,8 @@ KV. `.github/workflows/demo.yml` deploys it from `main` and resets its database 
   `DEMO_RESET_CONFIRM` set to that URL's hostname. The reset wipes the database, applies the migrations and seeds the
   demo accounts.
 - **`deploy` job.** It renders `deploy/demo/wrangler.template.jsonc` into `wrangler.jsonc`, builds with
-  `NUXT_NITRO_PRESET=cloudflare-module` and runs `wrangler deploy`. A smoke test then waits for `/api/health` and signs
-  in as `demo@example.com`.
+  `NUXT_NITRO_PRESET=cloudflare-module` and runs `wrangler deploy`. A smoke test then waits for `/api/health`, signs
+  in as `demo@example.com` and checks that demo mode is on (see [Demo mode](#demo-mode)).
 - **Reset before deploy.** Between the two jobs the previous code runs on the new schema for a few minutes. This is
   accepted for a demo.
 
@@ -44,6 +44,25 @@ KV. `.github/workflows/demo.yml` deploys it from `main` and resets its database 
 - The template is rendered with an explicit variable list,
   `envsubst '${DEMO_KV_ID} ${DEMO_HYPERDRIVE_ID} ${DEMO_BASE_URL}'`. Without it, `envsubst` would also blank
   `"$schema"`.
+
+## Demo mode
+
+`deploy/demo/wrangler.template.jsonc` sets `NUXT_PUBLIC_DEMO_MODE=true`. With the flag on, the app answers 403
+`DEMO_MODE_RESTRICTED` to:
+
+- sign-up, and any user creation;
+- password, email, account and session changes on the two public accounts (`demo@example.com` and
+  `demo-admin@example.com`);
+- admin actions that target those two accounts;
+- file uploads.
+
+The sign-in page shows the credentials of both accounts.
+
+The demo accounts come only from `pnpm demo:reset`. Never point `create-admin.ts` at the demo database: the next reset
+wipes whatever it created anyway.
+
+After each deploy, the smoke test signs in as `demo@example.com` and posts a password change with that session. The job
+fails unless the answer is 403 `DEMO_MODE_RESTRICTED`, which proves the flag reached the worker.
 
 ## One-time setup
 
