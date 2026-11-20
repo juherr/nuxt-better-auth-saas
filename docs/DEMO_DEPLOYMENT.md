@@ -8,7 +8,7 @@ KV. `.github/workflows/demo.yml` deploys it from `main` and resets its database 
 | Trigger | Jobs |
 |---|---|
 | `workflow_run`: CI completed on `main` | `reset`, then `deploy`, only when CI succeeded on a `push` from this repository |
-| `schedule`: `0 3 * * *` (03:00 UTC) | `reset` only |
+| `schedule`: `23 2 * * *` (02:23 UTC) | `reset` only |
 | `workflow_dispatch` | `reset`, then `deploy` |
 
 - **Fork gate.** `workflow_run` fires for any CI run whose head branch is named `main`, including a pull request from a
@@ -20,6 +20,11 @@ KV. `.github/workflows/demo.yml` deploys it from `main` and resets its database 
   (`demo-skipped-<run id>`), so it cannot displace a pending run. The gate is written twice, in the concurrency group
   and in the `reset` job's `if:`, and both copies must stay identical. If the nightly reset is queued while a deploy
   run is pending, that deploy is dropped: its commit goes live with the next push or `gh workflow run demo.yml`.
+- **Nightly schedule.** GitHub may delay a scheduled run under load, the start of every hour included, and drop it
+  when the load is high enough
+  ([docs](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)).
+  The first schedule, `0 3 * * *`, never fired on 2026-11-20, so the cron sits off the hour. Check the runs with
+  `gh run list --workflow demo.yml --event schedule`; `gh workflow run demo.yml` resets (and deploys) by hand.
 - **`reset` job.** It runs `pnpm db:generate`, then `pnpm demo:reset` against `DEMO_DATABASE_URL`, with
   `DEMO_RESET_CONFIRM` set to that URL's hostname. The reset wipes the database, applies the migrations and seeds the
   demo accounts.

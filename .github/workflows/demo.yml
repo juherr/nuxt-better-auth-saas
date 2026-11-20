@@ -11,7 +11,10 @@ on:
     types: [completed]
     branches: [main]
   schedule:
-    - cron: '0 3 * * *'
+    # Off the top of the hour: GitHub delays scheduled runs under load, the
+    # start of every hour included, and may drop them; 03:00 never fired.
+    # https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule
+    - cron: '23 2 * * *'
   workflow_dispatch: {}
 
 # One run at a time, and no running one is cancelled: a reset or a deploy
